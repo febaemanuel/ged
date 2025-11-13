@@ -135,6 +135,33 @@ with app.app_context():
         print('  ✓ Resp. Interno Operações criado: lucia.ferreira@example.com')
 
         # ============================================
+        # QUALIDADE UGQ (Workflow Oficial EBSERH)
+        # ============================================
+        # Triador UGQ - ETAPA 1 (Recebimento e Triagem)
+        triador_ugq = Usuario(
+            nome='Triador UGQ',
+            email='triador.ugq@example.com',
+            perfil='qualidade_triador',
+            setor='UGQ',
+            ativo=True
+        )
+        triador_ugq.set_password('ugq123')
+        db.session.add(triador_ugq)
+        print('  ✓ Triador UGQ criado: triador.ugq@example.com')
+
+        # Validador UGQ - ETAPAS 2, 3, 4 (Codificação, Bloco Assinatura, Publicação)
+        validador_ugq = Usuario(
+            nome='Validador UGQ',
+            email='validador.ugq@example.com',
+            perfil='qualidade_validador',
+            setor='UGQ',
+            ativo=True
+        )
+        validador_ugq.set_password('ugq123')
+        db.session.add(validador_ugq)
+        print('  ✓ Validador UGQ criado: validador.ugq@example.com')
+
+        # ============================================
         # USUÁRIOS COMUNS (Autores)
         # ============================================
         usuario1 = Usuario(
