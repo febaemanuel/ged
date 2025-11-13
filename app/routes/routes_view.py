@@ -545,16 +545,17 @@ def tarefa_criar():
         return redirect(url_for('view.tarefa_detalhe', id=tarefa.id))
 
     # Listar documentos e usuários para o formulário
-    documentos = Documento.query.filter(
-        Documento.status.in_(['rascunho', 'revisao', 'aprovado'])
-    ).order_by(Documento.data_criacao.desc()).all()
+    documentos = Documento.query.order_by(Documento.data_criacao.desc()).all()
+    usuarios = Usuario.query.filter_by(ativo=True).order_by(Usuario.nome).all()
 
-    usuarios = Usuario.query.order_by(Usuario.nome).all()
+    # Pega documento_id da query string se fornecido
+    documento_id_param = request.args.get('documento_id', type=int)
 
     return render_template(
         'tarefa_criar.html',
         documentos=documentos,
-        usuarios=usuarios
+        usuarios=usuarios,
+        documento_id_pre_selecionado=documento_id_param
     )
 
 

@@ -327,9 +327,9 @@
                     <h5 class="mb-0"><i class="bi bi-list-check"></i> Histórico do Documento</h5>
                 </div>
                 <div class="card-body">
-                    {% if documento.tarefas.count() > 0 %}
+                    {% if tarefas %}
                     <div class="timeline">
-                        {% for tarefa in documento.tarefas.order_by(db.desc('data_criacao')).all() %}
+                        {% for tarefa in tarefas %}
                         <div class="timeline-item">
                             <div>
                                 <strong>{{ tarefa.tipo_tarefa }}</strong>
@@ -357,9 +357,10 @@
                 </div>
                 {% if current_user.is_gerente_ou_superior() %}
                 <div class="card-footer">
-                    <a href="{{ url_for('view.tarefa_criar_doc', documento_id=documento.id) }}" class="btn btn-sm btn-primary w-100">
-                        <i class="bi bi-plus-circle"></i> Nova Tarefa
+                    <a href="{{ url_for('view.tarefa_criar') }}?documento_id={{ documento.id }}" class="btn btn-sm btn-primary w-100">
+                        <i class="bi bi-plus-circle"></i> Nova Tarefa Manual
                     </a>
+                    <small class="text-muted d-block mt-2">Tarefas automáticas são criadas pelo workflow</small>
                 </div>
                 {% endif %}
             </div>
