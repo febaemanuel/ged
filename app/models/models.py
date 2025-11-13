@@ -194,6 +194,22 @@ class Documento(db.Model):
         """Retorna o código do documento (definitivo se existir, senão provisório)"""
         return self.codigo_definitivo or self.codigo_provisorio
 
+    def get_caminho_arquivo(self):
+        """Retorna o caminho completo do arquivo original"""
+        if not self.arquivo_original:
+            return None
+        from flask import current_app
+        import os
+        return os.path.join(current_app.config['UPLOAD_FOLDER'], self.arquivo_original)
+
+    def get_caminho_publicado(self):
+        """Retorna o caminho completo do arquivo publicado em PDF"""
+        if not self.arquivo_publicado_pdf:
+            return None
+        from flask import current_app
+        import os
+        return os.path.join(current_app.config['PUBLISHED_FOLDER'], self.arquivo_publicado_pdf)
+
     def __repr__(self):
         return f'<Documento {self.codigo}>'
 

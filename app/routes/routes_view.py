@@ -213,7 +213,43 @@ def documento_criar():
         db.session.add(documento)
         db.session.commit()
 
-        flash(f'Documento {documento.codigo} criado com sucesso!', 'success')
+        # Processar documento com IA em background (se possível)
+        try:
+            from app.services.ai_client import extract_text, classify_document, summarize_text
+
+            # Extrai texto do documento
+            caminho = documento.get_caminho_arquivo()
+            if caminho and os.path.exists(caminho):
+                resultado_extracao = extract_text(caminho)
+                documento.texto_extraido = resultado_extracao['texto']
+
+                # Classifica o documento usando IA
+                if documento.texto_extraido:
+                    try:
+                        resultado_classificacao = classify_document(documento.texto_extraido)
+
+                        # Gera resumo
+                        resultado_resumo = summarize_text(documento.texto_extraido, max_length=500)
+
+                        # Salva metadados da IA
+                        metadados = {
+                            'classificacao': resultado_classificacao,
+                            'resumo': resultado_resumo,
+                            'processado_em': datetime.utcnow().isoformat()
+                        }
+                        documento.set_metadados(metadados)
+
+                        db.session.commit()
+                        flash(f'Documento {documento.codigo} criado e processado com IA!', 'success')
+                    except Exception as e:
+                        # Se falhar IA, continua mesmo assim
+                        flash(f'Documento {documento.codigo} criado (processamento IA falhou)', 'warning')
+                else:
+                    flash(f'Documento {documento.codigo} criado (sem texto extraído)', 'info')
+        except Exception as e:
+            # Se falhar completamente, apenas avisa
+            flash(f'Documento {documento.codigo} criado!', 'success')
+
         return redirect(url_for('view.documento_detalhe', id=documento.id))
 
     return render_template('documento_criar.html')
@@ -225,14 +261,15 @@ def documento_download(id):
     """Download do arquivo do documento"""
     documento = Documento.query.get_or_404(id)
 
-    if not os.path.exists(documento.caminho_arquivo):
+    caminho_arquivo = documento.get_caminho_arquivo()
+    if not caminho_arquivo or not os.path.exists(caminho_arquivo):
         flash('Arquivo não encontrado', 'danger')
         return redirect(url_for('view.documento_detalhe', id=id))
 
     return send_file(
-        documento.caminho_arquivo,
+        caminho_arquivo,
         as_attachment=True,
-        download_name=f"{documento.codigo}_{os.path.basename(documento.caminho_arquivo)}"
+        download_name=f"{documento.codigo}_{documento.arquivo_original}"
     )
 
 
@@ -413,13 +450,17 @@ def tarefa_concluir(id):
                 os.makedirs(Config.UPLOAD_FOLDER_DOCUMENTOS, exist_ok=True)
                 arquivo.save(caminho_completo)
 
-                # Atualizar caminho do documento
-                tarefa.documento.caminho_arquivo = caminho_completo
+                # Atualizar arquivo publicado em PDF
+                tarefa.documento.arquivo_publicado_pdf = filename_final
 
     # Concluir tarefa
-    tarefa.status = 'concluida'
+    tarefa.concluida = True
     tarefa.data_conclusao = datetime.utcnow()
     tarefa.parecer = parecer or 'Tarefa concluída'
+    if acao == 'aprovar':
+        tarefa.aprovado = True
+    elif acao == 'rejeitar':
+        tarefa.aprovado = False
 
     # Atualizar status do documento baseado no tipo de tarefa e ação
     if acao == 'aprovar':
