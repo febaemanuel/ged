@@ -276,15 +276,28 @@ def concluir_tarefa(id):
     tarefa.concluir(parecer=parecer, aprovado=aprovado, arquivo=arquivo_nome)
 
     # WORKFLOW AUTOMÁTICO: Cria próxima tarefa se aprovado
+    proxima_tarefa_info = None
+    workflow_erro = None
+
     try:
         from app.services.workflow import WorkflowGED
 
         proxima_tarefa = WorkflowGED.proximo_passo(tarefa)
 
         if proxima_tarefa:
-            current_app.logger.info(f"Próxima tarefa criada: {proxima_tarefa.tipo_tarefa} para {proxima_tarefa.responsavel.nome}")
+            proxima_tarefa_info = {
+                'tipo': proxima_tarefa.tipo_tarefa,
+                'responsavel': proxima_tarefa.responsavel.nome,
+                'prazo': proxima_tarefa.prazo.isoformat()
+            }
+            current_app.logger.info(f"✅ Próxima tarefa criada: {proxima_tarefa.tipo_tarefa} para {proxima_tarefa.responsavel.nome}")
+        else:
+            current_app.logger.info("ℹ️  Nenhuma próxima tarefa (última etapa ou reprovado)")
     except Exception as e:
-        current_app.logger.error(f"Erro ao criar próxima tarefa do workflow: {str(e)}")
+        import traceback
+        workflow_erro = str(e)
+        current_app.logger.error(f"❌ Erro ao criar próxima tarefa do workflow: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
 
     # Lógica de mudança de status do documento (mantida para compatibilidade)
     documento = tarefa.documento
@@ -298,7 +311,7 @@ def concluir_tarefa(id):
 
     db.session.commit()
 
-    return jsonify({
+    resposta = {
         'mensagem': 'Tarefa concluída com sucesso',
         'tarefa': {
             'id': tarefa.id,
@@ -311,7 +324,29 @@ def concluir_tarefa(id):
             'status': documento.status,
             'codigo_definitivo': documento.codigo_definitivo
         }
-    })
+    }
+
+    # Adiciona informações do workflow
+    if proxima_tarefa_info:
+        resposta['workflow'] = {
+            'proxima_tarefa': proxima_tarefa_info,
+            'mensagem': f"✅ Próxima tarefa criada: {proxima_tarefa_info['tipo']} para {proxima_tarefa_info['responsavel']}"
+        }
+    elif workflow_erro:
+        resposta['workflow'] = {
+            'erro': workflow_erro,
+            'mensagem': f"⚠️  ERRO no workflow: {workflow_erro}"
+        }
+    elif tarefa.aprovado is False:
+        resposta['workflow'] = {
+            'mensagem': 'Documento reprovado. Tarefa de correção criada para o autor.'
+        }
+    else:
+        resposta['workflow'] = {
+            'mensagem': 'Última etapa do fluxo concluída!'
+        }
+
+    return jsonify(resposta)
 
 
 @bp.route('/minhas', methods=['GET'])
