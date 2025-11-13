@@ -75,16 +75,16 @@ def dashboard():
     stats = {
         'minhas_pendentes': Tarefa.query.filter_by(
             responsavel_id=current_user.id,
-            status='pendente'
+            concluida=False
         ).count(),
         'minhas_atrasadas': Tarefa.query.filter(
             Tarefa.responsavel_id == current_user.id,
-            Tarefa.status == 'pendente',
+            Tarefa.concluida == False,
             Tarefa.prazo < datetime.utcnow()
         ).count(),
         'minhas_concluidas_mes': Tarefa.query.filter(
             Tarefa.responsavel_id == current_user.id,
-            Tarefa.status == 'concluida',
+            Tarefa.concluida == True,
             Tarefa.data_conclusao >= datetime.utcnow() - timedelta(days=30)
         ).count(),
         'total_documentos': Documento.query.count()
@@ -93,7 +93,7 @@ def dashboard():
     # Minhas tarefas pendentes (últimas 10)
     tarefas = Tarefa.query.filter_by(
         responsavel_id=current_user.id,
-        status='pendente'
+        concluida=False
     ).order_by(Tarefa.prazo.asc()).limit(10).all()
 
     # Adicionar propriedade esta_atrasada para cada tarefa
@@ -265,12 +265,16 @@ def tarefas():
     if tipo:
         query = query.filter_by(tipo_tarefa=tipo)
     if status:
-        query = query.filter_by(status=status)
+        # Converte status string para boolean concluida
+        if status == 'pendente':
+            query = query.filter_by(concluida=False)
+        elif status == 'concluida':
+            query = query.filter_by(concluida=True)
     if prioridade:
         query = query.filter_by(prioridade=prioridade)
     if atrasadas:
         query = query.filter(
-            Tarefa.status == 'pendente',
+            Tarefa.concluida == False,
             Tarefa.prazo < datetime.utcnow()
         )
 
@@ -286,16 +290,16 @@ def tarefas():
     stats = {
         'pendentes': Tarefa.query.filter_by(
             responsavel_id=current_user.id,
-            status='pendente'
+            concluida=False
         ).count(),
         'atrasadas': Tarefa.query.filter(
             Tarefa.responsavel_id == current_user.id,
-            Tarefa.status == 'pendente',
+            Tarefa.concluida == False,
             Tarefa.prazo < datetime.utcnow()
         ).count(),
         'concluidas_mes': Tarefa.query.filter(
             Tarefa.responsavel_id == current_user.id,
-            Tarefa.status == 'concluida',
+            Tarefa.concluida == True,
             Tarefa.data_conclusao >= datetime.utcnow() - timedelta(days=30)
         ).count(),
         'total': Tarefa.query.filter_by(responsavel_id=current_user.id).count()
@@ -388,7 +392,7 @@ def tarefa_concluir(id):
         flash('Acesso negado', 'danger')
         return redirect(url_for('view.tarefa_detalhe', id=id))
 
-    if tarefa.status == 'concluida':
+    if tarefa.concluida:
         flash('Tarefa já foi concluída', 'warning')
         return redirect(url_for('view.tarefa_detalhe', id=id))
 
@@ -547,11 +551,11 @@ def perfil():
     stats = {
         'tarefas_pendentes': Tarefa.query.filter_by(
             responsavel_id=current_user.id,
-            status='pendente'
+            concluida=False
         ).count(),
         'tarefas_concluidas_mes': Tarefa.query.filter(
             Tarefa.responsavel_id == current_user.id,
-            Tarefa.status == 'concluida',
+            Tarefa.concluida == True,
             Tarefa.data_conclusao >= datetime.utcnow() - timedelta(days=30)
         ).count(),
         'documentos_criados': Documento.query.filter_by(
