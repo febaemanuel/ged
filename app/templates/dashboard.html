@@ -2,158 +2,318 @@
 
 {% block title %}Dashboard - Sistema GED{% endblock %}
 
+{% block extra_css %}
+<style>
+.stat-card {
+    border-left: 4px solid;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+.stat-label {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.quick-action-card {
+    text-align: center;
+    padding: 2rem;
+    border-radius: 10px;
+    transition: all 0.3s;
+    border: 2px solid transparent;
+}
+.quick-action-card:hover {
+    border-color: #0d6efd;
+    transform: scale(1.05);
+    box-shadow: 0 5px 20px rgba(13, 110, 253, 0.2);
+}
+.quick-action-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+.task-item {
+    border-left: 3px solid #0d6efd;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 5px;
+    transition: all 0.2s;
+}
+.task-item:hover {
+    background: #e9ecef;
+    margin-left: 5px;
+}
+.chart-container {
+    position: relative;
+    height: 300px;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="mb-4">
-                <i class="bi bi-speedometer2"></i> Dashboard
-            </h1>
+    <!-- Cabeçalho -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-1"><i class="bi bi-speedometer2"></i> Dashboard</h1>
+            <p class="text-muted">Bem-vindo, <strong>{{ current_user.nome }}</strong> | {{ current_user.perfil.title() }}</p>
         </div>
     </div>
 
     <!-- Cards de Estatísticas -->
-    <div class="row">
-        <div class="col-md-3 mb-4">
-            <div class="card bg-primary text-white h-100">
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card border-primary h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="text-uppercase">Minhas Tarefas</h6>
-                            <h2 class="mb-0">{{ stats.minhas_pendentes or 0 }}</h2>
+                            <p class="stat-label text-muted mb-1">Minhas Tarefas</p>
+                            <p class="stat-number text-primary mb-0">{{ stats.minhas_pendentes or 0 }}</p>
                         </div>
                         <div>
-                            <i class="bi bi-list-check" style="font-size: 3rem; opacity: 0.5;"></i>
+                            <i class="bi bi-list-check" style="font-size: 3rem; opacity: 0.3; color: #0d6efd;"></i>
                         </div>
                     </div>
+                    <div class="mt-2">
+                        <a href="{{ url_for('view.tarefas') }}" class="text-decoration-none text-primary small">
+                            Ver todas <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
                 </div>
-                <div class="card-footer bg-primary bg-opacity-75">
-                    <a href="{{ url_for('view.tarefas') }}" class="text-white text-decoration-none small">
-                        Ver todas <i class="bi bi-arrow-right"></i>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card border-warning h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="stat-label text-muted mb-1">Atrasadas</p>
+                            <p class="stat-number text-warning mb-0">{{ stats.minhas_atrasadas or 0 }}</p>
+                        </div>
+                        <div>
+                            <i class="bi bi-exclamation-triangle" style="font-size: 3rem; opacity: 0.3; color: #ffc107;"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{{ url_for('view.tarefas') }}?atrasadas=1" class="text-decoration-none text-warning small">
+                            Ver atrasadas <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card border-success h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="stat-label text-muted mb-1">Concluídas (30d)</p>
+                            <p class="stat-number text-success mb-0">{{ stats.minhas_concluidas_mes or 0 }}</p>
+                        </div>
+                        <div>
+                            <i class="bi bi-check-circle" style="font-size: 3rem; opacity: 0.3; color: #198754;"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">Últimos 30 dias</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card border-info h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="stat-label text-muted mb-1">Total Documentos</p>
+                            <p class="stat-number text-info mb-0">{{ stats.total_documentos or 0 }}</p>
+                        </div>
+                        <div>
+                            <i class="bi bi-file-earmark-text" style="font-size: 3rem; opacity: 0.3; color: #0dcaf0;"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{{ url_for('view.documentos') }}" class="text-decoration-none text-info small">
+                            Ver todos <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ações Rápidas -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-lightning"></i> Ações Rápidas</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <a href="{{ url_for('view.documento_criar') }}" class="text-decoration-none">
+                        <div class="quick-action-card bg-light">
+                            <div class="quick-action-icon text-primary">
+                                <i class="bi bi-plus-circle"></i>
+                            </div>
+                            <h6>Novo Documento</h6>
+                            <small class="text-muted">Criar documento com IA</small>
+                        </div>
                     </a>
                 </div>
-            </div>
-        </div>
 
-        <div class="col-md-3 mb-4">
-            <div class="card bg-warning text-dark h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-uppercase">Atrasadas</h6>
-                            <h2 class="mb-0">{{ stats.minhas_atrasadas or 0 }}</h2>
+                <div class="col-md-3">
+                    <a href="{{ url_for('view.tarefas') }}" class="text-decoration-none">
+                        <div class="quick-action-card bg-light">
+                            <div class="quick-action-icon text-success">
+                                <i class="bi bi-check2-square"></i>
+                            </div>
+                            <h6>Minhas Tarefas</h6>
+                            <small class="text-muted">Ver tarefas pendentes</small>
                         </div>
-                        <div>
-                            <i class="bi bi-exclamation-triangle" style="font-size: 3rem; opacity: 0.5;"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer bg-warning bg-opacity-75">
-                    <a href="{{ url_for('view.tarefas') }}?atrasadas=1" class="text-dark text-decoration-none small">
-                        Ver atrasadas <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>
-            </div>
-        </div>
 
-        <div class="col-md-3 mb-4">
-            <div class="card bg-success text-white h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-uppercase">Concluídas (Mês)</h6>
-                            <h2 class="mb-0">{{ stats.minhas_concluidas_mes or 0 }}</h2>
+                <div class="col-md-3">
+                    <a href="{{ url_for('view.repositorio_publico') }}" class="text-decoration-none">
+                        <div class="quick-action-card bg-light">
+                            <div class="quick-action-icon text-info">
+                                <i class="bi bi-globe"></i>
+                            </div>
+                            <h6>Repositório Público</h6>
+                            <small class="text-muted">Documentos publicados</small>
                         </div>
-                        <div>
-                            <i class="bi bi-check-circle" style="font-size: 3rem; opacity: 0.5;"></i>
-                        </div>
-                    </div>
+                    </a>
                 </div>
-                <div class="card-footer bg-success bg-opacity-75">
-                    <span class="text-white small">Últimos 30 dias</span>
-                </div>
-            </div>
-        </div>
 
-        <div class="col-md-3 mb-4">
-            <div class="card bg-info text-white h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-uppercase">Documentos</h6>
-                            <h2 class="mb-0">{{ stats.total_documentos or 0 }}</h2>
+                <div class="col-md-3">
+                    <a href="{{ url_for('view.documentos') }}" class="text-decoration-none">
+                        <div class="quick-action-card bg-light">
+                            <div class="quick-action-icon text-warning">
+                                <i class="bi bi-search"></i>
+                            </div>
+                            <h6>Buscar Documentos</h6>
+                            <small class="text-muted">Pesquisar no sistema</small>
                         </div>
-                        <div>
-                            <i class="bi bi-file-earmark-text" style="font-size: 3rem; opacity: 0.5;"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer bg-info bg-opacity-75">
-                    <a href="{{ url_for('view.documentos') }}" class="text-white text-decoration-none small">
-                        Ver todos <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Minhas Tarefas Pendentes -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
+    <div class="row">
+        <!-- Minhas Tarefas Pendentes -->
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="bi bi-list-task"></i> Minhas Tarefas Pendentes</h5>
+                    <a href="{{ url_for('view.tarefas') }}" class="btn btn-sm btn-outline-primary">Ver todas</a>
                 </div>
                 <div class="card-body">
                     {% if tarefas %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Tipo</th>
-                                    <th>Documento</th>
-                                    <th>Descrição</th>
-                                    <th>Prazo</th>
-                                    <th>Prioridade</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for tarefa in tarefas %}
-                                <tr class="{% if tarefa.esta_atrasada %}table-danger{% endif %}">
-                                    <td><span class="badge bg-secondary">{{ tarefa.tipo_tarefa }}</span></td>
-                                    <td>{{ tarefa.documento.titulo[:40] }}...</td>
-                                    <td>{{ (tarefa.descricao or '')[:50] }}...</td>
-                                    <td>
-                                        {% if tarefa.prazo %}
-                                            {{ tarefa.prazo.strftime('%d/%m/%Y') }}
-                                            {% if tarefa.esta_atrasada %}
-                                                <span class="badge bg-danger">ATRASADA</span>
+                        {% for tarefa in tarefas %}
+                        <div class="task-item {% if tarefa.esta_atrasada %}border-danger{% endif %}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">
+                                        <i class="bi bi-file-earmark-text text-primary"></i>
+                                        {{ tarefa.documento.titulo }}
+                                    </h6>
+                                    <span class="badge bg-primary">{{ tarefa.tipo_tarefa }}</span>
+                                    {% if tarefa.prioridade == 'urgente' %}
+                                    <span class="badge bg-danger">Urgente</span>
+                                    {% elif tarefa.prioridade == 'alta' %}
+                                    <span class="badge bg-warning">Alta</span>
+                                    {% endif %}
+                                    {% if tarefa.esta_atrasada %}
+                                    <span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Atrasada</span>
+                                    {% endif %}
+                                    {% if tarefa.prazo %}
+                                    <div class="mt-1">
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar"></i> Prazo: {{ tarefa.prazo.strftime('%d/%m/%Y') }}
+                                            {% if tarefa.dias_ate_prazo() and tarefa.dias_ate_prazo() > 0 %}
+                                            ({{ tarefa.dias_ate_prazo() }} dias)
                                             {% endif %}
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-{% if tarefa.prioridade == 'urgente' %}danger{% elif tarefa.prioridade == 'alta' %}warning{% else %}info{% endif %}">
-                                            {{ tarefa.prioridade }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <a href="{{ url_for('view.tarefa_detalhe', id=tarefa.id) }}" class="btn btn-sm btn-primary">
-                                            <i class="bi bi-eye"></i> Ver
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <a href="{{ url_for('view.tarefa_detalhe', id=tarefa.id) }}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i> Ver
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                     {% else %}
-                    <div class="alert alert-info mb-0">
-                        <i class="bi bi-info-circle"></i> Você não possui tarefas pendentes no momento.
-                    </div>
+                        <div class="text-center py-5">
+                            <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
+                            <h5 class="mt-3 text-muted">Nenhuma tarefa pendente</h5>
+                            <p class="text-muted">Você está em dia com suas tarefas!</p>
+                        </div>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar de Informações -->
+        <div class="col-md-4">
+            <!-- Perfil do Usuário -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="bi bi-person-circle" style="font-size: 5rem; color: #0d6efd;"></i>
+                    </div>
+                    <h5>{{ current_user.nome }}</h5>
+                    <p class="text-muted mb-2">{{ current_user.email }}</p>
+                    <span class="badge bg-primary mb-2">{{ current_user.perfil.replace('_', ' ').title() }}</span>
+                    {% if current_user.setor %}
+                    <p class="text-muted small mb-0"><i class="bi bi-building"></i> {{ current_user.setor }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Indicador de Produtividade -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="bi bi-graph-up-arrow"></i> Produtividade</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small>Tarefas Concluídas</small>
+                            <small><strong>{{ stats.minhas_concluidas_mes or 0 }}</strong></small>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" style="width: {% if stats.minhas_concluidas_mes %}{{ ((stats.minhas_concluidas_mes / (stats.minhas_concluidas_mes + stats.minhas_pendentes)) * 100) | round(0) }}{% else %}0{% endif %}%"></div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <p class="mb-0 text-muted small">Você concluiu <strong>{{ stats.minhas_concluidas_mes or 0 }}</strong> tarefas nos últimos 30 dias</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dicas Rápidas -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Dica do Dia</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0 small">
+                        <strong>💡 Sabia que?</strong><br>
+                        O sistema usa IA (DeepSeek) para analisar automaticamente seus documentos! Ao fazer upload, o texto é extraído e classificado automaticamente.
+                    </p>
                 </div>
             </div>
         </div>

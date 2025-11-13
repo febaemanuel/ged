@@ -7,5 +7,6 @@ from .routes_ia import bp as ia_bp
 from .routes_dashboard import bp as dashboard_bp
 from .routes_auth import bp as auth_bp
 from .routes_view import view_bp
+from .routes_busca import bp as busca_bp
 
-__all__ = ['documento_bp', 'tarefa_bp', 'ia_bp', 'dashboard_bp', 'auth_bp', 'view_bp']
+__all__ = ['documento_bp', 'tarefa_bp', 'ia_bp', 'dashboard_bp', 'auth_bp', 'view_bp', 'busca_bp']

@@ -60,7 +60,8 @@ def create_app(config_name='default'):
         tarefa_bp,
         ia_bp,
         dashboard_bp,
-        view_bp
+        view_bp,
+        busca_bp
     )
 
     app.register_blueprint(auth_bp)
@@ -69,6 +70,7 @@ def create_app(config_name='default'):
     app.register_blueprint(ia_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(view_bp)
+    app.register_blueprint(busca_bp)
 
     # Rota inicial
     @app.route('/home')

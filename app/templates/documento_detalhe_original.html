@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}{{ documento.titulo }} - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('view.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view.documentos') }}">Documentos</a></li>
+            <li class="breadcrumb-item active">{{ documento.codigo_definitivo or documento.codigo_provisorio }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Informações do Documento -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> {{ documento.titulo }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Código:</strong><br>
+                            <h4>{{ documento.codigo_definitivo or documento.codigo_provisorio }}</h4>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Status:</strong><br>
+                            <span class="badge bg-{% if documento.status == 'Aprovado e Publicado' %}success{% elif documento.status == 'Aprovado' %}primary{% elif documento.status == 'Em Análise' %}warning{% else %}secondary{% endif %} fs-6">
+                                {{ documento.status }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Tipo:</strong><br>
+                            <span class="badge bg-info">{{ documento.tipo_documento }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Setor:</strong><br>
+                            {{ documento.setor or '-' }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Versão:</strong><br>
+                            {{ documento.versao }}
+                        </div>
+                    </div>
+
+                    {% if documento.descricao %}
+                    <div class="mb-3">
+                        <strong>Descrição:</strong><br>
+                        <p>{{ documento.descricao }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Criado por:</strong><br>
+                            {{ documento.criador.nome }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Data de Criação:</strong><br>
+                            {{ documento.data_criacao.strftime('%d/%m/%Y %H:%M') }}
+                        </div>
+                    </div>
+
+                    {% if documento.data_publicacao %}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Data de Publicação:</strong><br>
+                            {{ documento.data_publicacao.strftime('%d/%m/%Y') }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Data de Vencimento:</strong><br>
+                            {% if documento.data_vencimento %}
+                                {{ documento.data_vencimento.strftime('%d/%m/%Y') }}
+                                {% if documento.esta_vencido() %}
+                                    <span class="badge bg-danger">VENCIDO</span>
+                                {% elif documento.dias_ate_vencimento() <= 30 %}
+                                    <span class="badge bg-warning">{{ documento.dias_ate_vencimento() }} dias</span>
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Ações -->
+                    <hr>
+                    <div class="btn-group" role="group">
+                        {% if documento.arquivo_original %}
+                        <a href="{{ url_for('documento.download_arquivo', id=documento.id, tipo='original') }}" class="btn btn-primary" target="_blank">
+                            <i class="bi bi-download"></i> Download Original
+                        </a>
+                        {% endif %}
+                        {% if documento.arquivo_publicado_pdf %}
+                        <a href="{{ url_for('documento.download_arquivo', id=documento.id, tipo='publicado') }}" class="btn btn-success" target="_blank">
+                            <i class="bi bi-file-pdf"></i> Download PDF
+                        </a>
+                        {% endif %}
+                        {% if current_user.is_gerente_ou_superior() %}
+                        <a href="{{ url_for('view.tarefa_criar', documento_id=documento.id) }}" class="btn btn-warning">
+                            <i class="bi bi-plus-circle"></i> Nova Tarefa
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline de Tarefas -->
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Timeline de Ações</h5>
+                </div>
+                <div class="card-body">
+                    {% if timeline %}
+                    <div class="timeline">
+                        {% for item in timeline %}
+                        <div class="timeline-item mb-4 pb-4 {% if not loop.last %}border-bottom{% endif %}">
+                            <div class="row">
+                                <div class="col-md-2">
+                                    <small class="text-muted">{{ item.data_criacao|datetime }}</small>
+                                </div>
+                                <div class="col-md-10">
+                                    <h6>
+                                        <span class="badge bg-{% if item.concluida %}success{% else %}warning{% endif %}">
+                                            {{ item.tipo }}
+                                        </span>
+                                    </h6>
+                                    <p class="mb-1">
+                                        <strong>Responsável:</strong> {{ item.responsavel }}<br>
+                                        <strong>Criado por:</strong> {{ item.criador }}
+                                    </p>
+                                    {% if item.concluida %}
+                                    <div class="alert alert-{% if item.aprovado %}success{% elif item.aprovado == False %}danger{% else %}info{% endif %} mb-0">
+                                        <strong>Concluída em:</strong> {{ item.data_conclusao|datetime }}<br>
+                                        {% if item.aprovado is not none %}
+                                        <strong>Resultado:</strong>
+                                        {% if item.aprovado %}
+                                            <span class="badge bg-success">APROVADO</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">REPROVADO</span>
+                                        {% endif %}
+                                        <br>
+                                        {% endif %}
+                                        {% if item.parecer %}
+                                        <strong>Parecer:</strong> {{ item.parecer }}
+                                        {% endif %}
+                                    </div>
+                                    {% else %}
+                                    <span class="badge bg-warning">Pendente</span>
+                                    {% if item.esta_atrasada %}
+                                        <span class="badge bg-danger">ATRASADA</span>
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> Nenhuma ação registrada ainda.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Metadados de IA -->
+            {% if current_user.pode_usar_ia() and documento.metadados_json %}
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="bi bi-robot"></i> Análise de IA</h6>
+                </div>
+                <div class="card-body">
+                    <pre>{{ metadados }}</pre>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Ações de IA -->
+            {% if current_user.pode_usar_ia() %}
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h6 class="mb-0"><i class="bi bi-cpu"></i> Funções de IA</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="extrairTexto({{ documento.id }})">
+                            <i class="bi bi-file-text"></i> Extrair Texto
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="classificar({{ documento.id }})">
+                            <i class="bi bi-tag"></i> Classificar
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="resumir({{ documento.id }})">
+                            <i class="bi bi-list-ul"></i> Gerar Resumo
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Informações Adicionais -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Informações</h6>
+                </div>
+                <div class="card-body">
+                    <small>
+                        <strong>ID:</strong> {{ documento.id }}<br>
+                        <strong>Validade:</strong> {{ documento.validade_anos }} anos<br>
+                        {% if documento.arquivo_original %}
+                        <strong>Arquivo:</strong> {{ documento.arquivo_original }}<br>
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function extrairTexto(docId) {
+    if (confirm('Deseja extrair o texto do documento usando IA?')) {
+        fetch(`/ia/extract/${docId}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                alert('Texto extraído com sucesso!');
+                location.reload();
+            })
+            .catch(err => alert('Erro: ' + err));
+    }
+}
+
+function classificar(docId) {
+    if (confirm('Deseja classificar o documento usando IA?')) {
+        fetch(`/ia/classify/${docId}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                alert(`Classificado como: ${data.tipo_documento} (${(data.confianca * 100).toFixed(1)}%)`);
+                location.reload();
+            })
+            .catch(err => alert('Erro: ' + err));
+    }
+}
+
+function resumir(docId) {
+    if (confirm('Deseja gerar resumo do documento usando IA?')) {
+        fetch(`/ia/summarize/${docId}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                alert('Resumo:\n\n' + data.resumo);
+            })
+            .catch(err => alert('Erro: ' + err));
+    }
+}
+</script>
+{% endblock %}
