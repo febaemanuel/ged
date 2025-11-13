@@ -283,6 +283,93 @@ def documento_criar():
     return render_template('documento_criar.html', gerentes=gerentes)
 
 
+@view_bp.route('/documento/<int:id>/editar', methods=['GET', 'POST'])
+@login_required
+def documento_editar(id):
+    """Editar documento existente"""
+    documento = Documento.query.get_or_404(id)
+
+    # Verifica permissão
+    if not documento.pode_editar(current_user):
+        flash('Você não tem permissão para editar este documento', 'danger')
+        return redirect(url_for('view.documento_detalhe', id=id))
+
+    if request.method == 'POST':
+        documento.titulo = request.form.get('titulo')
+        documento.tipo_documento = request.form.get('tipo_documento')
+        documento.setor = request.form.get('setor')
+        documento.descricao = request.form.get('descricao')
+        validade_anos = request.form.get('validade_anos', type=int)
+        if validade_anos:
+            documento.validade_anos = validade_anos
+
+        # Atualiza chefia se fornecida
+        chefia_imediata_id = request.form.get('chefia_imediata_id', type=int)
+        if chefia_imediata_id:
+            documento.chefia_imediata_id = chefia_imediata_id
+
+        # Upload de novo arquivo (opcional)
+        arquivo = request.files.get('arquivo')
+        if arquivo and arquivo.filename != '':
+            # Validar extensão
+            extensao = arquivo.filename.rsplit('.', 1)[1].lower()
+            if extensao not in Config.ALLOWED_EXTENSIONS_DOCUMENTO:
+                flash(f'Extensão .{extensao} não permitida', 'danger')
+                return redirect(request.url)
+
+            # Salvar novo arquivo
+            filename = secure_filename(arquivo.filename)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename_final = f"{timestamp}_{filename}"
+            caminho_completo = os.path.join(Config.UPLOAD_FOLDER_DOCUMENTOS, filename_final)
+
+            os.makedirs(Config.UPLOAD_FOLDER_DOCUMENTOS, exist_ok=True)
+            arquivo.save(caminho_completo)
+
+            # Remove arquivo antigo
+            if documento.arquivo_original:
+                caminho_antigo = documento.get_caminho_arquivo()
+                if caminho_antigo and os.path.exists(caminho_antigo):
+                    try:
+                        os.remove(caminho_antigo)
+                    except:
+                        pass
+
+            documento.arquivo_original = filename_final
+
+            # Reprocessa com IA se houver novo arquivo
+            try:
+                from app.services.ai_client import extract_text, classify_document, summarize_text
+
+                resultado_extracao = extract_text(caminho_completo)
+                documento.texto_extraido = resultado_extracao['texto']
+
+                if documento.texto_extraido:
+                    resultado_classificacao = classify_document(documento.texto_extraido)
+                    resultado_resumo = summarize_text(documento.texto_extraido, max_length=500)
+
+                    metadados = {
+                        'classificacao': resultado_classificacao,
+                        'resumo': resultado_resumo,
+                        'processado_em': datetime.utcnow().isoformat()
+                    }
+                    documento.set_metadados(metadados)
+            except Exception as e:
+                logger.error(f"Erro ao reprocessar IA: {str(e)}")
+
+        db.session.commit()
+        flash('Documento atualizado com sucesso!', 'success')
+        return redirect(url_for('view.documento_detalhe', id=id))
+
+    # GET: Busca gerentes para seleção de Chefia Imediata
+    gerentes = Usuario.query.filter(
+        Usuario.perfil.in_(['gerente', 'administrador']),
+        Usuario.ativo == True
+    ).order_by(Usuario.nome).all()
+
+    return render_template('documento_editar.html', documento=documento, gerentes=gerentes)
+
+
 @view_bp.route('/documento/<int:id>/download')
 @login_required
 def documento_download(id):
