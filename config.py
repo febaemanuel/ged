@@ -8,9 +8,10 @@ from datetime import timedelta
 if os.name == 'nt':  # Windows
     import sys
     import codecs
-    if sys.stdout.encoding != 'utf-8':
+    # Verifica se tem o atributo buffer antes de tentar modificar
+    if hasattr(sys.stdout, 'buffer') and not hasattr(sys.stdout, 'write_through'):
         sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
-    if sys.stderr.encoding != 'utf-8':
+    if hasattr(sys.stderr, 'buffer') and not hasattr(sys.stderr, 'write_through'):
         sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
 class Config:

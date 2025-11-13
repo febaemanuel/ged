@@ -13,12 +13,11 @@ import sys
 # Força UTF-8 no Windows
 if sys.platform == 'win32':
     import codecs
-    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
-    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
-    # Define encoding padrão
-    if sys.getdefaultencoding() != 'utf-8':
-        import importlib
-        importlib.reload(sys)
+    # Verifica se tem o atributo buffer antes de tentar modificar
+    if hasattr(sys.stdout, 'buffer') and not hasattr(sys.stdout, 'write_through'):
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    if hasattr(sys.stderr, 'buffer') and not hasattr(sys.stderr, 'write_through'):
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
 # Carrega .env com encoding UTF-8
 from dotenv import load_dotenv
