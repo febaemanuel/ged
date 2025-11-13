@@ -173,12 +173,8 @@ def documento_criar():
         setor = request.form.get('setor')
         descricao = request.form.get('descricao')
         validade_anos = request.form.get('validade_anos', type=int)
-        chefia_imediata_id = request.form.get('chefia_imediata_id', type=int)
-
-        # Validação de chefia
-        if not chefia_imediata_id:
-            flash('É obrigatório selecionar a Chefia Imediata para análise', 'danger')
-            return redirect(request.url)
+        # NOVO WORKFLOW UGQ: Não precisa mais de chefia_imediata_id
+        # O documento vai direto para o Triador UGQ
 
         # Upload do arquivo
         arquivo = request.files.get('arquivo')
@@ -209,7 +205,7 @@ def documento_criar():
             descricao=descricao,
             arquivo_original=filename_final,
             criador_id=current_user.id,
-            chefia_imediata_id=chefia_imediata_id,
+            # WORKFLOW UGQ: Não precisa mais de chefia_imediata_id
             validade_anos=validade_anos or 5
         )
 
@@ -256,14 +252,16 @@ def documento_criar():
             # Se falhar completamente, apenas avisa
             flash(f'Documento {documento.codigo} criado!', 'success')
 
-        # INICIA FLUXO DE APROVAÇÃO AUTOMÁTICO
+        # INICIA WORKFLOW UGQ OFICIAL EBSERH
         try:
-            from app.services.workflow import WorkflowGED
+            from app.services.workflow import WorkflowUGQ
 
-            tarefa_criada = WorkflowGED.iniciar_fluxo(documento, chefia_imediata_id)
+            # Autor submete documento diretamente para a UGQ
+            tarefa_criada = WorkflowUGQ.autor_submete_documento(documento)
 
-            flash(f'Tarefa de análise criada para {documento.chefia_imediata.nome}', 'info')
-            logger.info(f"Fluxo de aprovação iniciado para documento {documento.id}")
+            flash(f'✅ Documento submetido para análise da UGQ (Triador)', 'success')
+            flash(f'📋 Tarefa criada: {tarefa_criada.tipo_tarefa}', 'info')
+            logger.info(f"[WORKFLOW UGQ] Documento {documento.id} submetido para UGQ")
         except Exception as e:
             logger.error(f"Erro ao iniciar fluxo de aprovação: {str(e)}")
             flash('Documento criado, mas erro ao criar tarefa automática', 'warning')
@@ -840,3 +838,263 @@ def repositorio_publico():
         doc.proxima_vencimento_flag = doc.data_vencimento and doc.data_vencimento < datetime.utcnow() + timedelta(days=30) and not doc.esta_vencido_flag
 
     return render_template('repositorio_publico.html', documentos=documentos)
+
+
+# ============================================================================
+# ROTAS DO WORKFLOW UGQ OFICIAL EBSERH
+# ============================================================================
+
+@view_bp.route('/tarefa/<int:tarefa_id>/concluir_triagem', methods=['POST'])
+@login_required
+def concluir_triagem(tarefa_id):
+    """
+    ETAPA 1: Triador UGQ conclui triagem (3 checkpoints)
+    """
+    from app.services.workflow import WorkflowUGQ
+
+    tarefa = Tarefa.query.get_or_404(tarefa_id)
+
+    # Verifica permissão
+    if tarefa.responsavel_id != current_user.id and not current_user.is_admin():
+        flash('Você não tem permissão para concluir esta tarefa', 'danger')
+        return redirect(url_for('view.minhas_tarefas'))
+
+    # Pega dados do formulário
+    acao = request.form.get('acao')  # 'aprovar' ou 'devolver'
+    parecer = request.form.get('parecer')
+
+    # Checkpoints
+    checkpoint_1 = request.form.get('checkpoint_1')  # 'sim' ou 'nao'
+    checkpoint_2 = request.form.get('checkpoint_2', 'nao_se_aplica')  # 'sim', 'nao', 'nao_se_aplica'
+    checkpoint_3 = request.form.get('checkpoint_3')  # 'sim' ou 'nao'
+
+    tarefa.parecer = parecer
+
+    try:
+        if acao == 'aprovar' and checkpoint_1 == 'nao' and checkpoint_3 == 'sim':
+            # Todos checkpoints OK
+            if tarefa.documento.tipo_documento == 'Manual':
+                # Manual precisa de validação do colegiado
+                if checkpoint_2 == 'nao':
+                    # Devolve
+                    WorkflowUGQ.triador_devolve_ao_autor(tarefa, 'Manual precisa ser validado pelo Colegiado Executivo')
+                    flash('❌ Documento devolvido ao autor: falta validação do Colegiado', 'warning')
+                else:
+                    # Aprova
+                    WorkflowUGQ.triador_aprova_triagem(tarefa)
+                    flash('✅ Triagem aprovada! Documento enviado para Validador UGQ', 'success')
+            else:
+                # Não é manual, aprova
+                WorkflowUGQ.triador_aprova_triagem(tarefa)
+                flash('✅ Triagem aprovada! Documento enviado para Validador UGQ', 'success')
+
+        elif acao == 'devolver' or checkpoint_1 == 'sim' or checkpoint_3 == 'nao':
+            # Devolver ao autor
+            motivo = parecer
+            if checkpoint_1 == 'sim':
+                motivo = 'Documento já existe na Lista Mestra'
+            elif checkpoint_3 == 'nao':
+                motivo = f'Formatação fora do padrão. {parecer}'
+
+            WorkflowUGQ.triador_devolve_ao_autor(tarefa, motivo)
+            flash('❌ Documento devolvido ao autor para correção', 'warning')
+
+        else:
+            flash('❌ Erro: ação inválida', 'danger')
+
+    except Exception as e:
+        logger.error(f"Erro ao concluir triagem: {str(e)}")
+        flash(f'Erro ao processar triagem: {str(e)}', 'danger')
+
+    return redirect(url_for('view.minhas_tarefas'))
+
+
+@view_bp.route('/tarefa/<int:tarefa_id>/codificar', methods=['GET', 'POST'])
+@login_required
+def codificar_documento(tarefa_id):
+    """
+    ETAPA 2: Validador UGQ codifica documento
+    """
+    from app.services.workflow import WorkflowUGQ
+    from app.models.models import ListaMestra
+
+    tarefa = Tarefa.query.get_or_404(tarefa_id)
+    documento = tarefa.documento
+
+    # Verifica permissão
+    if tarefa.responsavel_id != current_user.id and not current_user.is_admin():
+        flash('Você não tem permissão para esta tarefa', 'danger')
+        return redirect(url_for('view.minhas_tarefas'))
+
+    if request.method == 'GET':
+        # Sugere próximo código
+        codigo_sugerido = WorkflowUGQ.gerar_proximo_codigo(
+            documento.tipo_documento,
+            documento.setor
+        )
+
+        return render_template('tarefa_detalhe.html',
+            tarefa=tarefa,
+            documento=documento,
+            codigo_sugerido=codigo_sugerido,
+            modo='codificar'
+        )
+
+    # POST: Processa codificação
+    codigo_definitivo = request.form.get('codigo_definitivo')
+    versao = request.form.get('versao', 'v1.0')
+    observacoes_validacao = request.form.get('observacoes_validacao', '')
+
+    try:
+        WorkflowUGQ.validador_codifica_documento(
+            tarefa,
+            codigo_definitivo,
+            versao,
+            observacoes_validacao
+        )
+
+        flash(f'✅ Documento codificado: {codigo_definitivo}', 'success')
+        flash('Agora crie o Bloco de Assinatura', 'info')
+
+        return redirect(url_for('view.criar_bloco_assinatura', documento_id=documento.id))
+
+    except Exception as e:
+        logger.error(f"Erro ao codificar documento: {str(e)}")
+        flash(f'Erro ao codificar: {str(e)}', 'danger')
+        return redirect(url_for('view.tarefa_detalhe', id=tarefa_id))
+
+
+@view_bp.route('/documento/<int:documento_id>/bloco_assinatura/criar', methods=['GET', 'POST'])
+@login_required
+def criar_bloco_assinatura(documento_id):
+    """
+    ETAPA 3: Validador UGQ cria Bloco de Assinatura
+    """
+    from app.services.workflow import WorkflowUGQ
+
+    documento = Documento.query.get_or_404(documento_id)
+
+    # Verifica se é Validador UGQ
+    if current_user.perfil != Config.PERFIL_QUALIDADE_VALIDADOR and not current_user.is_admin():
+        flash('Apenas Validador UGQ pode criar Bloco de Assinatura', 'danger')
+        return redirect(url_for('view.documento_detalhe', id=documento_id))
+
+    if request.method == 'GET':
+        # Lista aprovadores disponíveis
+        aprovadores = Usuario.query.filter(
+            Usuario.perfil.in_([Config.PERFIL_GERENTE]),
+            Usuario.ativo == True
+        ).all()
+
+        return render_template('documento_detalhe.html',
+            documento=documento,
+            aprovadores=aprovadores,
+            modo='criar_bloco'
+        )
+
+    # POST: Cria bloco
+    modo = request.form.get('modo', 'sequencial')
+    observacoes = request.form.get('observacoes', '')
+
+    # Coleta aprovadores
+    aprovadores_ids = []
+    ordem = 1
+    while True:
+        aprovador_id = request.form.get(f'aprovador_{ordem}', type=int)
+        if not aprovador_id:
+            break
+        aprovadores_ids.append(aprovador_id)
+        ordem += 1
+
+    if not aprovadores_ids:
+        flash('Adicione pelo menos um aprovador', 'danger')
+        return redirect(request.url)
+
+    try:
+        bloco = WorkflowUGQ.validador_cria_bloco_assinatura(
+            documento,
+            current_user.id,
+            aprovadores_ids,
+            modo,
+            observacoes
+        )
+
+        flash(f'✅ Bloco de Assinatura #{bloco.id} criado!', 'success')
+        flash(f'📧 Tarefas enviadas para {len(aprovadores_ids)} aprovador(es)', 'info')
+
+        return redirect(url_for('view.documento_detalhe', id=documento_id))
+
+    except Exception as e:
+        logger.error(f"Erro ao criar bloco: {str(e)}")
+        flash(f'Erro: {str(e)}', 'danger')
+        return redirect(request.url)
+
+
+@view_bp.route('/tarefa/<int:tarefa_id>/assinar', methods=['POST'])
+@login_required
+def assinar_documento(tarefa_id):
+    """
+    ETAPA 3: Aprovador assina documento
+    """
+    from app.services.workflow import WorkflowUGQ
+
+    tarefa = Tarefa.query.get_or_404(tarefa_id)
+
+    # Verifica permissão
+    if tarefa.responsavel_id != current_user.id and not current_user.is_admin():
+        flash('Você não tem permissão para assinar este documento', 'danger')
+        return redirect(url_for('view.minhas_tarefas'))
+
+    acao = request.form.get('acao')  # 'aprovar' ou 'reprovar'
+    parecer = request.form.get('parecer')
+
+    aprovado = (acao == 'aprovar')
+
+    try:
+        resultado = WorkflowUGQ.aprovador_assina(tarefa, aprovado, parecer)
+
+        if aprovado:
+            if resultado.get('proximo') == 'publicacao':
+                flash('🎉 Todos aprovaram! Documento enviado para publicação', 'success')
+            elif resultado.get('proximo') == 'proximo_aprovador':
+                flash('✅ Assinatura registrada! Enviado para próximo aprovador', 'success')
+            elif resultado.get('proximo') == 'aguardando':
+                pendentes = resultado.get('pendentes', 0)
+                flash(f'✅ Assinatura registrada! Aguardando {pendentes} aprovador(es)', 'info')
+        else:
+            flash('❌ Documento reprovado. Devolvido para Validador UGQ', 'warning')
+
+    except Exception as e:
+        logger.error(f"Erro ao assinar: {str(e)}")
+        flash(f'Erro: {str(e)}', 'danger')
+
+    return redirect(url_for('view.minhas_tarefas'))
+
+
+@view_bp.route('/tarefa/<int:tarefa_id>/publicar', methods=['POST'])
+@login_required
+def publicar_documento(tarefa_id):
+    """
+    ETAPA 4: Validador UGQ publica documento
+    """
+    from app.services.workflow import WorkflowUGQ
+
+    tarefa = Tarefa.query.get_or_404(tarefa_id)
+
+    # Verifica permissão
+    if tarefa.responsavel_id != current_user.id and not current_user.is_admin():
+        flash('Você não tem permissão para publicar', 'danger')
+        return redirect(url_for('view.minhas_tarefas'))
+
+    try:
+        documento = WorkflowUGQ.validador_publica_documento(tarefa)
+
+        flash(f'🎉 Documento {documento.codigo_definitivo} publicado com sucesso!', 'success')
+        flash('📊 Status: VIGENTE na Lista Mestra', 'info')
+
+        return redirect(url_for('view.documento_detalhe', id=documento.id))
+
+    except Exception as e:
+        logger.error(f"Erro ao publicar: {str(e)}")
+        flash(f'Erro: {str(e)}', 'danger')
+        return redirect(url_for('view.tarefa_detalhe', id=tarefa_id))
