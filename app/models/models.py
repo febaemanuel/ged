@@ -35,6 +35,8 @@ class Usuario(UserMixin, db.Model):
     # Relacionamentos
     documentos_criados = db.relationship('Documento', backref='criador', lazy='dynamic',
                                          foreign_keys='Documento.criador_id')
+    documentos_como_chefia = db.relationship('Documento', backref='chefia_imediata', lazy='dynamic',
+                                            foreign_keys='Documento.chefia_imediata_id')
     tarefas_criadas = db.relationship('Tarefa', backref='criador', lazy='dynamic',
                                       foreign_keys='Tarefa.criador_id')
     tarefas_atribuidas = db.relationship('Tarefa', backref='responsavel', lazy='dynamic',
@@ -110,6 +112,7 @@ class Documento(db.Model):
 
     # Relacionamentos
     criador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    chefia_imediata_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)  # Chefia para aprovação
     tarefas = db.relationship('Tarefa', backref='documento', lazy='dynamic',
                              cascade='all, delete-orphan')
     logs_ia = db.relationship('LogAI', backref='documento', lazy='dynamic',

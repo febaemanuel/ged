@@ -8,10 +8,13 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import os
+import logging
 
 from app import db
 from app.models.models import Usuario, Documento, Tarefa, LogAI
 from config import Config
+
+logger = logging.getLogger(__name__)
 
 view_bp = Blueprint('view', __name__)
 
@@ -174,6 +177,12 @@ def documento_criar():
         setor = request.form.get('setor')
         descricao = request.form.get('descricao')
         validade_anos = request.form.get('validade_anos', type=int)
+        chefia_imediata_id = request.form.get('chefia_imediata_id', type=int)
+
+        # Validação de chefia
+        if not chefia_imediata_id:
+            flash('É obrigatório selecionar a Chefia Imediata para análise', 'danger')
+            return redirect(request.url)
 
         # Upload do arquivo
         arquivo = request.files.get('arquivo')
@@ -204,6 +213,7 @@ def documento_criar():
             descricao=descricao,
             arquivo_original=filename_final,
             criador_id=current_user.id,
+            chefia_imediata_id=chefia_imediata_id,
             validade_anos=validade_anos or 5
         )
 
@@ -250,9 +260,27 @@ def documento_criar():
             # Se falhar completamente, apenas avisa
             flash(f'Documento {documento.codigo} criado!', 'success')
 
+        # INICIA FLUXO DE APROVAÇÃO AUTOMÁTICO
+        try:
+            from app.services.workflow import WorkflowGED
+
+            tarefa_criada = WorkflowGED.iniciar_fluxo(documento, chefia_imediata_id)
+
+            flash(f'Tarefa de análise criada para {documento.chefia_imediata.nome}', 'info')
+            logger.info(f"Fluxo de aprovação iniciado para documento {documento.id}")
+        except Exception as e:
+            logger.error(f"Erro ao iniciar fluxo de aprovação: {str(e)}")
+            flash('Documento criado, mas erro ao criar tarefa automática', 'warning')
+
         return redirect(url_for('view.documento_detalhe', id=documento.id))
 
-    return render_template('documento_criar.html')
+    # GET: Busca gerentes para seleção de Chefia Imediata
+    gerentes = Usuario.query.filter(
+        Usuario.perfil.in_(['gerente', 'administrador']),
+        Usuario.ativo == True
+    ).order_by(Usuario.nome).all()
+
+    return render_template('documento_criar.html', gerentes=gerentes)
 
 
 @view_bp.route('/documento/<int:id>/download')

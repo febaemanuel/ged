@@ -275,7 +275,18 @@ def concluir_tarefa(id):
     # Conclui tarefa
     tarefa.concluir(parecer=parecer, aprovado=aprovado, arquivo=arquivo_nome)
 
-    # Lógica de mudança de status do documento
+    # WORKFLOW AUTOMÁTICO: Cria próxima tarefa se aprovado
+    try:
+        from app.services.workflow import WorkflowGED
+
+        proxima_tarefa = WorkflowGED.proximo_passo(tarefa)
+
+        if proxima_tarefa:
+            current_app.logger.info(f"Próxima tarefa criada: {proxima_tarefa.tipo_tarefa} para {proxima_tarefa.responsavel.nome}")
+    except Exception as e:
+        current_app.logger.error(f"Erro ao criar próxima tarefa do workflow: {str(e)}")
+
+    # Lógica de mudança de status do documento (mantida para compatibilidade)
     documento = tarefa.documento
 
     if tarefa.tipo_tarefa == 'Aprovar' and aprovado:

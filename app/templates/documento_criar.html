@@ -42,6 +42,20 @@
                         </div>
 
                         <div class="mb-3">
+                            <label for="chefia_imediata_id" class="form-label">Chefia Imediata para Análise *</label>
+                            <select class="form-select" id="chefia_imediata_id" name="chefia_imediata_id" required>
+                                <option value="">Selecione quem deve analisar este documento...</option>
+                                {% for gerente in gerentes %}
+                                <option value="{{ gerente.id }}">
+                                    {{ gerente.nome }} - {{ gerente.setor or 'Sem setor' }}
+                                    {% if gerente.perfil == 'administrador' %}(Admin){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Selecione o gerente ou chefia que deverá analisar este documento primeiro</small>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="descricao" class="form-label">Descrição</label>
                             <textarea class="form-control" id="descricao" name="descricao" rows="3"></textarea>
                             <small class="form-text text-muted">Breve descrição do documento</small>
@@ -60,12 +74,15 @@
                         </div>
 
                         <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> <strong>Atenção:</strong>
+                            <i class="bi bi-info-circle"></i> <strong>Fluxo Automático de Aprovação:</strong>
                             <ul class="mb-0 mt-2">
-                                <li>O documento será criado com status "Novo"</li>
-                                <li>Um código provisório será gerado automaticamente</li>
-                                <li>O documento precisará passar pelo fluxo de aprovação</li>
+                                <li><strong>1. Análise:</strong> Chefia Imediata avalia pertinência</li>
+                                <li><strong>2. Validação Técnica:</strong> Especialista valida conteúdo</li>
+                                <li><strong>3. Padronização:</strong> Qualidade valida formatação</li>
+                                <li><strong>4. Aprovação Final:</strong> Superintendência aprova</li>
+                                <li><strong>5. Publicação:</strong> Gestão gera PDF e publica</li>
                             </ul>
+                            <small class="text-muted mt-2 d-block">Código provisório será gerado automaticamente. A IA processará o documento para classificação e resumo.</small>
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
