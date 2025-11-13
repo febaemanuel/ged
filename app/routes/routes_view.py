@@ -99,10 +99,6 @@ def dashboard():
         concluida=False
     ).order_by(Tarefa.prazo.asc()).limit(10).all()
 
-    # Adicionar propriedade esta_atrasada para cada tarefa
-    for tarefa in tarefas:
-        tarefa.esta_atrasada = tarefa.prazo and tarefa.prazo < datetime.utcnow()
-
     return render_template('dashboard.html', stats=stats, tarefas=tarefas)
 
 
@@ -459,10 +455,6 @@ def tarefas():
         page=page, per_page=per_page, error_out=False
     )
 
-    # Adicionar propriedade esta_atrasada
-    for tarefa in tarefas.items:
-        tarefa.esta_atrasada = tarefa.prazo and tarefa.prazo < datetime.utcnow()
-
     # Estatísticas
     stats = {
         'pendentes': Tarefa.query.filter_by(
@@ -495,8 +487,6 @@ def tarefa_detalhe(id):
     if not current_user.is_admin() and tarefa.responsavel_id != current_user.id:
         flash('Acesso negado', 'danger')
         return redirect(url_for('view.tarefas'))
-
-    tarefa.esta_atrasada = tarefa.prazo and tarefa.prazo < datetime.utcnow()
 
     return render_template('tarefa_detalhe.html', tarefa=tarefa)
 
