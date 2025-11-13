@@ -18,6 +18,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def log_debug(message):
+    """Helper para logar tanto no logger quanto no console"""
+    print(f"[WORKFLOW] {message}")
+    logger.info(message)
+
+
 class WorkflowGED:
     """Gerenciador de Workflow de Aprovação de Documentos"""
 
@@ -119,15 +125,15 @@ class WorkflowGED:
         Returns:
             Nova tarefa criada ou None se for a última etapa
         """
-        logger.info(f"🔄 WORKFLOW: Processando próximo passo")
-        logger.info(f"   Tarefa ID: {tarefa_concluida.id}")
-        logger.info(f"   Tipo: {tarefa_concluida.tipo_tarefa}")
-        logger.info(f"   Aprovado: {tarefa_concluida.aprovado}")
-        logger.info(f"   Documento ID: {tarefa_concluida.documento_id}")
-        logger.info(f"   Documento Setor: {tarefa_concluida.documento.setor if tarefa_concluida.documento else 'N/A'}")
+        log_debug(f"🔄 WORKFLOW: Processando próximo passo")
+        log_debug(f"   Tarefa ID: {tarefa_concluida.id}")
+        log_debug(f"   Tipo: {tarefa_concluida.tipo_tarefa}")
+        log_debug(f"   Aprovado: {tarefa_concluida.aprovado}")
+        log_debug(f"   Documento ID: {tarefa_concluida.documento_id}")
+        log_debug(f"   Documento Setor: {tarefa_concluida.documento.setor if tarefa_concluida.documento else 'N/A'}")
 
         if not tarefa_concluida.aprovado:
-            logger.warning(f"⚠️  Tarefa {tarefa_concluida.id} foi reprovada. Criando tarefa de correção.")
+            log_debug(f"⚠️  Tarefa {tarefa_concluida.id} foi reprovada. Criando tarefa de correção.")
             # Se reprovado, volta para o autor corrigir
             cls._criar_tarefa_correcao(tarefa_concluida)
             return None
@@ -143,33 +149,33 @@ class WorkflowGED:
                 break
 
         if etapa_atual is None:
-            logger.error(f"❌ Tipo de tarefa '{tarefa_concluida.tipo_tarefa}' não encontrado no fluxo")
+            log_debug(f"❌ Tipo de tarefa '{tarefa_concluida.tipo_tarefa}' não encontrado no fluxo")
             return None
 
-        logger.info(f"✅ Etapa atual encontrada: Etapa {indice_atual + 1} - {etapa_atual['tipo_tarefa']}")
+        log_debug(f"✅ Etapa atual encontrada: Etapa {indice_atual + 1} - {etapa_atual['tipo_tarefa']}")
 
         # Verifica se é a última etapa
         if indice_atual >= len(cls.FLUXO_APROVACAO) - 1:
-            logger.info(f"🏁 Última etapa concluída. Documento {tarefa_concluida.documento_id} publicado!")
+            log_debug(f"🏁 Última etapa concluída. Documento {tarefa_concluida.documento_id} publicado!")
             return None
 
         # Próxima etapa
         proxima_etapa = cls.FLUXO_APROVACAO[indice_atual + 1]
         documento = tarefa_concluida.documento
 
-        logger.info(f"➡️  Próxima etapa: Etapa {indice_atual + 2} - {proxima_etapa['tipo_tarefa']}")
-        logger.info(f"   Perfil necessário: {proxima_etapa['perfil_responsavel']}")
+        log_debug(f"➡️  Próxima etapa: Etapa {indice_atual + 2} - {proxima_etapa['tipo_tarefa']}")
+        log_debug(f"   Perfil necessário: {proxima_etapa['perfil_responsavel']}")
 
         # Busca responsável para próxima etapa
         responsavel = cls._buscar_responsavel(proxima_etapa, documento)
 
         if not responsavel:
-            logger.error(f"❌ Nenhum responsável encontrado para etapa '{proxima_etapa['tipo_tarefa']}'")
-            logger.error(f"   Perfil buscado: {proxima_etapa['perfil_responsavel']}")
-            logger.error(f"   Setor do documento: {documento.setor}")
+            log_debug(f"❌ Nenhum responsável encontrado para etapa '{proxima_etapa['tipo_tarefa']}'")
+            log_debug(f"   Perfil buscado: {proxima_etapa['perfil_responsavel']}")
+            log_debug(f"   Setor do documento: {documento.setor}")
             return None
 
-        logger.info(f"👤 Responsável encontrado: {responsavel.nome} ({responsavel.email}) - Setor: {responsavel.setor}")
+        log_debug(f"👤 Responsável encontrado: {responsavel.nome} ({responsavel.email}) - Setor: {responsavel.setor}")
 
         # Cria próxima tarefa
         nova_tarefa = Tarefa(
@@ -188,7 +194,7 @@ class WorkflowGED:
         db.session.add(nova_tarefa)
         db.session.commit()
 
-        logger.info(f"Próxima tarefa '{proxima_etapa['tipo_tarefa']}' criada para {responsavel.nome}")
+        log_debug(f"✅ Próxima tarefa '{proxima_etapa['tipo_tarefa']}' criada para {responsavel.nome}")
 
         return nova_tarefa
 
@@ -207,14 +213,14 @@ class WorkflowGED:
         perfil = etapa['perfil_responsavel']
         tipo_tarefa = etapa['tipo_tarefa']
 
-        logger.info(f"🔍 Buscando responsável para: {tipo_tarefa}")
-        logger.info(f"   Perfil necessário: {perfil}")
-        logger.info(f"   Setor do documento: {documento.setor}")
+        log_debug(f"🔍 Buscando responsável para: {tipo_tarefa}")
+        log_debug(f"   Perfil necessário: {perfil}")
+        log_debug(f"   Setor do documento: {documento.setor}")
 
         # Lógica específica por tipo de tarefa
         if tipo_tarefa == 'Validar Conteúdo':
             # Busca responsável interno do mesmo setor
-            logger.info(f"   Buscando responsavel_interno do setor {documento.setor}")
+            log_debug(f"   Buscando responsavel_interno do setor {documento.setor}")
             responsavel = Usuario.query.filter_by(
                 perfil='responsavel_interno',
                 setor=documento.setor,
@@ -222,22 +228,22 @@ class WorkflowGED:
             ).first()
 
             if responsavel:
-                logger.info(f"   ✅ Encontrado: {responsavel.nome} ({responsavel.email})")
+                log_debug(f"   ✅ Encontrado: {responsavel.nome} ({responsavel.email})")
             else:
-                logger.warning(f"   ⚠️  Não encontrado no setor {documento.setor}")
+                log_debug(f"   ⚠️  Não encontrado no setor {documento.setor}")
 
             # Se não encontrar do setor, pega qualquer responsável interno
             if not responsavel:
-                logger.info(f"   Buscando qualquer responsavel_interno ativo")
+                log_debug(f"   Buscando qualquer responsavel_interno ativo")
                 responsavel = Usuario.query.filter_by(
                     perfil='responsavel_interno',
                     ativo=True
                 ).first()
 
                 if responsavel:
-                    logger.info(f"   ✅ Encontrado (fallback): {responsavel.nome} ({responsavel.email})")
+                    log_debug(f"   ✅ Encontrado (fallback): {responsavel.nome} ({responsavel.email})")
                 else:
-                    logger.error(f"   ❌ Nenhum responsavel_interno ativo encontrado no banco!")
+                    log_debug(f"   ❌ Nenhum responsavel_interno ativo encontrado no banco!")
 
         elif tipo_tarefa == 'Validar Padronização':
             # Busca responsável da área de Qualidade

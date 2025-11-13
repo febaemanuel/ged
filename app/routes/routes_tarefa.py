@@ -279,6 +279,11 @@ def concluir_tarefa(id):
     proxima_tarefa_info = None
     workflow_erro = None
 
+    print(f"\n{'='*80}")
+    print(f"[ROUTES] Tarefa concluída! Iniciando workflow automático...")
+    print(f"[ROUTES] Tarefa ID: {tarefa.id} | Tipo: {tarefa.tipo_tarefa} | Aprovado: {tarefa.aprovado}")
+    print(f"{'='*80}\n")
+
     try:
         from app.services.workflow import WorkflowGED
 
@@ -290,12 +295,16 @@ def concluir_tarefa(id):
                 'responsavel': proxima_tarefa.responsavel.nome,
                 'prazo': proxima_tarefa.prazo.isoformat()
             }
+            print(f"[ROUTES] ✅ Próxima tarefa criada: {proxima_tarefa.tipo_tarefa} para {proxima_tarefa.responsavel.nome}")
             current_app.logger.info(f"✅ Próxima tarefa criada: {proxima_tarefa.tipo_tarefa} para {proxima_tarefa.responsavel.nome}")
         else:
+            print(f"[ROUTES] ℹ️  Nenhuma próxima tarefa (última etapa ou reprovado)")
             current_app.logger.info("ℹ️  Nenhuma próxima tarefa (última etapa ou reprovado)")
     except Exception as e:
         import traceback
         workflow_erro = str(e)
+        print(f"[ROUTES] ❌ ERRO no workflow: {str(e)}")
+        print(traceback.format_exc())
         current_app.logger.error(f"❌ Erro ao criar próxima tarefa do workflow: {str(e)}")
         current_app.logger.error(traceback.format_exc())
 
