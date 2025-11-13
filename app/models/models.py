@@ -91,10 +91,15 @@ class Documento(db.Model):
     # Arquivos
     arquivo_original = db.Column(db.String(255))  # .doc, .odt
     arquivo_publicado_pdf = db.Column(db.String(255))  # PDF final
+    arquivo_final = db.Column(db.String(255))  # PDF codificado final (UGQ)
 
     # Códigos
     codigo_provisorio = db.Column(db.String(50), unique=True, index=True)
-    codigo_definitivo = db.Column(db.String(50), unique=True, index=True)
+    codigo_definitivo = db.Column(db.String(50), unique=True, index=True)  # Gerado pela UGQ
+
+    # Versionamento
+    versao = db.Column(db.String(20))  # v1.0, v2.0
+    versao_anterior_id = db.Column(db.Integer, db.ForeignKey('documentos.id'))  # Documento que esta versão substituiu
 
     # Datas e vencimento
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -254,6 +259,9 @@ class Tarefa(db.Model):
     aprovado = db.Column(db.Boolean)  # True=aprovado, False=reprovado, None=sem decisão
     arquivo_anexo = db.Column(db.String(255))  # Para tarefa de publicação (PDF final)
 
+    # Metadados extras (para bloco de assinatura, etc)
+    metadata_json = db.Column(db.Text)  # JSON com dados extras (bloco_id, item_id, modo, etc)
+
     def esta_atrasada(self):
         """Verifica se a tarefa está atrasada"""
         if not self.concluida and self.prazo:
@@ -279,6 +287,19 @@ class Tarefa(db.Model):
     def pode_concluir(self, usuario):
         """Verifica se o usuário pode concluir a tarefa"""
         return usuario.id == self.responsavel_id or usuario.is_admin()
+
+    def get_metadata(self):
+        """Retorna metadata como dicionário"""
+        if self.metadata_json:
+            try:
+                return json.loads(self.metadata_json)
+            except:
+                return {}
+        return {}
+
+    def set_metadata(self, dados):
+        """Define metadata a partir de dicionário"""
+        self.metadata_json = json.dumps(dados, ensure_ascii=False)
 
     def __repr__(self):
         return f'<Tarefa {self.tipo_tarefa} - Doc {self.documento_id}>'
@@ -315,3 +336,145 @@ class LogAI(db.Model):
 
     def __repr__(self):
         return f'<LogAI {self.funcao_ia} - Doc {self.documento_id}>'
+
+
+# ============================================================================
+# NOVOS MODELOS - WORKFLOW UGQ CENTRALIZADO
+# ============================================================================
+
+
+class ListaMestra(db.Model):
+    """
+    Lista Mestra de Documentos da UGQ
+    Controle de códigos definitivos e versionamento
+    """
+    __tablename__ = 'lista_mestra'
+
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    tipo = db.Column(db.String(50), nullable=False)
+    titulo = db.Column(db.String(200), nullable=False)
+    setor = db.Column(db.String(100), nullable=False)
+    versao = db.Column(db.String(20), nullable=False)
+    data_publicacao = db.Column(db.DateTime, nullable=False)
+    documento_id = db.Column(db.Integer, db.ForeignKey('documentos.id'))
+    status = db.Column(db.String(50), default='EM_APROVACAO', index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relacionamento
+    documento = db.relationship('Documento', backref='registro_lista_mestra', uselist=False)
+
+    def __repr__(self):
+        return f'<ListaMestra {self.codigo} - {self.status}>'
+
+
+class BlocoAssinatura(db.Model):
+    """
+    Bloco de Assinatura para aprovação final
+    Gerenciado pelo Validador UGQ
+    """
+    __tablename__ = 'blocos_assinatura'
+
+    id = db.Column(db.Integer, primary_key=True)
+    documento_id = db.Column(db.Integer, db.ForeignKey('documentos.id'), nullable=False, index=True)
+    criador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    modo = db.Column(db.String(20), nullable=False)  # 'sequencial' ou 'concomitante'
+    status = db.Column(db.String(50), default='Em Andamento', index=True)
+    observacoes = db.Column(db.Text)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+    data_conclusao = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relacionamentos
+    documento = db.relationship('Documento', backref='blocos_assinatura')
+    criador = db.relationship('Usuario', foreign_keys=[criador_id], backref='blocos_criados')
+    itens = db.relationship('ItemBlocoAssinatura', backref='bloco', lazy='dynamic',
+                            order_by='ItemBlocoAssinatura.ordem', cascade='all, delete-orphan')
+
+    def total_aprovadores(self):
+        """Retorna total de aprovadores no bloco"""
+        return self.itens.count()
+
+    def aprovadores_aprovaram(self):
+        """Retorna quantos aprovadores já aprovaram"""
+        return self.itens.filter_by(status='Aprovado').count()
+
+    def aprovadores_reprovaram(self):
+        """Retorna quantos aprovadores reprovaram"""
+        return self.itens.filter_by(status='Reprovado').count()
+
+    def aprovadores_pendentes(self):
+        """Retorna quantos aprovadores estão pendentes"""
+        return self.itens.filter_by(status='Pendente').count()
+
+    def todos_aprovaram(self):
+        """Verifica se todos os aprovadores aprovaram"""
+        return self.aprovadores_aprovaram() == self.total_aprovadores()
+
+    def algum_reprovou(self):
+        """Verifica se algum aprovador reprovou"""
+        return self.aprovadores_reprovaram() > 0
+
+    def __repr__(self):
+        return f'<BlocoAssinatura #{self.id} - {self.status}>'
+
+
+class ItemBlocoAssinatura(db.Model):
+    """
+    Item individual do bloco de assinatura
+    Representa cada aprovador
+    """
+    __tablename__ = 'itens_bloco_assinatura'
+
+    id = db.Column(db.Integer, primary_key=True)
+    bloco_id = db.Column(db.Integer, db.ForeignKey('blocos_assinatura.id'), nullable=False, index=True)
+    aprovador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)
+    ordem = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(50), default='Pendente', index=True)
+    parecer = db.Column(db.Text)
+    data_assinatura = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relacionamento
+    aprovador = db.relationship('Usuario', foreign_keys=[aprovador_id], backref='itens_aprovacao')
+
+    def aprovar(self, parecer):
+        """Marca item como aprovado"""
+        self.status = 'Aprovado'
+        self.parecer = parecer
+        self.data_assinatura = datetime.utcnow()
+
+    def reprovar(self, parecer):
+        """Marca item como reprovado"""
+        self.status = 'Reprovado'
+        self.parecer = parecer
+        self.data_assinatura = datetime.utcnow()
+
+    def __repr__(self):
+        return f'<Item #{self.ordem} - {self.aprovador.nome if self.aprovador else "?"} - {self.status}>'
+
+
+class ValidacaoUGQ(db.Model):
+    """
+    Registro de validação técnica feita pelo Validador UGQ
+    """
+    __tablename__ = 'validacoes_ugq'
+
+    id = db.Column(db.Integer, primary_key=True)
+    documento_id = db.Column(db.Integer, db.ForeignKey('documentos.id'), nullable=False, index=True)
+    validador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)
+    data_validacao = db.Column(db.DateTime, nullable=False)
+    declaracao_sei = db.Column(db.String(50))
+    observacoes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relacionamentos
+    documento = db.relationship('Documento', backref='validacoes_ugq')
+    validador = db.relationship('Usuario', foreign_keys=[validador_id], backref='validacoes_realizadas')
+
+    def __repr__(self):
+        return f'<ValidacaoUGQ Doc {self.documento_id} - {self.data_validacao.strftime("%d/%m/%Y")}>'

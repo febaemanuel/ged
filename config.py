@@ -72,16 +72,32 @@ class Config:
     PERFIL_GERENTE = 'gerente'
     PERFIL_RESPONSAVEL = 'responsavel_interno'
     PERFIL_ADMIN = 'administrador'
+    PERFIL_QUALIDADE_TRIADOR = 'qualidade_triador'         # Novo - Workflow UGQ
+    PERFIL_QUALIDADE_VALIDADOR = 'qualidade_validador'     # Novo - Workflow UGQ
 
-    PERFIS_PERMITIDOS = [PERFIL_COMUM, PERFIL_GERENTE, PERFIL_RESPONSAVEL, PERFIL_ADMIN]
+    PERFIS_PERMITIDOS = [
+        PERFIL_COMUM,
+        PERFIL_GERENTE,
+        PERFIL_RESPONSAVEL,
+        PERFIL_ADMIN,
+        PERFIL_QUALIDADE_TRIADOR,
+        PERFIL_QUALIDADE_VALIDADOR
+    ]
 
     # Status de documentos
     STATUS_NOVO = 'Novo'
     STATUS_EM_ANALISE = 'Em Análise'
+    STATUS_EM_TRIAGEM = 'Em Triagem'                        # Novo - Workflow UGQ
+    STATUS_EM_VALIDACAO = 'Em Validação'                    # Novo - Workflow UGQ
+    STATUS_EM_CORRECAO = 'Em Correção'                      # Novo - Workflow UGQ
+    STATUS_VALIDADO = 'Validado'                            # Novo - Workflow UGQ (codificado)
+    STATUS_EM_APROVACAO = 'Em Aprovação'                    # Novo - Workflow UGQ (bloco assinatura)
+    STATUS_EM_AJUSTES = 'Em Ajustes'                        # Novo - Workflow UGQ (reprovado)
     STATUS_APROVADO = 'Aprovado'
-    STATUS_PUBLICADO = 'Aprovado e Publicado'
+    STATUS_PUBLICADO = 'Publicado'                          # Simplificado
     STATUS_CANCELADO = 'Cancelado'
     STATUS_OBSOLETO = 'Obsoleto'
+    STATUS_VIGENTE = 'Vigente'                              # Novo - Workflow UGQ
 
     # Tipos de documentos
     TIPO_POP = 'POP'
@@ -90,7 +106,28 @@ class Config:
 
     TIPOS_DOCUMENTO = [TIPO_POP, TIPO_MANUAL, TIPO_PROTOCOLO]
 
-    # Tipos de tarefas
+    # Tipos de tarefas - WORKFLOW UGQ OFICIAL EBSERH
+    # ETAPA 0 - Autor
+    TAREFA_DOCUMENTO_RECEBIDO = 'Documento Recebido'                        # Novo - Triador UGQ
+
+    # ETAPA 1 - Triador UGQ
+    TAREFA_TRIAGEM = 'Triagem de Documento'                                 # Novo - Triador UGQ
+
+    # ETAPA 2 - Validador UGQ
+    TAREFA_VALIDAR_CODIFICAR = 'Validar e Codificar Documento'            # Novo - Validador UGQ
+
+    # ETAPA 3 - Validador UGQ + Aprovadores
+    TAREFA_GESTAO_BLOCO = 'Gestão do Bloco de Assinatura'                 # Novo - Validador UGQ
+    TAREFA_ASSINAR = 'Assinar Documento'                                   # Novo - Aprovadores
+
+    # ETAPA 4 - Validador UGQ
+    TAREFA_PUBLICAR_APROVADO = 'Publicar Documento Aprovado'              # Novo - Validador UGQ
+
+    # Tarefas de Correção
+    TAREFA_REALIZAR_CORRECAO = 'Realizar Correção'                         # Autor (se devolvido)
+    TAREFA_REALIZAR_AJUSTES = 'Realizar Ajustes'                          # Novo - Validador UGQ (se reprovado)
+
+    # Tipos antigos (mantidos para compatibilidade - DEPRECATED)
     TAREFA_ANALISAR = 'Analisar'
     TAREFA_VALIDAR_CONTEUDO = 'Validar Conteúdo'
     TAREFA_VALIDAR_PADRONIZACAO = 'Validar Padronização'
@@ -98,7 +135,18 @@ class Config:
     TAREFA_PUBLICAR = 'Publicar'
     TAREFA_CORRIGIR = 'Realizar Correção'
 
+    # Todos os tipos de tarefa (novos + antigos)
     TIPOS_TAREFA = [
+        # Workflow UGQ (NOVO)
+        TAREFA_DOCUMENTO_RECEBIDO,
+        TAREFA_TRIAGEM,
+        TAREFA_VALIDAR_CODIFICAR,
+        TAREFA_GESTAO_BLOCO,
+        TAREFA_ASSINAR,
+        TAREFA_PUBLICAR_APROVADO,
+        TAREFA_REALIZAR_CORRECAO,
+        TAREFA_REALIZAR_AJUSTES,
+        # Workflow Antigo (DEPRECATED - mantido para compatibilidade)
         TAREFA_ANALISAR,
         TAREFA_VALIDAR_CONTEUDO,
         TAREFA_VALIDAR_PADRONIZACAO,
