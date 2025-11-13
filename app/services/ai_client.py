@@ -58,7 +58,7 @@ def _get_openai_client():
 
 def _call_deepseek(system_prompt, user_prompt, temperature=0.7, retries=3):
     """
-    Faz chamada ao DeepSeek usando padrão OpenAI com retry logic
+    Faz chamada ao DeepSeek usando requisições HTTP diretas com retry logic
 
     Args:
         system_prompt: Instrução de sistema
@@ -74,24 +74,45 @@ def _call_deepseek(system_prompt, user_prompt, temperature=0.7, retries=3):
 
     for attempt in range(retries):
         try:
-            client = _get_openai_client()
             start_time = time.time()
 
-            response = client.chat.completions.create(
-                model=config['model'],
-                messages=[
+            # URL da API DeepSeek
+            url = f"{config['base_url']}/v1/chat/completions"
+
+            # Headers da requisição
+            headers = {
+                "Authorization": f"Bearer {config['api_key']}",
+                "Content-Type": "application/json",
+            }
+
+            # Corpo da requisição
+            data = {
+                "model": config['model'],
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=temperature,
-                max_tokens=2000
+                "temperature": temperature,
+                "max_tokens": 2000
+            }
+
+            # Faz a requisição HTTP POST
+            response = requests.post(
+                url,
+                headers=headers,
+                json=data,
+                timeout=config['timeout']
             )
 
             elapsed_ms = int((time.time() - start_time) * 1000)
-            result = response.choices[0].message.content
 
-            logger.info(f"Chamada DeepSeek bem-sucedida na tentativa {attempt + 1} ({elapsed_ms}ms)")
-            return result
+            # Verifica se foi bem-sucedido
+            if response.status_code == 200:
+                result = response.json()["choices"][0]["message"]["content"]
+                logger.info(f"Chamada DeepSeek bem-sucedida na tentativa {attempt + 1} ({elapsed_ms}ms)")
+                return result
+            else:
+                raise AIClientError(f"DeepSeek retornou status {response.status_code}: {response.text}")
 
         except Exception as e:
             logger.warning(f"Tentativa {attempt + 1}/{retries} falhou: {str(e)}")
