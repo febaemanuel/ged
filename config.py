@@ -13,9 +13,14 @@ class Config:
 
     # Configurações do banco de dados PostgreSQL
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'postgresql://ged_user:ged_password@localhost:5432/ged_db'
+        'postgresql://ged_user:ged_password@localhost:5432/ged_db?client_encoding=utf8'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False  # True para debug SQL
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'connect_args': {
+            'client_encoding': 'utf8'
+        }
+    }
 
     # Configurações de upload
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'app', 'uploads', 'documentos')
