@@ -1,358 +1,645 @@
 """
-Serviço de Workflow Automático - Sistema GED
-Gerencia o fluxo de aprovação de documentos seguindo o padrão EBSERH
+Serviço de Workflow Automático UGQ - Sistema GED EBSERH
+Gerencia o fluxo oficial EBSERH centralizado na Unidade de Gestão da Qualidade
 
-FLUXO OBRIGATÓRIO:
-1. Autor (Cria) → Status: "Novo"
-2. Chefia Imediata (Analisa) → Tarefa: "Analisar"
-3. Especialista/Área Técnica (Valida Conteúdo) → Tarefa: "Validar Conteúdo"
-4. Qualidade (Valida Padronização) → Tarefa: "Validar Padronização"
-5. Aprovador/Superintendência (Aprova) → Tarefa: "Aprovar"
-6. Gestão Documental (Publica) → Tarefa: "Publicar"
+FLUXO OFICIAL EBSERH (Centralizado na UGQ):
+┌─────────────────────────────────────────────────────────────┐
+│  ETAPA 0: Autor submete → Cria "Documento Recebido" p/ UGQ │
+│  ETAPA 1: Triador UGQ (3 checkpoints) → Aprova ou Devolve  │
+│  ETAPA 2: Validador UGQ (Codifica + Lista Mestra)          │
+│  ETAPA 3: Validador UGQ (Bloco de Assinatura)              │
+│  ETAPA 4: Validador UGQ (Publicação)                       │
+└─────────────────────────────────────────────────────────────┘
+
+Baseado em: FLX.UGQ-CHUFC.002 e POPs da Qualidade
 """
 
 from datetime import datetime, timedelta
-from app.models import db, Tarefa, Documento, Usuario
+from app.models import db, Tarefa, Documento, Usuario, ListaMestra, BlocoAssinatura, ItemBlocoAssinatura
+from config import Config
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
 
 def log_debug(message):
     """Helper para logar tanto no logger quanto no console"""
-    print(f"[WORKFLOW] {message}")
+    print(f"[WORKFLOW UGQ] {message}")
     logger.info(message)
 
 
-class WorkflowGED:
-    """Gerenciador de Workflow de Aprovação de Documentos"""
+class WorkflowUGQ:
+    """
+    Gerenciador de Workflow UGQ Centralizado
+    Implementa o fluxo oficial EBSERH
+    """
 
-    # Definição do fluxo
-    FLUXO_APROVACAO = [
-        {
-            'etapa': 1,
-            'tipo_tarefa': 'Analisar',
-            'descricao': 'Análise de pertinência pela Chefia Imediata',
-            'perfil_responsavel': 'gerente',  # Chefia
-            'prazo_dias': 5,
-            'proximo_status': 'Em Análise'
-        },
-        {
-            'etapa': 2,
-            'tipo_tarefa': 'Validar Conteúdo',
-            'descricao': 'Validação de conteúdo técnico pela Área Especialista',
-            'perfil_responsavel': 'responsavel_interno',  # Especialista
-            'prazo_dias': 7,
-            'proximo_status': 'Em Validação'
-        },
-        {
-            'etapa': 3,
-            'tipo_tarefa': 'Validar Padronização',
-            'descricao': 'Validação de padronização pela Qualidade',
-            'perfil_responsavel': 'responsavel_interno',  # Qualidade
-            'prazo_dias': 5,
-            'proximo_status': 'Em Validação'
-        },
-        {
-            'etapa': 4,
-            'tipo_tarefa': 'Aprovar',
-            'descricao': 'Aprovação final pela Superintendência',
-            'perfil_responsavel': 'gerente',  # Aprovador
-            'prazo_dias': 3,
-            'proximo_status': 'Aguardando Aprovação'
-        },
-        {
-            'etapa': 5,
-            'tipo_tarefa': 'Publicar',
-            'descricao': 'Publicação e geração de PDF final',
-            'perfil_responsavel': 'administrador',  # Gestão Documental
-            'prazo_dias': 2,
-            'proximo_status': 'Aprovado'
-        }
-    ]
+    # ========================================================================
+    # ETAPA 0: AUTOR SUBMETE DOCUMENTO
+    # ========================================================================
 
     @classmethod
-    def iniciar_fluxo(cls, documento, chefia_id):
+    def autor_submete_documento(cls, documento):
         """
-        Inicia o fluxo de aprovação quando o documento é criado
+        Autor cria documento e submete para análise da UGQ
+        Cria tarefa "Documento Recebido" para Triador UGQ
 
         Args:
             documento: Objeto Documento
-            chefia_id: ID da Chefia Imediata selecionada pelo autor
 
         Returns:
-            Tarefa criada
+            Tarefa criada para Triador UGQ
         """
-        logger.info(f"Iniciando fluxo de aprovação para documento {documento.id}")
+        log_debug("=" * 80)
+        log_debug(f"ETAPA 0: Autor submete documento {documento.id}")
+        log_debug(f"Título: {documento.titulo}")
+        log_debug(f"Tipo: {documento.tipo_documento}")
+        log_debug("=" * 80)
 
-        # Primeira etapa: Chefia Imediata
-        primeira_etapa = cls.FLUXO_APROVACAO[0]
+        # Busca Triador UGQ disponível
+        triador = Usuario.query.filter_by(
+            perfil=Config.PERFIL_QUALIDADE_TRIADOR,
+            ativo=True
+        ).first()
 
-        # Busca a chefia
-        chefia = Usuario.query.get(chefia_id)
-        if not chefia:
-            raise ValueError(f"Chefia com ID {chefia_id} não encontrada")
+        if not triador:
+            log_debug("❌ ERRO: Nenhum Triador UGQ disponível")
+            raise ValueError("Nenhum Triador UGQ disponível no sistema")
 
-        # Cria tarefa para Chefia Imediata
+        log_debug(f"✅ Triador UGQ encontrado: {triador.nome} ({triador.email})")
+
+        # Cria tarefa de triagem
         tarefa = Tarefa(
             documento_id=documento.id,
             criador_id=documento.criador_id,
-            responsavel_id=chefia_id,
-            tipo_tarefa=primeira_etapa['tipo_tarefa'],
-            descricao=primeira_etapa['descricao'],
-            prioridade='normal',
-            prazo=datetime.utcnow() + timedelta(days=primeira_etapa['prazo_dias'])
+            responsavel_id=triador.id,
+            tipo_tarefa=Config.TAREFA_DOCUMENTO_RECEBIDO,
+            descricao=f'Triagem de entrada: {documento.titulo}',
+            prazo=datetime.utcnow() + timedelta(days=5),
+            concluida=False
         )
 
-        # Atualiza status do documento
-        documento.status = primeira_etapa['proximo_status']
-
         db.session.add(tarefa)
+
+        # Atualiza status do documento
+        documento.status = Config.STATUS_EM_TRIAGEM
+
         db.session.commit()
 
-        logger.info(f"Tarefa '{primeira_etapa['tipo_tarefa']}' criada para {chefia.nome}")
+        log_debug(f"✅ Tarefa #{tarefa.id} criada para Triador UGQ")
+        log_debug(f"📊 Documento status: {documento.status}")
+        log_debug("=" * 80)
 
         return tarefa
 
+    # ========================================================================
+    # ETAPA 1: TRIADOR UGQ FAZ TRIAGEM (3 CHECKPOINTS)
+    # ========================================================================
+
     @classmethod
-    def proximo_passo(cls, tarefa_concluida):
+    def triador_devolve_ao_autor(cls, tarefa, motivo):
         """
-        Cria a próxima tarefa do fluxo quando uma tarefa é concluída e aprovada
+        Triador UGQ devolve documento ao autor para correção
+        (Checkpoint reprovado)
 
         Args:
-            tarefa_concluida: Tarefa que foi concluída
+            tarefa: Tarefa de triagem
+            motivo: Motivo da devolução
 
         Returns:
-            Nova tarefa criada ou None se for a última etapa
+            Tarefa de correção criada para o autor
         """
-        log_debug(f"🔄 WORKFLOW: Processando próximo passo")
-        log_debug(f"   Tarefa ID: {tarefa_concluida.id}")
-        log_debug(f"   Tipo: {tarefa_concluida.tipo_tarefa}")
-        log_debug(f"   Aprovado: {tarefa_concluida.aprovado}")
-        log_debug(f"   Documento ID: {tarefa_concluida.documento_id}")
-        log_debug(f"   Documento Setor: {tarefa_concluida.documento.setor if tarefa_concluida.documento else 'N/A'}")
+        log_debug("=" * 80)
+        log_debug(f"ETAPA 1: Triador devolve documento")
+        log_debug(f"Motivo: {motivo}")
+        log_debug("=" * 80)
 
-        if not tarefa_concluida.aprovado:
-            log_debug(f"⚠️  Tarefa {tarefa_concluida.id} foi reprovada. Criando tarefa de correção.")
-            # Se reprovado, volta para o autor corrigir
-            cls._criar_tarefa_correcao(tarefa_concluida)
-            return None
+        documento = tarefa.documento
 
-        # Encontra etapa atual
-        etapa_atual = None
-        indice_atual = None
+        # Marca tarefa de triagem como concluída (reprovada)
+        tarefa.aprovado = False
+        tarefa.concluida = True
+        tarefa.data_conclusao = datetime.utcnow()
 
-        for i, etapa in enumerate(cls.FLUXO_APROVACAO):
-            if etapa['tipo_tarefa'] == tarefa_concluida.tipo_tarefa:
-                etapa_atual = etapa
-                indice_atual = i
-                break
-
-        if etapa_atual is None:
-            log_debug(f"❌ Tipo de tarefa '{tarefa_concluida.tipo_tarefa}' não encontrado no fluxo")
-            return None
-
-        log_debug(f"✅ Etapa atual encontrada: Etapa {indice_atual + 1} - {etapa_atual['tipo_tarefa']}")
-
-        # Verifica se é a última etapa
-        if indice_atual >= len(cls.FLUXO_APROVACAO) - 1:
-            log_debug(f"🏁 Última etapa concluída. Documento {tarefa_concluida.documento_id} publicado!")
-            return None
-
-        # Próxima etapa
-        proxima_etapa = cls.FLUXO_APROVACAO[indice_atual + 1]
-        documento = tarefa_concluida.documento
-
-        log_debug(f"➡️  Próxima etapa: Etapa {indice_atual + 2} - {proxima_etapa['tipo_tarefa']}")
-        log_debug(f"   Perfil necessário: {proxima_etapa['perfil_responsavel']}")
-
-        # Busca responsável para próxima etapa
-        responsavel = cls._buscar_responsavel(proxima_etapa, documento)
-
-        if not responsavel:
-            log_debug(f"❌ Nenhum responsável encontrado para etapa '{proxima_etapa['tipo_tarefa']}'")
-            log_debug(f"   Perfil buscado: {proxima_etapa['perfil_responsavel']}")
-            log_debug(f"   Setor do documento: {documento.setor}")
-            return None
-
-        log_debug(f"👤 Responsável encontrado: {responsavel.nome} ({responsavel.email}) - Setor: {responsavel.setor}")
-
-        # Cria próxima tarefa
-        nova_tarefa = Tarefa(
-            documento_id=documento.id,
-            criador_id=tarefa_concluida.responsavel_id,  # Quem concluiu a tarefa anterior
-            responsavel_id=responsavel.id,
-            tipo_tarefa=proxima_etapa['tipo_tarefa'],
-            descricao=proxima_etapa['descricao'],
-            prioridade='normal',
-            prazo=datetime.utcnow() + timedelta(days=proxima_etapa['prazo_dias'])
-        )
-
-        # Atualiza status do documento
-        documento.status = proxima_etapa['proximo_status']
-
-        db.session.add(nova_tarefa)
-        db.session.commit()
-
-        log_debug(f"✅ Próxima tarefa '{proxima_etapa['tipo_tarefa']}' criada para {responsavel.nome}")
-
-        return nova_tarefa
-
-    @classmethod
-    def _buscar_responsavel(cls, etapa, documento):
-        """
-        Busca responsável adequado para a etapa
-
-        Args:
-            etapa: Dicionário da etapa
-            documento: Objeto Documento
-
-        Returns:
-            Usuario responsável
-        """
-        perfil = etapa['perfil_responsavel']
-        tipo_tarefa = etapa['tipo_tarefa']
-
-        log_debug(f"🔍 Buscando responsável para: {tipo_tarefa}")
-        log_debug(f"   Perfil necessário: {perfil}")
-        log_debug(f"   Setor do documento: {documento.setor}")
-
-        # Lógica específica por tipo de tarefa
-        if tipo_tarefa == 'Validar Conteúdo':
-            # Busca responsável interno do mesmo setor
-            log_debug(f"   Buscando responsavel_interno do setor {documento.setor}")
-            responsavel = Usuario.query.filter_by(
-                perfil='responsavel_interno',
-                setor=documento.setor,
-                ativo=True
-            ).first()
-
-            if responsavel:
-                log_debug(f"   ✅ Encontrado: {responsavel.nome} ({responsavel.email})")
-            else:
-                log_debug(f"   ⚠️  Não encontrado no setor {documento.setor}")
-
-            # Se não encontrar do setor, pega qualquer responsável interno
-            if not responsavel:
-                log_debug(f"   Buscando qualquer responsavel_interno ativo")
-                responsavel = Usuario.query.filter_by(
-                    perfil='responsavel_interno',
-                    ativo=True
-                ).first()
-
-                if responsavel:
-                    log_debug(f"   ✅ Encontrado (fallback): {responsavel.nome} ({responsavel.email})")
-                else:
-                    log_debug(f"   ❌ Nenhum responsavel_interno ativo encontrado no banco!")
-
-        elif tipo_tarefa == 'Validar Padronização':
-            # Busca responsável da área de Qualidade
-            responsavel = Usuario.query.filter_by(
-                perfil='responsavel_interno',
-                setor='Qualidade',
-                ativo=True
-            ).first()
-
-            # Se não encontrar, pega qualquer responsável interno
-            if not responsavel:
-                responsavel = Usuario.query.filter_by(
-                    perfil='responsavel_interno',
-                    ativo=True
-                ).first()
-
-        elif tipo_tarefa == 'Aprovar':
-            # Busca gerente do setor ou superior
-            responsavel = Usuario.query.filter_by(
-                perfil='gerente',
-                setor=documento.setor,
-                ativo=True
-            ).first()
-
-            # Se não encontrar, pega qualquer gerente
-            if not responsavel:
-                responsavel = Usuario.query.filter_by(
-                    perfil='gerente',
-                    ativo=True
-                ).first()
-
-        elif tipo_tarefa == 'Publicar':
-            # Busca administrador
-            responsavel = Usuario.query.filter_by(
-                perfil='administrador',
-                ativo=True
-            ).first()
-
-        else:
-            # Padrão: busca qualquer usuário do perfil especificado
-            responsavel = Usuario.query.filter_by(
-                perfil=perfil,
-                ativo=True
-            ).first()
-
-        return responsavel
-
-    @classmethod
-    def _criar_tarefa_correcao(cls, tarefa_reprovada):
-        """
-        Cria tarefa de correção para o autor quando algo é reprovado
-
-        Args:
-            tarefa_reprovada: Tarefa que foi reprovada
-        """
-        documento = tarefa_reprovada.documento
-
+        # Cria tarefa de correção para o autor
         tarefa_correcao = Tarefa(
             documento_id=documento.id,
-            criador_id=tarefa_reprovada.responsavel_id,
-            responsavel_id=documento.criador_id,  # Volta para o autor
-            tipo_tarefa='Realizar Correção',
-            descricao=f'Correção solicitada na etapa "{tarefa_reprovada.tipo_tarefa}": {tarefa_reprovada.parecer}',
-            prioridade='alta',
-            prazo=datetime.utcnow() + timedelta(days=3)
+            criador_id=tarefa.responsavel_id,  # Triador
+            responsavel_id=documento.criador_id,  # Autor
+            tipo_tarefa=Config.TAREFA_REALIZAR_CORRECAO,
+            descricao=f'Correção necessária: {motivo}',
+            prazo=datetime.utcnow() + timedelta(days=5),
+            concluida=False
         )
 
-        # Status volta para inicial
-        documento.status = 'Novo'
-
         db.session.add(tarefa_correcao)
+
+        # Atualiza status do documento
+        documento.status = Config.STATUS_EM_CORRECAO
+
         db.session.commit()
 
-        logger.info(f"Tarefa de correção criada para autor {documento.criador.nome}")
+        log_debug(f"✅ Tarefa de correção #{tarefa_correcao.id} criada para Autor")
+        log_debug(f"📊 Documento status: {documento.status}")
+        log_debug("=" * 80)
 
         return tarefa_correcao
 
     @classmethod
-    def obter_proxima_etapa(cls, tipo_tarefa_atual):
+    def triador_aprova_triagem(cls, tarefa):
         """
-        Retorna informações da próxima etapa do fluxo
+        Triador UGQ aprova triagem (todos checkpoints OK)
+        HAND-OFF: Cria tarefa "Validar e Codificar" para Validador UGQ
 
         Args:
-            tipo_tarefa_atual: Tipo da tarefa atual
+            tarefa: Tarefa de triagem
 
         Returns:
-            Dicionário da próxima etapa ou None
+            Tarefa criada para Validador UGQ
         """
-        for i, etapa in enumerate(cls.FLUXO_APROVACAO):
-            if etapa['tipo_tarefa'] == tipo_tarefa_atual:
-                if i < len(cls.FLUXO_APROVACAO) - 1:
-                    return cls.FLUXO_APROVACAO[i + 1]
-                break
+        log_debug("=" * 80)
+        log_debug(f"ETAPA 1: Triador aprova triagem")
+        log_debug(f"HAND-OFF: Triador → Validador")
+        log_debug("=" * 80)
 
-        return None
+        documento = tarefa.documento
+
+        # Marca tarefa de triagem como concluída (aprovada)
+        tarefa.aprovado = True
+        tarefa.concluida = True
+        tarefa.data_conclusao = datetime.utcnow()
+
+        # Busca Validador UGQ disponível
+        validador = Usuario.query.filter_by(
+            perfil=Config.PERFIL_QUALIDADE_VALIDADOR,
+            ativo=True
+        ).first()
+
+        if not validador:
+            log_debug("❌ ERRO: Nenhum Validador UGQ disponível")
+            raise ValueError("Nenhum Validador UGQ disponível no sistema")
+
+        log_debug(f"✅ Validador UGQ encontrado: {validador.nome} ({validador.email})")
+
+        # Cria tarefa de validação e codificação
+        tarefa_validacao = Tarefa(
+            documento_id=documento.id,
+            criador_id=tarefa.responsavel_id,  # Triador
+            responsavel_id=validador.id,  # Validador
+            tipo_tarefa=Config.TAREFA_VALIDAR_CODIFICAR,
+            descricao=f'Codificar, validar e preparar: {documento.titulo}',
+            prazo=datetime.utcnow() + timedelta(days=7),
+            concluida=False
+        )
+
+        db.session.add(tarefa_validacao)
+
+        # Atualiza status do documento
+        documento.status = Config.STATUS_EM_VALIDACAO
+
+        db.session.commit()
+
+        log_debug(f"✅ Tarefa #{tarefa_validacao.id} criada para Validador UGQ")
+        log_debug(f"📊 Documento status: {documento.status}")
+        log_debug("=" * 80)
+
+        return tarefa_validacao
+
+    # ========================================================================
+    # ETAPA 2: VALIDADOR UGQ CODIFICA E VALIDA
+    # ========================================================================
 
     @classmethod
-    def obter_etapa_atual(cls, tipo_tarefa):
+    def gerar_proximo_codigo(cls, tipo, setor):
         """
-        Retorna informações da etapa baseado no tipo de tarefa
+        Gera próximo código disponível na Lista Mestra
+        Formato: TIPO.SETOR-NNN
 
         Args:
-            tipo_tarefa: Tipo da tarefa
+            tipo: Tipo do documento (POP, Manual, Protocolo)
+            setor: Setor do documento
 
         Returns:
-            Dicionário da etapa
+            String com código sugerido (ex: POP.OPERACOES-001)
         """
-        for etapa in cls.FLUXO_APROVACAO:
-            if etapa['tipo_tarefa'] == tipo_tarefa:
-                return etapa
+        import re
 
-        return None
+        # Busca último código do mesmo tipo e setor
+        ultimo = ListaMestra.query.filter_by(
+            tipo=tipo,
+            setor=setor
+        ).order_by(ListaMestra.id.desc()).first()
+
+        if ultimo:
+            # Extrai número do código (ex: POP.OPERACOES-001 → 001)
+            match = re.search(r'-(\d+)$', ultimo.codigo)
+            if match:
+                numero_atual = int(match.group(1))
+                numero_novo = numero_atual + 1
+            else:
+                numero_novo = 1
+        else:
+            numero_novo = 1
+
+        # Gera código no formato: TIPO.SETOR-NNN
+        codigo = f'{tipo}.{setor}-{numero_novo:03d}'
+
+        log_debug(f"📝 Código sugerido: {codigo}")
+
+        return codigo
+
+    @classmethod
+    def validador_codifica_documento(cls, tarefa, codigo_definitivo, versao, observacoes_validacao):
+        """
+        Validador UGQ codifica documento e atualiza Lista Mestra
+
+        Args:
+            tarefa: Tarefa de validação e codificação
+            codigo_definitivo: Código gerado (ex: POP.OPERACOES-001)
+            versao: Versão do documento (ex: v1.0)
+            observacoes_validacao: Observações da validação
+
+        Returns:
+            Documento atualizado
+        """
+        log_debug("=" * 80)
+        log_debug(f"ETAPA 2: Validador codifica documento")
+        log_debug(f"Código: {codigo_definitivo}")
+        log_debug(f"Versão: {versao}")
+        log_debug("=" * 80)
+
+        documento = tarefa.documento
+
+        # Atualiza documento com código e versão
+        documento.codigo_definitivo = codigo_definitivo
+        documento.versao = versao
+        documento.status = Config.STATUS_VALIDADO
+
+        # Cria registro na Lista Mestra
+        registro = ListaMestra(
+            codigo=codigo_definitivo,
+            tipo=documento.tipo_documento,
+            titulo=documento.titulo,
+            setor=documento.setor,
+            versao=versao,
+            data_publicacao=datetime.utcnow(),
+            documento_id=documento.id,
+            status='EM_APROVACAO'  # Aguardando bloco de assinatura
+        )
+
+        db.session.add(registro)
+
+        # Registra validação UGQ
+        from app.models.models import ValidacaoUGQ
+        validacao = ValidacaoUGQ(
+            documento_id=documento.id,
+            validador_id=tarefa.responsavel_id,
+            data_validacao=datetime.utcnow(),
+            declaracao_sei='28538223',  # Modelo padrão
+            observacoes=observacoes_validacao
+        )
+
+        db.session.add(validacao)
+
+        # Marca tarefa como concluída
+        tarefa.aprovado = True
+        tarefa.concluida = True
+        tarefa.data_conclusao = datetime.utcnow()
+        tarefa.parecer = f'Código gerado: {codigo_definitivo} {versao}'
+
+        db.session.commit()
+
+        log_debug(f"✅ Documento codificado: {codigo_definitivo}")
+        log_debug(f"✅ Registro criado na Lista Mestra (ID: {registro.id})")
+        log_debug(f"✅ Validação UGQ registrada (ID: {validacao.id})")
+        log_debug(f"📊 Documento status: {documento.status}")
+        log_debug("=" * 80)
+
+        return documento
+
+    # ========================================================================
+    # ETAPA 3: VALIDADOR UGQ GERENCIA BLOCO DE ASSINATURA
+    # ========================================================================
+
+    @classmethod
+    def validador_cria_bloco_assinatura(cls, documento, validador_id, aprovadores_ids, modo, observacoes=''):
+        """
+        Validador UGQ cria bloco de assinatura e envia para aprovadores
+
+        Args:
+            documento: Documento a ser aprovado
+            validador_id: ID do Validador UGQ
+            aprovadores_ids: Lista de IDs dos aprovadores (em ordem)
+            modo: 'sequencial' ou 'concomitante'
+            observacoes: Observações para os aprovadores
+
+        Returns:
+            BlocoAssinatura criado
+        """
+        log_debug("=" * 80)
+        log_debug(f"ETAPA 3: Validador cria Bloco de Assinatura")
+        log_debug(f"Modo: {modo}")
+        log_debug(f"Aprovadores: {len(aprovadores_ids)}")
+        log_debug("=" * 80)
+
+        # Cria bloco de assinatura
+        bloco = BlocoAssinatura(
+            documento_id=documento.id,
+            criador_id=validador_id,
+            modo=modo,
+            status='Em Andamento',
+            observacoes=observacoes
+        )
+
+        db.session.add(bloco)
+        db.session.flush()  # Gera bloco.id
+
+        log_debug(f"✅ Bloco #{bloco.id} criado")
+
+        # Adiciona aprovadores
+        for ordem, aprovador_id in enumerate(aprovadores_ids, start=1):
+            item = ItemBlocoAssinatura(
+                bloco_id=bloco.id,
+                aprovador_id=aprovador_id,
+                ordem=ordem,
+                status='Pendente'
+            )
+            db.session.add(item)
+            log_debug(f"   📌 Aprovador #{ordem}: ID {aprovador_id}")
+
+        # Cria tarefas para aprovadores
+        if modo == 'sequencial':
+            # Modo sequencial: apenas primeiro aprovador
+            primeiro_item = ItemBlocoAssinatura.query.filter_by(
+                bloco_id=bloco.id,
+                ordem=1
+            ).first()
+
+            tarefa = Tarefa(
+                documento_id=documento.id,
+                criador_id=validador_id,
+                responsavel_id=primeiro_item.aprovador_id,
+                tipo_tarefa=f'Assinar Documento [Bloco #{bloco.id}]',
+                descricao=f'Assinar: {documento.codigo_definitivo}',
+                prazo=datetime.utcnow() + timedelta(days=5),
+                concluida=False
+            )
+            tarefa.set_metadata({
+                'bloco_id': bloco.id,
+                'item_id': primeiro_item.id,
+                'modo': 'sequencial'
+            })
+            db.session.add(tarefa)
+
+            log_debug(f"✅ Tarefa criada para aprovador #1 (modo sequencial)")
+
+        elif modo == 'concomitante':
+            # Modo concomitante: todos aprovadores simultaneamente
+            itens = ItemBlocoAssinatura.query.filter_by(bloco_id=bloco.id).all()
+            for item in itens:
+                tarefa = Tarefa(
+                    documento_id=documento.id,
+                    criador_id=validador_id,
+                    responsavel_id=item.aprovador_id,
+                    tipo_tarefa=f'Assinar Documento [Bloco #{bloco.id}]',
+                    descricao=f'Assinar: {documento.codigo_definitivo}',
+                    prazo=datetime.utcnow() + timedelta(days=5),
+                    concluida=False
+                )
+                tarefa.set_metadata({
+                    'bloco_id': bloco.id,
+                    'item_id': item.id,
+                    'modo': 'concomitante'
+                })
+                db.session.add(tarefa)
+
+            log_debug(f"✅ Tarefas criadas para {len(itens)} aprovadores (modo concomitante)")
+
+        # Atualiza status do documento
+        documento.status = Config.STATUS_EM_APROVACAO
+
+        db.session.commit()
+
+        log_debug(f"📊 Documento status: {documento.status}")
+        log_debug("=" * 80)
+
+        return bloco
+
+    @classmethod
+    def aprovador_assina(cls, tarefa, aprovado, parecer):
+        """
+        Aprovador assina documento (aprova ou reprova)
+
+        Args:
+            tarefa: Tarefa de assinatura
+            aprovado: True=aprovar, False=reprovar
+            parecer: Parecer do aprovador
+
+        Returns:
+            Dict com informações sobre o próximo passo
+        """
+        log_debug("=" * 80)
+        log_debug(f"ETAPA 3: Aprovador assina documento")
+        log_debug(f"Decisão: {'APROVADO' if aprovado else 'REPROVADO'}")
+        log_debug("=" * 80)
+
+        metadata = tarefa.get_metadata()
+        bloco_id = metadata.get('bloco_id')
+        item_id = metadata.get('item_id')
+        modo = metadata.get('modo')
+
+        bloco = BlocoAssinatura.query.get(bloco_id)
+        item = ItemBlocoAssinatura.query.get(item_id)
+        documento = tarefa.documento
+
+        # Registra assinatura/rejeição
+        if aprovado:
+            item.aprovar(parecer)
+            tarefa.aprovado = True
+            log_debug(f"✅ Aprovador #{item.ordem} APROVOU")
+        else:
+            item.reprovar(parecer)
+            tarefa.aprovado = False
+            log_debug(f"❌ Aprovador #{item.ordem} REPROVOU")
+
+        tarefa.concluida = True
+        tarefa.data_conclusao = datetime.utcnow()
+        tarefa.parecer = parecer
+
+        resultado = {}
+
+        if not aprovado:
+            # REPROVADO - Cancela bloco e devolve para Validador
+            log_debug("🔙 Reprovado! Devolvendo para Validador UGQ")
+
+            bloco.status = 'Reprovado'
+            documento.status = Config.STATUS_EM_AJUSTES
+
+            # Cancela todas as outras tarefas do bloco
+            Tarefa.query.filter(
+                Tarefa.metadata_json.contains(f'"bloco_id": {bloco.id}'),
+                Tarefa.concluida == False
+            ).update({'concluida': True, 'parecer': 'Cancelada - bloco reprovado'}, synchronize_session=False)
+
+            # Cria tarefa de ajustes para Validador
+            validador_id = bloco.criador_id
+            tarefa_ajuste = Tarefa(
+                documento_id=documento.id,
+                criador_id=tarefa.responsavel_id,
+                responsavel_id=validador_id,
+                tipo_tarefa=Config.TAREFA_REALIZAR_AJUSTES,
+                descricao=f'Reprovado por {tarefa.responsavel.nome}: {parecer}',
+                prazo=datetime.utcnow() + timedelta(days=5),
+                concluida=False
+            )
+            db.session.add(tarefa_ajuste)
+
+            resultado['proximo'] = 'ajustes'
+            resultado['tarefa_id'] = tarefa_ajuste.id
+
+        else:
+            # APROVADO - Verifica se todos aprovaram
+            if modo == 'sequencial':
+                # Cria tarefa para próximo aprovador (se houver)
+                proximo_item = ItemBlocoAssinatura.query.filter_by(
+                    bloco_id=bloco.id,
+                    ordem=item.ordem + 1
+                ).first()
+
+                if proximo_item:
+                    log_debug(f"➡️  Próximo aprovador: #{proximo_item.ordem}")
+
+                    proxima_tarefa = Tarefa(
+                        documento_id=documento.id,
+                        criador_id=tarefa.responsavel_id,
+                        responsavel_id=proximo_item.aprovador_id,
+                        tipo_tarefa=f'Assinar Documento [Bloco #{bloco.id}]',
+                        descricao=f'Assinar: {documento.codigo_definitivo}',
+                        prazo=datetime.utcnow() + timedelta(days=5),
+                        concluida=False
+                    )
+                    proxima_tarefa.set_metadata({
+                        'bloco_id': bloco.id,
+                        'item_id': proximo_item.id,
+                        'modo': 'sequencial'
+                    })
+                    db.session.add(proxima_tarefa)
+
+                    resultado['proximo'] = 'proximo_aprovador'
+                    resultado['tarefa_id'] = proxima_tarefa.id
+                else:
+                    # Último aprovador!
+                    log_debug("🎉 Último aprovador! Bloco completo!")
+                    cls._finalizar_bloco_assinatura(bloco, documento)
+                    resultado['proximo'] = 'publicacao'
+
+            elif modo == 'concomitante':
+                # Verifica se todos assinaram
+                if bloco.todos_aprovaram():
+                    log_debug("🎉 Todos aprovadores assinaram! Bloco completo!")
+                    cls._finalizar_bloco_assinatura(bloco, documento)
+                    resultado['proximo'] = 'publicacao'
+                else:
+                    pendentes = bloco.aprovadores_pendentes()
+                    log_debug(f"⏳ Aguardando {pendentes} aprovador(es)")
+                    resultado['proximo'] = 'aguardando'
+                    resultado['pendentes'] = pendentes
+
+        db.session.commit()
+        log_debug("=" * 80)
+
+        return resultado
+
+    @classmethod
+    def _finalizar_bloco_assinatura(cls, bloco, documento):
+        """
+        Finaliza bloco de assinatura e cria tarefa de publicação
+
+        Args:
+            bloco: BlocoAssinatura aprovado
+            documento: Documento aprovado
+        """
+        log_debug("🎉 Finalizando bloco de assinatura")
+
+        bloco.status = 'Aprovado'
+        bloco.data_conclusao = datetime.utcnow()
+        documento.status = Config.STATUS_APROVADO
+
+        # Cria tarefa de publicação para Validador UGQ
+        validador_id = bloco.criador_id
+        tarefa_publicar = Tarefa(
+            documento_id=documento.id,
+            criador_id=validador_id,
+            responsavel_id=validador_id,
+            tipo_tarefa=Config.TAREFA_PUBLICAR_APROVADO,
+            descricao=f'Publicar: {documento.codigo_definitivo}',
+            prazo=datetime.utcnow() + timedelta(days=3),
+            concluida=False
+        )
+        db.session.add(tarefa_publicar)
+
+        log_debug(f"✅ Tarefa de publicação #{tarefa_publicar.id} criada para Validador UGQ")
+
+    # ========================================================================
+    # ETAPA 4: VALIDADOR UGQ PUBLICA DOCUMENTO
+    # ========================================================================
+
+    @classmethod
+    def validador_publica_documento(cls, tarefa):
+        """
+        Validador UGQ publica documento aprovado
+
+        Args:
+            tarefa: Tarefa de publicação
+
+        Returns:
+            Documento publicado
+        """
+        log_debug("=" * 80)
+        log_debug(f"ETAPA 4: Validador publica documento")
+        log_debug("=" * 80)
+
+        documento = tarefa.documento
+
+        # Atualiza status do documento
+        documento.status = Config.STATUS_PUBLICADO
+        documento.data_publicacao = datetime.utcnow()
+
+        # Atualiza Lista Mestra para VIGENTE
+        registro = ListaMestra.query.filter_by(
+            documento_id=documento.id
+        ).first()
+
+        if registro:
+            registro.status = 'VIGENTE'
+            log_debug(f"✅ Lista Mestra atualizada: {registro.codigo} → VIGENTE")
+
+        # Arquiva versão anterior (se houver)
+        if documento.versao_anterior_id:
+            doc_antigo = Documento.query.get(documento.versao_anterior_id)
+            if doc_antigo:
+                doc_antigo.status = Config.STATUS_OBSOLETO
+
+                registro_antigo = ListaMestra.query.filter_by(
+                    documento_id=doc_antigo.id
+                ).first()
+                if registro_antigo:
+                    registro_antigo.status = 'ANTIGO'
+
+                log_debug(f"📦 Versão anterior arquivada: {doc_antigo.codigo}")
+
+        # Marca tarefa como concluída
+        tarefa.aprovado = True
+        tarefa.concluida = True
+        tarefa.data_conclusao = datetime.utcnow()
+        tarefa.parecer = f'Publicado em {datetime.utcnow().strftime("%d/%m/%Y %H:%M")}'
+
+        db.session.commit()
+
+        log_debug(f"✅ Documento {documento.codigo_definitivo} publicado!")
+        log_debug(f"📊 Status: {documento.status}")
+        log_debug("🎉 FIM DO WORKFLOW UGQ")
+        log_debug("=" * 80)
+
+        return documento
