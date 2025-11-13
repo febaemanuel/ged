@@ -643,7 +643,7 @@ def tarefa_concluir(id):
             flash(f'Erro ao criar próxima tarefa: {str(e)}', 'warning')
 
     flash('Tarefa concluída com sucesso!', 'success')
-    return redirect(url_for('view.tarefa_detalhe', id=id))
+    return redirect(url_for('tarefa.minhas_tarefas'))
 
 
 # ============================================================================
