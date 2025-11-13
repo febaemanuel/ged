@@ -1,5 +1,5 @@
 """
-Cliente para integração com API externa de IA
+Cliente para integração com API externa de IA (DeepSeek)
 
 Este módulo é responsável por se comunicar com a API de IA externa,
 enviando dados e recebendo resultados processados.
@@ -15,9 +15,18 @@ Funções disponíveis:
 import requests
 import logging
 import time
+import os
 from flask import current_app
 
 logger = logging.getLogger(__name__)
+
+# Importa OpenAI para DeepSeek (compatível)
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    logger.warning("Biblioteca openai não instalada. Funcionalidades de IA estarão limitadas.")
 
 
 class AIClientError(Exception):
@@ -30,8 +39,61 @@ def _get_api_config():
     return {
         'base_url': current_app.config.get('AI_API_BASE_URL'),
         'api_key': current_app.config.get('AI_API_KEY'),
-        'timeout': current_app.config.get('AI_API_TIMEOUT', 30)
+        'timeout': current_app.config.get('AI_API_TIMEOUT', 30),
+        'model': current_app.config.get('AI_API_MODEL', 'deepseek-chat')
     }
+
+
+def _get_openai_client():
+    """Retorna cliente OpenAI configurado para DeepSeek"""
+    if not OPENAI_AVAILABLE:
+        raise AIClientError("Biblioteca openai não instalada. Execute: pip install openai")
+
+    config = _get_api_config()
+    return OpenAI(
+        api_key=config['api_key'],
+        base_url=config['base_url']
+    )
+
+
+def _call_deepseek(system_prompt, user_prompt, temperature=0.7):
+    """
+    Faz chamada ao DeepSeek usando padrão OpenAI
+
+    Args:
+        system_prompt: Instrução de sistema
+        user_prompt: Prompt do usuário
+        temperature: Temperatura para geração (0.0 a 1.0)
+
+    Returns:
+        str: Resposta da IA
+    """
+    try:
+        client = _get_openai_client()
+        config = _get_api_config()
+
+        start_time = time.time()
+
+        response = client.chat.completions.create(
+            model=config['model'],
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=temperature,
+            max_tokens=2000
+        )
+
+        elapsed_ms = int((time.time() - start_time) * 1000)
+
+        result = response.choices[0].message.content
+        logger.info(f"Chamada DeepSeek bem-sucedida ({elapsed_ms}ms)")
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Erro ao chamar DeepSeek: {str(e)}")
+        raise AIClientError(f"Erro ao comunicar com DeepSeek: {str(e)}")
 
 
 def _make_request(endpoint, method='POST', files=None, json_data=None):
@@ -132,7 +194,7 @@ def extract_text(file_path):
 
 def classify_document(text):
     """
-    Classifica o tipo de documento baseado no conteúdo
+    Classifica o tipo de documento baseado no conteúdo usando DeepSeek
 
     Args:
         text: Texto do documento
@@ -151,15 +213,47 @@ def classify_document(text):
     """
     logger.info(f"Classificando documento (texto com {len(text)} caracteres)")
 
-    json_data = {'texto': text}
-    result = _make_request('/api/ai/classify', json_data=json_data)
+    system_prompt = """Você é um especialista em classificação de documentos técnicos.
+Analise o texto e classifique em uma das categorias:
+- POP (Procedimento Operacional Padrão): instruções passo a passo para realizar tarefas
+- Manual: documentação técnica, guias de uso, manuais de equipamentos
+- Protocolo: regras, normas, diretrizes, acordos
 
-    return result
+Responda APENAS em formato JSON válido:
+{
+    "tipo_documento": "POP" ou "Manual" ou "Protocolo",
+    "confianca": 0.0 a 1.0,
+    "caracteristicas": ["lista", "de", "características"]
+}"""
+
+    # Limita texto para não exceder tokens
+    texto_limitado = text[:3000] if len(text) > 3000 else text
+    user_prompt = f"Classifique este documento:\n\n{texto_limitado}"
+
+    try:
+        result_text = _call_deepseek(system_prompt, user_prompt, temperature=0.3)
+
+        # Parse JSON da resposta
+        import json
+        result = json.loads(result_text)
+
+        return result
+
+    except json.JSONDecodeError:
+        logger.warning("DeepSeek retornou resposta inválida, usando fallback")
+        return {
+            'tipo_documento': 'Manual',
+            'confianca': 0.5,
+            'caracteristicas': ['Classificação manual necessária']
+        }
+    except Exception as e:
+        logger.error(f"Erro na classificação: {str(e)}")
+        raise AIClientError(f"Erro ao classificar documento: {str(e)}")
 
 
 def summarize_text(text, max_length=500):
     """
-    Gera resumo do texto
+    Gera resumo do texto usando DeepSeek
 
     Args:
         text: Texto completo do documento
@@ -178,13 +272,43 @@ def summarize_text(text, max_length=500):
     """
     logger.info(f"Gerando resumo de texto ({len(text)} caracteres)")
 
-    json_data = {
-        'texto': text,
-        'max_length': max_length
-    }
-    result = _make_request('/api/ai/summarize', json_data=json_data)
+    system_prompt = """Você é um especialista em análise e resumo de documentos técnicos.
+Analise o texto e forneça um resumo conciso, palavras-chave e tópicos principais.
 
-    return result
+Responda APENAS em formato JSON válido:
+{
+    "resumo": "resumo conciso do documento",
+    "palavras_chave": ["palavra1", "palavra2", "palavra3"],
+    "topicos_principais": ["tópico 1", "tópico 2", "tópico 3"]
+}"""
+
+    # Limita texto para não exceder tokens
+    texto_limitado = text[:4000] if len(text) > 4000 else text
+    user_prompt = f"Resuma este documento (máximo {max_length} caracteres):\n\n{texto_limitado}"
+
+    try:
+        result_text = _call_deepseek(system_prompt, user_prompt, temperature=0.5)
+
+        # Parse JSON da resposta
+        import json
+        result = json.loads(result_text)
+
+        # Limita resumo ao tamanho máximo
+        if len(result.get('resumo', '')) > max_length:
+            result['resumo'] = result['resumo'][:max_length] + '...'
+
+        return result
+
+    except json.JSONDecodeError:
+        logger.warning("DeepSeek retornou resposta inválida, usando fallback")
+        return {
+            'resumo': text[:max_length] + '...' if len(text) > max_length else text,
+            'palavras_chave': [],
+            'topicos_principais': []
+        }
+    except Exception as e:
+        logger.error(f"Erro ao gerar resumo: {str(e)}")
+        raise AIClientError(f"Erro ao gerar resumo: {str(e)}")
 
 
 def search_semantic(query, limit=10, filters=None):

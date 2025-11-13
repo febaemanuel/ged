@@ -55,10 +55,11 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
 
-    # Configurações da API de IA
-    AI_API_BASE_URL = os.environ.get('AI_API_BASE_URL') or 'https://api.ia.meudominio.com'
+    # Configurações da API de IA (DeepSeek)
+    AI_API_BASE_URL = os.environ.get('AI_API_BASE_URL') or 'https://api.deepseek.com'
     AI_API_KEY = os.environ.get('AI_API_KEY') or ''
-    AI_API_TIMEOUT = 30  # segundos
+    AI_API_MODEL = os.environ.get('AI_API_MODEL') or 'deepseek-chat'
+    AI_API_TIMEOUT = int(os.environ.get('AI_API_TIMEOUT', 30))  # segundos
 
     # Configurações de documentos
     VALIDADE_PADRAO_ANOS = 5

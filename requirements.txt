@@ -13,6 +13,9 @@ Werkzeug==3.0.1
 # HTTP/Requests
 requests==2.31.0
 
+# API de IA (DeepSeek - compatível com OpenAI)
+openai==1.12.0
+
 # Geração de PDF
 reportlab==4.0.7
 
