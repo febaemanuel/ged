@@ -41,19 +41,9 @@
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="chefia_imediata_id" class="form-label">Chefia Imediata para Análise *</label>
-                            <select class="form-select" id="chefia_imediata_id" name="chefia_imediata_id" required>
-                                <option value="">Selecione quem deve analisar este documento...</option>
-                                {% for gerente in gerentes %}
-                                <option value="{{ gerente.id }}">
-                                    {{ gerente.nome }} - {{ gerente.setor or 'Sem setor' }}
-                                    {% if gerente.perfil == 'administrador' %}(Admin){% endif %}
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <small class="form-text text-muted">Selecione o gerente ou chefia que deverá analisar este documento primeiro</small>
-                        </div>
+                        <!-- WORKFLOW UGQ: Campo chefia_imediata_id REMOVIDO -->
+                        <!-- No Workflow UGQ Centralizado, o documento vai direto para o Triador UGQ -->
+                        <!-- O campo foi mantido no banco apenas para compatibilidade com documentos antigos -->
 
                         <div class="mb-3">
                             <label for="descricao" class="form-label">Descrição</label>

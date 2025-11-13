@@ -42,21 +42,8 @@
                             </div>
                         </div>
 
-                        {% if documento.status in ['Novo', 'Em Análise'] %}
-                        <div class="mb-3">
-                            <label for="chefia_imediata_id" class="form-label">Chefia Imediata para Análise</label>
-                            <select class="form-select" id="chefia_imediata_id" name="chefia_imediata_id">
-                                <option value="">Manter atual{% if documento.chefia_imediata %} ({{ documento.chefia_imediata.nome }}){% endif %}</option>
-                                {% for gerente in gerentes %}
-                                <option value="{{ gerente.id }}" {% if documento.chefia_imediata_id == gerente.id %}selected{% endif %}>
-                                    {{ gerente.nome }} - {{ gerente.setor or 'Sem setor' }}
-                                    {% if gerente.perfil == 'administrador' %}(Admin){% endif %}
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <small class="form-text text-muted">Alterar apenas se necessário</small>
-                        </div>
-                        {% endif %}
+                        <!-- WORKFLOW UGQ: Campo chefia_imediata_id REMOVIDO -->
+                        <!-- No Workflow UGQ, não é mais necessário selecionar chefia -->
 
                         <div class="mb-3">
                             <label for="descricao" class="form-label">Descrição</label>
