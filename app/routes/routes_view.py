@@ -153,7 +153,7 @@ def documento_detalhe(id):
 
     # Logs de IA
     logs_ia = LogAI.query.filter_by(documento_id=id).order_by(
-        LogAI.data_hora.desc()
+        LogAI.data_chamada.desc()
     ).limit(10).all()
 
     return render_template(
