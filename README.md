@@ -14,47 +14,90 @@
 - 🎨 **Interface Moderna** - Frontend completo com Bootstrap 5
 - 🔐 **Controle de Acesso** - Sistema de perfis e permissões robusto
 
-## 🔄 Workflow EBSERH (5 Etapas Automáticas)
+## 🔄 Workflow EBSERH-UGQ (Centralizado na Qualidade)
 
-O sistema implementa o **fluxo de aprovação padronizado EBSERH**:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    FLUXO AUTOMÁTICO EBSERH                      │
-└─────────────────────────────────────────────────────────────────┘
-
-1️⃣ AUTOR (Usuário Comum)
-   └─> Cria documento e seleciona Chefia Imediata
-       ⏱️ Sistema cria automaticamente tarefa: "Analisar"
-
-2️⃣ CHEFIA IMEDIATA (Gerente)
-   └─> Analisa pertinência do documento
-       ⏱️ Se aprovado → cria automaticamente: "Validar Conteúdo"
-
-3️⃣ ÁREA TÉCNICA/ESPECIALISTA (Responsável Interno do Setor)
-   └─> Valida conteúdo técnico
-       ⏱️ Se aprovado → cria automaticamente: "Validar Padronização"
-
-4️⃣ QUALIDADE (Responsável Interno - Setor Qualidade)
-   └─> Valida padronização e normas EBSERH
-       ⏱️ Se aprovado → cria automaticamente: "Aprovar"
-
-5️⃣ APROVADOR (Gerente/Superintendência)
-   └─> Aprovação final
-       ⏱️ Se aprovado → cria automaticamente: "Publicar"
-
-6️⃣ GESTÃO DOCUMENTAL (Administrador)
-   └─> Publica e gera PDF final com código definitivo
-       ✅ Documento publicado no repositório
+O sistema implementa o **fluxo oficial EBSERH centralizado na Unidade de Gestão da Qualidade (UGQ)**:
 
 ```
+┌─────────────────────────────────────────────────────────────────────────┐
+│              FLUXO OFICIAL EBSERH - CENTRALIZADO NA UGQ                 │
+│          (Baseado em FLX.UGQ-CHUFC.002 e POPs da Qualidade)            │
+└─────────────────────────────────────────────────────────────────────────┘
 
-**Características do Workflow:**
-- ✅ **100% Automático** - Próxima tarefa criada automaticamente
-- ⏱️ **Prazos Definidos** - Cada etapa tem prazo específico
-- 📧 **Responsável Automático** - Sistema seleciona baseado em perfil e setor
-- 🔙 **Rejeição Inteligente** - Volta ao autor para correção
-- 📊 **Rastreabilidade Total** - Histórico completo de cada etapa
+0️⃣ AUTOR (Usuário Comum)
+   └─> Cria documento e clica "Submeter para Análise da Qualidade"
+       ⏱️ Sistema cria tarefa "Documento Recebido" → QUALIDADE (Triador)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                        🏢 UNIDADE DE GESTÃO DA QUALIDADE (UGQ)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1️⃣ QUALIDADE (Triador) - Recebimento e Triagem
+   └─> Checkpoint 1: Documento já existe?
+       ├─ SIM → Devolve ao Autor (Processo Encerrado)
+       └─ NÃO → Avança
+   └─> Checkpoint 2: É Manual?
+       ├─ SIM → Validado pelo Colegiado Executivo?
+       │   ├─ NÃO → Devolve ao Autor (Processo Encerrado)
+       │   └─ SIM → Avança
+       └─ NÃO → Avança automaticamente
+   └─> Checkpoint 3: Está no padrão de formatação?
+       ├─ NÃO → Devolve ao Autor (Processo Encerrado)
+       └─ SIM → Clica "Aprovar Triagem e Enviar para Validação"
+
+   🔄 HAND-OFF (Transferência de Responsabilidade)
+       ⏱️ Sistema cria tarefa "Validar e Codificar" → QUALIDADE (Validador)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+2️⃣ QUALIDADE (Validador) - Codificação e Validação
+   └─> Formatar documento (ajuste fino se necessário)
+   └─> Codificar: Gerar código definitivo (ex: POP.SETOR-XYZ.001)
+   └─> Atualizar Lista Mestra do sistema
+   └─> Validar: Assinar Declaração SEI de VALIDAÇÃO
+   └─> Clica "Documento Codificado e Validado. Iniciar Bloco de Assinatura"
+       ⏱️ Sistema abre tela "Gestão do Bloco de Assinatura"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+3️⃣ QUALIDADE (Validador) - Gestão do Bloco de Assinatura
+   └─> Preparar Processo: Anexa PDF final codificado
+   └─> Selecionar Aprovadores em ordem (ex: Chefe → Superintendente)
+   └─> Iniciar Fluxo de Assinatura (Sequencial ou Concomitante):
+
+       MODO SEQUENCIAL:
+       ├─> Aprovador 1 recebe tarefa
+       │   ├─ Reprovar → Volta para Validador com ajustes
+       │   └─ Aprovar → Sistema cria tarefa para Aprovador 2
+       └─> Repete até último aprovador
+
+       MODO CONCOMITANTE (Paralelo):
+       ├─> Todos aprovadores recebem tarefa simultaneamente
+       ├─ Qualquer Reprovação → Volta para Validador com ajustes
+       └─ Todos Aprovam → Sistema registra bloco como "Aprovado"
+
+       ⏱️ Sistema cria tarefa "Publicar Documento" → QUALIDADE (Validador)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+4️⃣ QUALIDADE (Validador) - Publicação Final
+   └─> Move documento para status "VIGENTE"
+   └─> Arquiva versão anterior como "ANTIGO"
+   └─> Publica no Portal da instituição
+   └─> Marca processo como "Concluído"
+       ✅ FIM DO PROCESSO
+
+```
+
+**Características do Workflow UGQ:**
+- ✅ **Centralização Total** - Toda gestão concentrada na UGQ
+- 👥 **2 Perfis Especializados** - Triador (triagem) e Validador (técnico)
+- 🔄 **Hand-Off Inteligente** - Transferência automática entre perfis
+- ✓ **3 Checkpoints Obrigatórios** - Triagem rigorosa conforme POPs
+- 📝 **Lista Mestra Integrada** - Codificação automática sequencial
+- 📋 **Bloco de Assinatura Flexível** - Modo sequencial ou concomitante
+- 🔙 **Devolução ao Autor** - Processo pode retornar em qualquer etapa
+- 📊 **Rastreabilidade Total** - Histórico completo UGQ-centric
 
 ## 🚀 Stack Tecnológica
 
@@ -163,35 +206,38 @@ python app.py
 
 ✅ **Acesse**: http://localhost:5000
 
-## 🔑 Usuários Padrão (10 Usuários EBSERH)
+## 🔑 Usuários Padrão (Workflow UGQ)
 
-O sistema cria automaticamente **10 usuários** para testar todo o workflow:
+O sistema cria automaticamente usuários para testar o **workflow centralizado UGQ**:
 
-### 🔴 Administrador (Gestão Documental)
-| Email | Senha | Perfil | Setor |
-|-------|-------|--------|-------|
-| admin@example.com | admin123 | Administrador | Gestão Documental |
+### ⚪ Autores (Usuários Comuns)
+| Email | Senha | Perfil | Setor | Função no Workflow |
+|-------|-------|--------|-------|-------------------|
+| usuario@example.com | usuario123 | Comum | Operações | Cria documentos e submete para UGQ |
+| rafael.alves@example.com | usuario123 | Comum | Produção | Cria documentos e submete para UGQ |
+| fernanda.lima@example.com | usuario123 | Comum | Operações | Cria documentos e submete para UGQ |
 
-### 🔵 Gerentes (Chefia Imediata + Aprovadores)
-| Email | Senha | Perfil | Setor |
-|-------|-------|--------|-------|
-| maria.silva@example.com | gerente123 | Gerente | Produção |
-| joao.santos@example.com | gerente123 | Gerente | Qualidade |
-| carlos.mendes@example.com | gerente123 | Gerente | Operações |
+### 🟡 UGQ - Triadores (ETAPA 1)
+| Email | Senha | Perfil | Setor | Função no Workflow |
+|-------|-------|--------|-------|-------------------|
+| triador.ugq@example.com | ugq123 | Qualidade (Triador) | UGQ | Recebe e triagem: verifica duplicatas, validação colegiado, formatação |
 
-### 🟢 Responsáveis Internos (Validadores)
-| Email | Senha | Perfil | Setor |
-|-------|-------|--------|-------|
-| ana.costa@example.com | resp123 | Responsável Interno | Qualidade |
-| pedro.oliveira@example.com | resp123 | Responsável Interno | Produção |
-| lucia.ferreira@example.com | resp123 | Responsável Interno | Operações |
+### 🟢 UGQ - Validadores (ETAPAS 2, 3, 4)
+| Email | Senha | Perfil | Setor | Função no Workflow |
+|-------|-------|--------|-------|-------------------|
+| validador.ugq@example.com | ugq123 | Qualidade (Validador) | UGQ | Codifica, valida, gerencia bloco de assinatura e publica |
 
-### ⚪ Usuários Comuns (Autores)
-| Email | Senha | Perfil | Setor |
-|-------|-------|--------|-------|
-| rafael.alves@example.com | usuario123 | Comum | Produção |
-| fernanda.lima@example.com | usuario123 | Comum | Operações |
-| usuario@example.com | usuario123 | Comum | Operações |
+### 🔵 Aprovadores (ETAPA 3 - Bloco de Assinatura)
+| Email | Senha | Perfil | Setor | Função no Workflow |
+|-------|-------|--------|-------|-------------------|
+| maria.silva@example.com | gerente123 | Gerente | Produção | Assina documentos no bloco de assinatura |
+| joao.santos@example.com | gerente123 | Gerente | Qualidade | Assina documentos no bloco de assinatura |
+| carlos.mendes@example.com | gerente123 | Gerente | Operações | Assina documentos no bloco de assinatura |
+
+### 🔴 Administrador do Sistema
+| Email | Senha | Perfil | Setor | Função no Workflow |
+|-------|-------|--------|-------|-------------------|
+| admin@example.com | admin123 | Administrador | TI | Gerenciar sistema, usuários e configurações |
 
 ## 🌐 Arquitetura da API
 
@@ -450,35 +496,105 @@ gunicorn -w 4 -b 0.0.0.0:5000 app:app
 
 ## 🧪 Testando o Sistema
 
-### Teste Manual do Workflow EBSERH
+### Teste Manual do Workflow UGQ (Centralizado)
 
-1. **Login como Usuário Comum** (`usuario@example.com` / `usuario123`)
-   - Criar documento no setor "Operações"
-   - Selecionar "Carlos Mendes" como Chefia Imediata
-   - Sistema cria tarefa "Analisar" automaticamente
+**ETAPA 0: Autor Submete Documento**
 
-2. **Login como Carlos Mendes** (`carlos.mendes@example.com` / `gerente123`)
-   - Ver tarefa "Analisar" na dashboard
-   - Escrever parecer e clicar "Aprovar"
-   - Sistema cria tarefa "Validar Conteúdo" para Lucia Ferreira
+1. **Login como Autor** (`usuario@example.com` / `usuario123`)
+   - Clicar em "Novo Documento"
+   - Preencher: Título, Tipo (POP/Manual/Protocolo), Setor
+   - Fazer upload do arquivo (.doc, .docx, .odt)
+   - Clicar em **"Submeter para Análise da Qualidade"**
+   - ✅ Sistema cria tarefa "Documento Recebido" → `triador.ugq@example.com`
 
-3. **Login como Lucia Ferreira** (`lucia.ferreira@example.com` / `resp123`)
-   - Ver tarefa "Validar Conteúdo"
-   - Aprovar
-   - Sistema cria tarefa "Validar Padronização" para Ana Costa
+---
 
-4. **Login como Ana Costa** (`ana.costa@example.com` / `resp123`)
-   - Ver tarefa "Validar Padronização" (Qualidade)
-   - Aprovar
-   - Sistema cria tarefa "Aprovar" para um Gerente
+**ETAPA 1: UGQ Triador Faz Triagem**
 
-5. **Login como Gerente** (qualquer gerente)
-   - Aprovar final
-   - Sistema cria tarefa "Publicar" para Admin
+2. **Login como Triador UGQ** (`triador.ugq@example.com` / `ugq123`)
+   - Ver tarefa "Documento Recebido" na dashboard
+   - Abrir tarefa e executar **3 checkpoints**:
 
-6. **Login como Admin** (`admin@example.com` / `admin123`)
-   - Fazer upload do PDF final
-   - Publicar
+   - **Checkpoint 1:** Documento já existe?
+     - Consultar Lista Mestra
+     - Se SIM → Clicar "Devolver ao Autor" (processo encerra)
+     - Se NÃO → Avançar
+
+   - **Checkpoint 2:** É Manual?
+     - Se SIM → Perguntar: "Foi validado pelo Colegiado Executivo?"
+       - Se NÃO → Clicar "Devolver ao Autor" (processo encerra)
+       - Se SIM → Avançar
+     - Se NÃO → Avançar automaticamente
+
+   - **Checkpoint 3:** Está no padrão de formatação?
+     - Verificar margens, fontes, cabeçalhos
+     - Se NÃO → Clicar "Devolver ao Autor" (processo encerra)
+     - Se SIM → Clicar **"Aprovar Triagem e Enviar para Validação"**
+
+   - ✅ Sistema cria tarefa "Validar e Codificar" → `validador.ugq@example.com`
+
+---
+
+**ETAPA 2: UGQ Validador Codifica e Valida**
+
+3. **Login como Validador UGQ** (`validador.ugq@example.com` / `ugq123`)
+   - Ver tarefa "Validar e Codificar" na dashboard
+   - Abrir tarefa e executar:
+
+   - **Formatar:** Fazer ajustes finais de formatação (se necessário)
+   - **Codificar:** Acessar "Lista Mestra", verificar último código, gerar novo
+     - Exemplo: `POP.OPERACOES-XYZ.001` v1.0
+   - **Atualizar Lista Mestra:** Inserir nova linha no sistema
+   - **Validar:** Assinar Declaração SEI de VALIDAÇÃO
+   - Clicar **"Documento Codificado e Validado. Iniciar Bloco de Assinatura"**
+
+   - ✅ Sistema abre tela "Gestão do Bloco de Assinatura"
+
+---
+
+**ETAPA 3: UGQ Validador Gerencia Bloco de Assinatura**
+
+4. **Ainda como Validador UGQ** (mesma sessão)
+   - Tela de "Gestão do Bloco de Assinatura":
+
+   - **Preparar Processo:** Anexar PDF final codificado
+   - **Selecionar Aprovadores:** Adicionar em ordem:
+     1. Carlos Mendes (Chefe Operações)
+     2. Maria Silva (Superintendente)
+   - **Escolher Modo:** Sequencial ou Concomitante
+   - Clicar **"Iniciar Bloco de Assinatura"**
+
+   - ✅ Sistema cria tarefas para os aprovadores
+
+---
+
+**ETAPA 3.1: Aprovadores Assinam**
+
+5. **Login como Carlos Mendes** (`carlos.mendes@example.com` / `gerente123`)
+   - Ver tarefa "Assinar Documento" na dashboard
+   - Abrir documento PDF codificado
+   - Decisão:
+     - Se **Reprovar** → Sistema devolve para Validador UGQ com ajustes
+     - Se **Aprovar** → Sistema registra assinatura e avança
+
+6. **Login como Maria Silva** (`maria.silva@example.com` / `gerente123`)
+   - Ver tarefa "Assinar Documento" (se modo sequencial)
+   - Abrir e aprovar
+   - ✅ Sistema cria tarefa "Publicar Documento" → `validador.ugq@example.com`
+
+---
+
+**ETAPA 4: UGQ Validador Publica**
+
+7. **Login como Validador UGQ** (`validador.ugq@example.com` / `ugq123`)
+   - Ver tarefa "Publicar Documento Aprovado"
+   - Executar ações de publicação:
+     - Move para status "VIGENTE"
+     - Arquiva versão anterior (se houver) como "ANTIGO"
+     - Publica no Portal da instituição
+   - Clicar **"Marcar Processo como Concluído"**
+
+   - ✅ **FIM DO PROCESSO**
    - Documento aparece no Repositório Público com código definitivo
 
 ### Teste da API com cURL
