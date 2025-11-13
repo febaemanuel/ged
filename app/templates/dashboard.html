@@ -5,54 +5,114 @@
 {% block extra_css %}
 <style>
 .stat-card {
-    background: white;
+    background: linear-gradient(135deg, white 0%, var(--gray-50) 100%);
+    border: none;
     border-left: 4px solid;
-    transition: all 0.2s ease;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.05) 0%, transparent 70%);
+    opacity: 0;
+    transition: var(--transition);
+}
+.stat-card:hover::before {
+    opacity: 1;
 }
 .stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: var(--shadow-xl);
 }
 .stat-number {
-    font-size: 2.5rem;
-    font-weight: 700;
+    font-size: 2.8rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary-color), var(--info-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 .stat-label {
     font-size: 0.85rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
     color: var(--gray-700);
 }
 .quick-action-card {
     text-align: center;
-    padding: 2rem 1rem;
-    border-radius: 0.5rem;
-    transition: all 0.2s ease;
+    padding: 2.5rem 1.5rem;
+    border-radius: 1rem;
+    transition: var(--transition);
     border: 2px solid var(--gray-200);
     background: white;
+    position: relative;
+    overflow: hidden;
+}
+.quick-action-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--info-color) 100%);
+    opacity: 0;
+    transition: var(--transition);
+    z-index: 0;
+}
+.quick-action-card:hover::after {
+    opacity: 0.05;
 }
 .quick-action-card:hover {
     border-color: var(--primary-color);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: var(--shadow-xl);
+}
+.quick-action-card > * {
+    position: relative;
+    z-index: 1;
 }
 .quick-action-icon {
-    font-size: 3rem;
-    margin-bottom: 0.75rem;
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+    transition: var(--transition);
+}
+.quick-action-card:hover .quick-action-icon {
+    transform: scale(1.1) rotate(5deg);
 }
 .task-item {
     border-left: 4px solid var(--primary-color);
-    padding: 1rem;
-    margin-bottom: 0.5rem;
+    padding: 1.25rem;
+    margin-bottom: 0.75rem;
     background: white;
-    border-radius: 0.375rem;
-    transition: all 0.2s ease;
+    border-radius: 0.75rem;
+    transition: var(--transition);
     box-shadow: var(--shadow-sm);
 }
 .task-item:hover {
     background: var(--gray-50);
-    transform: translateX(5px);
+    transform: translateX(8px);
+    box-shadow: var(--shadow-md);
+}
+.profile-icon {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--info-color) 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    color: white;
+    font-size: 3rem;
+    box-shadow: var(--shadow-lg);
 }
 </style>
 {% endblock %}
@@ -60,16 +120,16 @@
 {% block content %}
 <div class="container-fluid">
     <!-- Cabeçalho -->
-    <div class="row mb-4">
+    <div class="row mb-4 fade-in-up">
         <div class="col-md-12">
-            <h1 class="mb-1"><i class="bi bi-speedometer2"></i> Dashboard</h1>
+            <h1 class="mb-1 gradient-text"><i class="bi bi-speedometer2"></i> Dashboard</h1>
             <p class="text-muted">Bem-vindo, <strong>{{ current_user.nome }}</strong> | <span class="badge bg-primary">{{ current_user.perfil.title() }}</span></p>
         </div>
     </div>
 
     <!-- Cards de Estatísticas -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
+    <div class="row g-4 mb-4">
+        <div class="col-md-3 fade-in" style="animation-delay: 0.1s;">
             <div class="card stat-card border-primary h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -90,7 +150,7 @@
             </div>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-3 fade-in" style="animation-delay: 0.2s;">
             <div class="card stat-card border-warning h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -111,7 +171,7 @@
             </div>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-3 fade-in" style="animation-delay: 0.3s;">
             <div class="card stat-card border-success h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -130,7 +190,7 @@
             </div>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-3 fade-in" style="animation-delay: 0.4s;">
             <div class="card stat-card border-info h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -153,8 +213,8 @@
     </div>
 
     <!-- Ações Rápidas -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
+    <div class="card shadow-sm mb-4 slide-in-right">
+        <div class="card-header" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); color: white;">
             <h5 class="mb-0"><i class="bi bi-lightning"></i> Ações Rápidas</h5>
         </div>
         <div class="card-body">
@@ -270,10 +330,10 @@
         <!-- Sidebar de Informações -->
         <div class="col-md-4">
             <!-- Perfil do Usuário -->
-            <div class="card shadow-sm mb-3">
+            <div class="card shadow-sm mb-3 slide-in-left">
                 <div class="card-body text-center">
-                    <div class="mb-3">
-                        <i class="bi bi-person-circle" style="font-size: 5rem; color: var(--primary-color);"></i>
+                    <div class="profile-icon">
+                        <i class="bi bi-person-circle"></i>
                     </div>
                     <h5>{{ current_user.nome }}</h5>
                     <p class="text-muted mb-2">{{ current_user.email }}</p>

@@ -273,6 +273,32 @@ def documento_download(id):
     )
 
 
+@view_bp.route('/documento/<int:id>/excluir', methods=['POST'])
+@login_required
+def documento_excluir(id):
+    """Excluir documento (apenas admin)"""
+    if not current_user.is_admin():
+        flash('Acesso negado', 'danger')
+        return redirect(url_for('view.dashboard'))
+
+    documento = Documento.query.get_or_404(id)
+
+    # Excluir arquivo físico se existir
+    try:
+        caminho_arquivo = documento.get_caminho_arquivo()
+        if caminho_arquivo and os.path.exists(caminho_arquivo):
+            os.remove(caminho_arquivo)
+    except Exception as e:
+        flash(f'Erro ao excluir arquivo: {str(e)}', 'warning')
+
+    # Excluir documento do banco
+    db.session.delete(documento)
+    db.session.commit()
+
+    flash('Documento excluído com sucesso', 'success')
+    return jsonify({'success': True})
+
+
 # ============================================================================
 # TAREFAS
 # ============================================================================

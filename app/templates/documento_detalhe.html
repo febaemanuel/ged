@@ -6,27 +6,34 @@
 <style>
 .status-badge {
     font-size: 1rem;
-    padding: 0.5rem 1rem;
+    padding: 0.6rem 1.2rem;
+    border-radius: 2rem;
     font-weight: 600;
+    box-shadow: var(--shadow-md);
+    animation: fadeInScale 0.5s ease-out;
 }
 .info-card {
-    background: #f8f9fa;
+    background: white;
     border-left: 4px solid;
-    border-radius: 0.375rem;
-    padding: 1rem;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
     margin-bottom: 1rem;
-    transition: all 0.2s ease;
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
 }
 .info-card:hover {
-    transform: translateX(3px);
+    transform: translateX(5px);
+    box-shadow: var(--shadow-md);
 }
 .ai-badge {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     font-size: 0.75rem;
-    padding: 0.35rem 0.7rem;
-    border-radius: 1rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 2rem;
     font-weight: 600;
+    box-shadow: var(--shadow-md);
+    animation: pulse 2s infinite;
 }
 .timeline {
     position: relative;
@@ -34,38 +41,87 @@
 }
 .timeline-item {
     position: relative;
-    padding-bottom: 1.5rem;
+    padding-bottom: 2rem;
+    animation: slideInLeft 0.5s ease-out;
 }
 .timeline-item::before {
     content: '';
     position: absolute;
     left: -1.5rem;
     top: 0.5rem;
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
-    background: var(--primary-color);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--info-color) 100%);
     border: 3px solid #fff;
-    box-shadow: 0 0 0 2px var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-light);
+    transition: var(--transition);
+}
+.timeline-item:hover::before {
+    transform: scale(1.3);
 }
 .timeline-item::after {
     content: '';
     position: absolute;
     left: -1.06rem;
-    top: 1.2rem;
+    top: 1.4rem;
     width: 2px;
     height: calc(100% - 1rem);
-    background: var(--gray-200);
+    background: linear-gradient(180deg, var(--primary-light) 0%, var(--gray-200) 100%);
 }
 .timeline-item:last-child::after {
     display: none;
 }
 .metadata-card {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 0.5rem;
-    padding: 1.25rem;
-    margin-bottom: 1rem;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+    border: 2px solid rgba(102, 126, 234, 0.2);
+    border-radius: 1rem;
+    padding: 1.75rem;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+.metadata-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: var(--transition);
+}
+.metadata-card:hover::before {
+    opacity: 1;
+}
+.metadata-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+    border-color: rgba(102, 126, 234, 0.4);
+}
+.document-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    position: relative;
+    overflow: hidden;
+}
+.document-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+}
+.action-btn {
+    transition: var(--transition);
+    border-radius: 0.75rem;
+    font-weight: 600;
+}
+.action-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
 }
 </style>
 {% endblock %}
@@ -73,7 +129,7 @@
 {% block content %}
 <div class="container-fluid">
     <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-4">
+    <nav aria-label="breadcrumb" class="mb-4 fade-in-up">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('view.dashboard') }}">Dashboard</a></li>
             <li class="breadcrumb-item"><a href="{{ url_for('view.documentos') }}">Documentos</a></li>
@@ -85,8 +141,8 @@
         <!-- COLUNA PRINCIPAL -->
         <div class="col-lg-8">
             <!-- Cabeçalho do Documento -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <div class="card shadow-sm mb-4 fade-in">
+                <div class="card-header document-header text-white d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> {{ documento.titulo }}</h5>
                         <small>{{ documento.codigo }}</small>
@@ -153,22 +209,22 @@
                     <hr>
                     <div class="d-flex gap-2 flex-wrap">
                         {% if documento.arquivo_original %}
-                        <a href="{{ url_for('view.documento_download', id=documento.id) }}" class="btn btn-primary">
+                        <a href="{{ url_for('view.documento_download', id=documento.id) }}" class="btn btn-primary action-btn">
                             <i class="bi bi-download"></i> Download Original
                         </a>
                         {% endif %}
                         {% if documento.arquivo_publicado_pdf %}
-                        <a href="{{ url_for('view.documento_download', id=documento.id) }}" class="btn btn-success">
+                        <a href="{{ url_for('view.documento_download', id=documento.id) }}" class="btn btn-success action-btn">
                             <i class="bi bi-file-pdf"></i> Download PDF Publicado
                         </a>
                         {% endif %}
                         {% if current_user.is_gerente_ou_superior() %}
-                        <a href="{{ url_for('view.documento_editar', id=documento.id) }}" class="btn btn-warning">
+                        <a href="{{ url_for('view.documento_editar', id=documento.id) }}" class="btn btn-warning action-btn">
                             <i class="bi bi-pencil"></i> Editar
                         </a>
                         {% endif %}
                         {% if current_user.is_admin() %}
-                        <button class="btn btn-danger" onclick="confirmarExclusao()">
+                        <button class="btn btn-danger action-btn" onclick="confirmarExclusao()">
                             <i class="bi bi-trash"></i> Excluir
                         </button>
                         {% endif %}
@@ -180,9 +236,12 @@
             {% if documento.metadados_json %}
             {% set metadados = documento.get_metadados() %}
             {% if metadados %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <h5 class="mb-0"><i class="bi bi-robot"></i> Análise de IA <span class="ai-badge">DeepSeek</span></h5>
+            <div class="card shadow-sm mb-4 slide-in-right">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative; overflow: hidden;">
+                    <div style="position: relative; z-index: 1;">
+                        <h5 class="mb-0"><i class="bi bi-robot"></i> Análise de IA <span class="ai-badge">DeepSeek</span></h5>
+                    </div>
+                    <div style="position: absolute; top: -50%; right: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);"></div>
                 </div>
                 <div class="card-body">
                     {% if metadados.classificacao %}
@@ -263,8 +322,8 @@
         <!-- COLUNA LATERAL -->
         <div class="col-lg-4">
             <!-- Timeline de Tarefas -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-info text-white">
+            <div class="card shadow-sm mb-4 slide-in-left">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, var(--info-color) 0%, var(--primary-color) 100%);">
                     <h5 class="mb-0"><i class="bi bi-list-check"></i> Histórico do Documento</h5>
                 </div>
                 <div class="card-body">
