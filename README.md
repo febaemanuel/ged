@@ -54,21 +54,29 @@ python app.py
 
 ### 🪟 Windows
 
-**Instalação super fácil com scripts .bat!**
-
-#### 1. Duplo clique em `setup.bat`
-O script instala tudo automaticamente.
+#### 1. Execute `setup.bat`
+```cmd
+setup.bat
+```
 
 #### 2. Configure PostgreSQL e `.env`
-Edite o arquivo `.env` com suas credenciais.
+```cmd
+psql -U postgres
+CREATE DATABASE ged_db;
+CREATE USER ged_user WITH PASSWORD 'ged_password';
+GRANT ALL PRIVILEGES ON DATABASE ged_db TO ged_user;
+\q
+```
 
-#### 3. Duplo clique em `init-db.bat`
-Cria tabelas e usuários padrão.
+Edite `.env` com suas credenciais.
 
-#### 4. Duplo clique em `start.bat`
-Inicia o servidor!
-
-**📘 Guia completo**: [WINDOWS_SETUP.md](WINDOWS_SETUP.md)
+#### 3. Inicialize o banco
+```cmd
+venv\Scripts\activate.bat
+flask init-db
+flask seed-db
+python app.py
+```
 
 ---
 
@@ -219,15 +227,13 @@ ged/
 - ✅ Flash messages e toasts
 - ✅ Integração total com API REST
 
-**Documentação**: [FRONTEND_COMPLETO.md](FRONTEND_COMPLETO.md)
-
 ## 🔧 Comandos
 
 ```bash
-./verificar_instalacao.sh  # Verificar sistema
-flask shell                # Console
-flask verificar-vencimentos # Rotina
-tail -f logs/ged.log       # Logs
+flask shell                 # Console Python
+flask verificar-vencimentos # Rotina de vencimentos
+tail -f logs/ged.log        # Ver logs
+python test_api.py          # Testar API
 ```
 
 ## 🐳 Produção
@@ -255,16 +261,10 @@ sudo systemctl start postgresql
 lsof -ti:5000 | xargs kill -9
 ```
 
-**Guia completo**: [INSTALACAO_COMPLETA.md](INSTALACAO_COMPLETA.md)
+## 📚 Acesso
 
-## 📚 Documentação
-
-- **START_HERE.md** - Início rápido (5 minutos)
-- **INSTALACAO_COMPLETA.md** - Guia detalhado Linux/macOS
-- **WINDOWS_SETUP.md** - Guia completo para Windows 🪟
-- **FRONTEND_COMPLETO.md** - Documentação do frontend ✨
-- **http://localhost:5000/home** - API docs
 - **http://localhost:5000** - Interface web (após login)
+- **http://localhost:5000/home** - Documentação da API REST
 
 ## 📊 Stats
 
