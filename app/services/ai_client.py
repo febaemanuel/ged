@@ -56,44 +56,55 @@ def _get_openai_client():
     )
 
 
-def _call_deepseek(system_prompt, user_prompt, temperature=0.7):
+def _call_deepseek(system_prompt, user_prompt, temperature=0.7, retries=3):
     """
-    Faz chamada ao DeepSeek usando padrão OpenAI
+    Faz chamada ao DeepSeek usando padrão OpenAI com retry logic
 
     Args:
         system_prompt: Instrução de sistema
         user_prompt: Prompt do usuário
         temperature: Temperatura para geração (0.0 a 1.0)
+        retries: Número de tentativas em caso de erro
 
     Returns:
         str: Resposta da IA
     """
-    try:
-        client = _get_openai_client()
-        config = _get_api_config()
+    config = _get_api_config()
+    delay = 2  # Delay inicial em segundos
 
-        start_time = time.time()
+    for attempt in range(retries):
+        try:
+            client = _get_openai_client()
+            start_time = time.time()
 
-        response = client.chat.completions.create(
-            model=config['model'],
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=temperature,
-            max_tokens=2000
-        )
+            response = client.chat.completions.create(
+                model=config['model'],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=temperature,
+                max_tokens=2000
+            )
 
-        elapsed_ms = int((time.time() - start_time) * 1000)
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            result = response.choices[0].message.content
 
-        result = response.choices[0].message.content
-        logger.info(f"Chamada DeepSeek bem-sucedida ({elapsed_ms}ms)")
+            logger.info(f"Chamada DeepSeek bem-sucedida na tentativa {attempt + 1} ({elapsed_ms}ms)")
+            return result
 
-        return result
+        except Exception as e:
+            logger.warning(f"Tentativa {attempt + 1}/{retries} falhou: {str(e)}")
 
-    except Exception as e:
-        logger.error(f"Erro ao chamar DeepSeek: {str(e)}")
-        raise AIClientError(f"Erro ao comunicar com DeepSeek: {str(e)}")
+            if attempt < retries - 1:
+                # Espera com backoff exponencial antes de tentar novamente
+                wait_time = delay * (2 ** attempt)
+                logger.info(f"Aguardando {wait_time}s antes da próxima tentativa...")
+                time.sleep(wait_time)
+            else:
+                # Última tentativa falhou
+                logger.error(f"Todas as {retries} tentativas falharam ao chamar DeepSeek")
+                raise AIClientError(f"Erro ao comunicar com DeepSeek após {retries} tentativas: {str(e)}")
 
 
 def _make_request(endpoint, method='POST', files=None, json_data=None):
