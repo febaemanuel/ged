@@ -87,10 +87,6 @@ def create_app(config_name='default'):
         db.session.rollback()
         return {'erro': 'Erro interno do servidor'}, 500
 
-    # Cria tabelas se não existirem
-    with app.app_context():
-        db.create_all()
-
     return app
 
 
