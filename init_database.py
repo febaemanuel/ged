@@ -3,6 +3,19 @@ Script para inicializar o banco de dados do Sistema GED
 Cria todas as tabelas e usuarios padrao
 """
 
+import sys
+import os
+
+# Força UTF-8 no Windows
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
+# Carrega .env com encoding UTF-8
+from dotenv import load_dotenv
+load_dotenv(encoding='utf-8')
+
 from app import create_app, db
 from app.models import Usuario
 

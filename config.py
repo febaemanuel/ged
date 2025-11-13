@@ -4,6 +4,15 @@ Configurações do Sistema GED
 import os
 from datetime import timedelta
 
+# Força encoding UTF-8 no Windows
+if os.name == 'nt':  # Windows
+    import sys
+    import codecs
+    if sys.stdout.encoding != 'utf-8':
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    if sys.stderr.encoding != 'utf-8':
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 class Config:
     """Configuração base da aplicação"""
 
@@ -12,14 +21,26 @@ class Config:
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
     # Configurações do banco de dados PostgreSQL
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'postgresql://ged_user:ged_password@localhost:5432/ged_db?client_encoding=utf8'
+    _db_uri = os.environ.get('DATABASE_URL') or \
+        'postgresql://ged_user:ged_password@localhost:5432/ged_db'
+
+    # Garante que ?client_encoding=utf8 está na URI
+    if '?' in _db_uri:
+        if 'client_encoding' not in _db_uri:
+            _db_uri += '&client_encoding=utf8'
+    else:
+        _db_uri += '?client_encoding=utf8'
+
+    SQLALCHEMY_DATABASE_URI = _db_uri
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False  # True para debug SQL
     SQLALCHEMY_ENGINE_OPTIONS = {
         'connect_args': {
-            'client_encoding': 'utf8'
-        }
+            'client_encoding': 'utf8',
+            'options': '-c client_encoding=utf8'
+        },
+        'pool_pre_ping': True,
+        'echo': False
     }
 
     # Configurações de upload
