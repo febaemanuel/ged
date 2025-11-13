@@ -608,6 +608,32 @@ def tarefa_concluir(id):
 
     db.session.commit()
 
+    # ============================================================================
+    # WORKFLOW AUTOMÁTICO: Cria próxima tarefa se aprovado
+    # ============================================================================
+    print(f"\n{'='*80}")
+    print(f"[ROUTES_VIEW] Tarefa concluída! Iniciando workflow automático...")
+    print(f"[ROUTES_VIEW] Tarefa ID: {tarefa.id} | Tipo: {tarefa.tipo_tarefa} | Aprovado: {tarefa.aprovado}")
+    print(f"{'='*80}\n")
+
+    if tarefa.aprovado:
+        try:
+            from app.services.workflow import WorkflowGED
+
+            print(f"[ROUTES_VIEW] Chamando WorkflowGED.proximo_passo()...")
+            proxima_tarefa = WorkflowGED.proximo_passo(tarefa)
+
+            if proxima_tarefa:
+                print(f"[ROUTES_VIEW] ✅ Próxima tarefa criada: {proxima_tarefa.tipo_tarefa} para {proxima_tarefa.responsavel.nome}")
+                flash(f'Próxima tarefa criada: {proxima_tarefa.tipo_tarefa} para {proxima_tarefa.responsavel.nome}', 'info')
+            else:
+                print(f"[ROUTES_VIEW] ℹ️  Nenhuma próxima tarefa (última etapa ou reprovado)")
+        except Exception as e:
+            import traceback
+            print(f"[ROUTES_VIEW] ❌ ERRO no workflow: {str(e)}")
+            print(traceback.format_exc())
+            flash(f'Erro ao criar próxima tarefa: {str(e)}', 'warning')
+
     flash('Tarefa concluída com sucesso!', 'success')
     return redirect(url_for('view.tarefa_detalhe', id=id))
 
