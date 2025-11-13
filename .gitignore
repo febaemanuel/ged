@@ -74,3 +74,6 @@ docs/_build/
 *.bak
 *.orig
 cookies.txt
+
+# Debug scripts
+debug_*.py
