@@ -96,46 +96,7 @@ with app.app_context():
         print('  ✓ Gerente Operações criado: carlos.mendes@example.com')
 
         # ============================================
-        # RESPONSÁVEIS INTERNOS (Validadores)
-        # ============================================
-        # Responsável Interno - Qualidade (Valida Padronização)
-        resp_qualidade = Usuario(
-            nome='Ana Costa',
-            email='ana.costa@example.com',
-            perfil='responsavel_interno',
-            setor='Qualidade',
-            ativo=True
-        )
-        resp_qualidade.set_password('resp123')
-        db.session.add(resp_qualidade)
-        print('  ✓ Resp. Interno Qualidade criado: ana.costa@example.com')
-
-        # Responsável Interno - Produção (Valida Conteúdo Técnico)
-        resp_producao = Usuario(
-            nome='Pedro Oliveira',
-            email='pedro.oliveira@example.com',
-            perfil='responsavel_interno',
-            setor='Producao',
-            ativo=True
-        )
-        resp_producao.set_password('resp123')
-        db.session.add(resp_producao)
-        print('  ✓ Resp. Interno Produção criado: pedro.oliveira@example.com')
-
-        # Responsável Interno - Operações (Valida Conteúdo Técnico)
-        resp_operacoes = Usuario(
-            nome='Lucia Ferreira',
-            email='lucia.ferreira@example.com',
-            perfil='responsavel_interno',
-            setor='Operacoes',
-            ativo=True
-        )
-        resp_operacoes.set_password('resp123')
-        db.session.add(resp_operacoes)
-        print('  ✓ Resp. Interno Operações criado: lucia.ferreira@example.com')
-
-        # ============================================
-        # QUALIDADE UGQ (Workflow Oficial EBSERH)
+        # WORKFLOW UGQ (EBSERH Oficial)
         # ============================================
         # Triador UGQ - ETAPA 1 (Recebimento e Triagem)
         triador_ugq = Usuario(
@@ -207,31 +168,26 @@ with app.app_context():
     print('Banco de dados inicializado!')
     print('========================================')
     print()
-    print('Usuarios criados para WORKFLOW COMPLETO:')
+    print('✅ USUÁRIOS DO WORKFLOW UGQ (EBSERH Oficial):')
     print()
-    print('🔴 ADMINISTRADOR (Publica documentos):')
+    print('🔴 ADMINISTRADOR:')
     print('   admin@example.com / admin123')
     print()
-    print('🔵 GERENTES (Chefia + Aprovador):')
+    print('🟡 EQUIPE UGQ:')
+    print('   triador.ugq@example.com / ugq123 (ETAPA 1: Triagem)')
+    print('   validador.ugq@example.com / ugq123 (ETAPAS 2-4: Validação)')
+    print()
+    print('🔵 APROVADORES (Gerentes):')
     print('   maria.silva@example.com / gerente123 (Produção)')
     print('   joao.santos@example.com / gerente123 (Qualidade)')
     print('   carlos.mendes@example.com / gerente123 (Operações)')
     print()
-    print('🟢 RESPONSÁVEIS INTERNOS (Validadores):')
-    print('   ana.costa@example.com / resp123 (Qualidade - Padronização)')
-    print('   pedro.oliveira@example.com / resp123 (Produção - Conteúdo)')
-    print('   lucia.ferreira@example.com / resp123 (Operações - Conteúdo)')
-    print()
-    print('🟡 WORKFLOW UGQ (EBSERH Oficial):')
-    print('   triador.ugq@example.com / ugq123 (ETAPA 1: Triagem)')
-    print('   validador.ugq@example.com / ugq123 (ETAPAS 2-4: Validação)')
-    print()
-    print('⚪ USUÁRIOS COMUNS (Autores):')
+    print('⚪ AUTORES (Usuários Comuns):')
     print('   rafael.alves@example.com / usuario123 (Produção)')
     print('   fernanda.lima@example.com / usuario123 (Operações)')
-    print('   usuario@example.com / usuario123 (Operações - Padrão)')
+    print('   usuario@example.com / usuario123 (Padrão)')
     print()
-    print('TOTAL: 12 usuários para testar workflow completo!')
+    print('TOTAL: 9 usuários (Workflow UGQ Oficial)')
     print()
     print('Acesse: http://localhost:5000')
     print('========================================')
