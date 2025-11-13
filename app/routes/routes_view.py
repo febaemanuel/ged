@@ -566,7 +566,10 @@ def tarefa_concluir(id):
 
     # Obter parecer
     parecer = request.form.get('parecer', '').strip()
-    acao = request.form.get('acao')  # 'aprovar' ou 'rejeitar'
+
+    # Obter decisão de aprovação (do formulário vem 'aprovado' = 'true' ou 'false')
+    aprovado_str = request.form.get('aprovado')
+    acao = request.form.get('acao')  # Compatibilidade com código antigo
 
     # Para tarefas de publicação, pode ter upload de arquivo PDF
     if tarefa.tipo_tarefa == 'Publicar':
@@ -589,13 +592,20 @@ def tarefa_concluir(id):
     tarefa.concluida = True
     tarefa.data_conclusao = datetime.utcnow()
     tarefa.parecer = parecer or 'Tarefa concluída'
-    if acao == 'aprovar':
+
+    # Define aprovação baseado no campo 'aprovado' do formulário
+    if aprovado_str == 'true':
+        tarefa.aprovado = True
+    elif aprovado_str == 'false':
+        tarefa.aprovado = False
+    # Compatibilidade com código antigo que usa 'acao'
+    elif acao == 'aprovar':
         tarefa.aprovado = True
     elif acao == 'rejeitar':
         tarefa.aprovado = False
 
-    # Atualizar status do documento baseado no tipo de tarefa e ação
-    if acao == 'aprovar':
+    # Atualizar status do documento baseado no tipo de tarefa e aprovação
+    if tarefa.aprovado:
         if tarefa.tipo_tarefa == 'Revisar':
             tarefa.documento.status = 'revisao'
         elif tarefa.tipo_tarefa == 'Validar':
@@ -603,7 +613,7 @@ def tarefa_concluir(id):
         elif tarefa.tipo_tarefa == 'Publicar':
             tarefa.documento.status = 'publicado'
             tarefa.documento.data_publicacao = datetime.utcnow()
-    elif acao == 'rejeitar':
+    elif tarefa.aprovado is False:
         tarefa.documento.status = 'rascunho'
 
     db.session.commit()
