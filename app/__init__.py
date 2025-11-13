@@ -32,7 +32,7 @@ def create_app(config_name='default'):
     # Inicializa extensões
     db.init_app(app)
     login_manager.init_app(app)
-    login_manager.login_view = 'auth.login'
+    login_manager.login_view = 'view.login'
     login_manager.login_message = 'Por favor, faça login para acessar esta página.'
 
     # Configura logging
@@ -59,7 +59,8 @@ def create_app(config_name='default'):
         documento_bp,
         tarefa_bp,
         ia_bp,
-        dashboard_bp
+        dashboard_bp,
+        view_bp
     )
 
     app.register_blueprint(auth_bp)
@@ -67,6 +68,7 @@ def create_app(config_name='default'):
     app.register_blueprint(tarefa_bp)
     app.register_blueprint(ia_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(view_bp)
 
     # Rota inicial
     @app.route('/home')

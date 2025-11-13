@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Tarefas - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h1><i class="bi bi-list-check"></i> Minhas Tarefas</h1>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Tipo de Tarefa</label>
+                    <select class="form-select" name="tipo">
+                        <option value="">Todas</option>
+                        <option value="Analisar">Analisar</option>
+                        <option value="Validar Conteúdo">Validar Conteúdo</option>
+                        <option value="Validar Padronização">Validar Padronização</option>
+                        <option value="Aprovar">Aprovar</option>
+                        <option value="Publicar">Publicar</option>
+                        <option value="Realizar Correção">Realizar Correção</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" name="concluida">
+                        <option value="false">Pendentes</option>
+                        <option value="true">Concluídas</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Prioridade</label>
+                    <select class="form-select" name="prioridade">
+                        <option value="">Todas</option>
+                        <option value="urgente">Urgente</option>
+                        <option value="alta">Alta</option>
+                        <option value="normal">Normal</option>
+                        <option value="baixa">Baixa</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Filtrar</button>
+                        <a href="{{ url_for('view.tarefas') }}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Limpar</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Estatísticas Rápidas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-primary">{{ stats.pendentes }}</h3>
+                    <small class="text-muted">Pendentes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-danger">{{ stats.atrasadas }}</h3>
+                    <small class="text-muted">Atrasadas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-success">{{ stats.concluidas_mes }}</h3>
+                    <small class="text-muted">Concluídas (Mês)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3>{{ stats.total }}</h3>
+                    <small class="text-muted">Total</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Tarefas -->
+    <div class="card">
+        <div class="card-body">
+            {% if tarefas %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Documento</th>
+                            <th>Descrição</th>
+                            <th>Prazo</th>
+                            <th>Prioridade</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tarefa in tarefas %}
+                        <tr class="{% if tarefa.esta_atrasada() %}table-danger{% elif tarefa.concluida %}table-success{% endif %}">
+                            <td>
+                                <span class="badge bg-secondary">{{ tarefa.tipo_tarefa }}</span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('view.documento_detalhe', id=tarefa.documento_id) }}">
+                                    {{ tarefa.documento.titulo[:40] }}{% if tarefa.documento.titulo|length > 40 %}...{% endif %}
+                                </a>
+                                <br>
+                                <small class="text-muted">{{ tarefa.documento.codigo_provisorio or tarefa.documento.codigo_definitivo }}</small>
+                            </td>
+                            <td>{{ (tarefa.descricao or '')[:60] }}{% if tarefa.descricao and tarefa.descricao|length > 60 %}...{% endif %}</td>
+                            <td>
+                                {% if tarefa.prazo %}
+                                    {{ tarefa.prazo.strftime('%d/%m/%Y') }}
+                                    {% if tarefa.esta_atrasada() and not tarefa.concluida %}
+                                        <br><span class="badge bg-danger">ATRASADA</span>
+                                    {% elif tarefa.dias_ate_prazo() and tarefa.dias_ate_prazo() <= 3 and not tarefa.concluida %}
+                                        <br><span class="badge bg-warning">{{ tarefa.dias_ate_prazo() }} dias</span>
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if tarefa.prioridade == 'urgente' %}danger{% elif tarefa.prioridade == 'alta' %}warning{% elif tarefa.prioridade == 'normal' %}info{% else %}secondary{% endif %}">
+                                    {{ tarefa.prioridade or 'normal' }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if tarefa.concluida %}
+                                    <span class="badge bg-success">Concluída</span>
+                                    {% if tarefa.aprovado is not none %}
+                                        <br>
+                                        {% if tarefa.aprovado %}
+                                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Aprovado</span>
+                                        {% else %}
+                                            <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Reprovado</span>
+                                        {% endif %}
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-warning">Pendente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('view.tarefa_detalhe', id=tarefa.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-eye"></i> Ver
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info mb-0">
+                <i class="bi bi-info-circle"></i> Nenhuma tarefa encontrada.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

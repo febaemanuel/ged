@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Meu Perfil - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4"><i class="bi bi-person-circle"></i> Meu Perfil</h1>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Informações Pessoais</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <strong>ID:</strong>
+                        </div>
+                        <div class="col-md-9">
+                            {{ current_user.id }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <strong>Nome:</strong>
+                        </div>
+                        <div class="col-md-9">
+                            {{ current_user.nome }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <strong>Email:</strong>
+                        </div>
+                        <div class="col-md-9">
+                            {{ current_user.email }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <strong>Perfil:</strong>
+                        </div>
+                        <div class="col-md-9">
+                            <span class="badge bg-{% if current_user.perfil == 'administrador' %}danger{% elif current_user.perfil == 'gerente' %}warning{% else %}info{% endif %}">
+                                {{ current_user.perfil }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <strong>Setor:</strong>
+                        </div>
+                        <div class="col-md-9">
+                            {{ current_user.setor or '-' }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <strong>Cadastro:</strong>
+                        </div>
+                        <div class="col-md-9">
+                            {{ current_user.data_criacao.strftime('%d/%m/%Y %H:%M') }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Último Acesso:</strong>
+                        </div>
+                        <div class="col-md-9">
+                            {% if current_user.ultimo_acesso %}
+                                {{ current_user.ultimo_acesso.strftime('%d/%m/%Y %H:%M') }}
+                            {% else %}
+                                Primeiro acesso
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0">Alterar Senha</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('view.alterar_senha') }}">
+                        <div class="mb-3">
+                            <label for="senha_atual" class="form-label">Senha Atual *</label>
+                            <input type="password" class="form-control" id="senha_atual" name="senha_atual" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="senha_nova" class="form-label">Nova Senha *</label>
+                            <input type="password" class="form-control" id="senha_nova" name="senha_nova" required minlength="6">
+                            <small class="text-muted">Mínimo 6 caracteres</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="senha_confirma" class="form-label">Confirmar Nova Senha *</label>
+                            <input type="password" class="form-control" id="senha_confirma" name="senha_confirma" required minlength="6">
+                        </div>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-key"></i> Alterar Senha
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">Minhas Estatísticas</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h4 class="text-primary">{{ stats.tarefas_pendentes }}</h4>
+                        <small class="text-muted">Tarefas Pendentes</small>
+                    </div>
+                    <div class="mb-3">
+                        <h4 class="text-success">{{ stats.tarefas_concluidas_mes }}</h4>
+                        <small class="text-muted">Concluídas este Mês</small>
+                    </div>
+                    <div>
+                        <h4 class="text-info">{{ stats.documentos_criados }}</h4>
+                        <small class="text-muted">Documentos Criados</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Permissões</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li><i class="bi bi-check-circle text-success"></i> Criar documentos</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Executar tarefas</li>
+                        {% if current_user.is_gerente_ou_superior() %}
+                        <li><i class="bi bi-check-circle text-success"></i> Criar tarefas</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Usar funções de IA</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Gerar relatórios</li>
+                        {% endif %}
+                        {% if current_user.is_admin() %}
+                        <li><i class="bi bi-check-circle text-success"></i> Gerenciar usuários</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Acesso total</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Validar confirmação de senha
+document.querySelector('form').addEventListener('submit', function(e) {
+    const novaSenha = document.getElementById('senha_nova').value;
+    const confirmaSenha = document.getElementById('senha_confirma').value;
+
+    if (novaSenha !== confirmaSenha) {
+        e.preventDefault();
+        alert('As senhas não coincidem!');
+        return false;
+    }
+});
+</script>
+{% endblock %}

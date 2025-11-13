@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Tarefa #{{ tarefa.id }} - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('view.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view.tarefas') }}">Tarefas</a></li>
+            <li class="breadcrumb-item active">Tarefa #{{ tarefa.id }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-card-checklist"></i> {{ tarefa.tipo_tarefa }}
+                        {% if tarefa.concluida %}
+                            <span class="badge bg-success float-end">Concluída</span>
+                        {% else %}
+                            <span class="badge bg-warning float-end">Pendente</span>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Documento:</strong><br>
+                        <a href="{{ url_for('view.documento_detalhe', id=tarefa.documento_id) }}">
+                            {{ tarefa.documento.titulo }}
+                        </a>
+                        <br>
+                        <small class="text-muted">{{ tarefa.documento.codigo_provisorio or tarefa.documento.codigo_definitivo }}</small>
+                    </div>
+
+                    {% if tarefa.descricao %}
+                    <div class="mb-3">
+                        <strong>Descrição:</strong><br>
+                        {{ tarefa.descricao }}
+                    </div>
+                    {% endif %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Criado por:</strong><br>
+                            {{ tarefa.criador.nome }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Responsável:</strong><br>
+                            {{ tarefa.responsavel.nome }}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Data de Criação:</strong><br>
+                            {{ tarefa.data_criacao.strftime('%d/%m/%Y %H:%M') }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Prazo:</strong><br>
+                            {% if tarefa.prazo %}
+                                {{ tarefa.prazo.strftime('%d/%m/%Y') }}
+                                {% if tarefa.esta_atrasada() and not tarefa.concluida %}
+                                    <br><span class="badge bg-danger">ATRASADA</span>
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Prioridade:</strong><br>
+                            <span class="badge bg-{% if tarefa.prioridade == 'urgente' %}danger{% elif tarefa.prioridade == 'alta' %}warning{% else %}info{% endif %}">
+                                {{ tarefa.prioridade or 'normal' }}
+                            </span>
+                        </div>
+                    </div>
+
+                    {% if tarefa.concluida %}
+                    <hr>
+                    <div class="alert alert-{% if tarefa.aprovado %}success{% elif tarefa.aprovado == False %}danger{% else %}info{% endif %}">
+                        <h6>
+                            <i class="bi bi-check-circle"></i> Tarefa Concluída
+                            {% if tarefa.aprovado is not none %}
+                                - {% if tarefa.aprovado %}APROVADO{% else %}REPROVADO{% endif %}
+                            {% endif %}
+                        </h6>
+                        <p class="mb-1"><strong>Data de Conclusão:</strong> {{ tarefa.data_conclusao.strftime('%d/%m/%Y %H:%M') }}</p>
+                        {% if tarefa.parecer %}
+                        <p class="mb-0"><strong>Parecer:</strong><br>{{ tarefa.parecer }}</p>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <!-- Formulário de Conclusão -->
+                    {% if tarefa.pode_concluir(current_user) %}
+                    <hr>
+                    <h5>Concluir Tarefa</h5>
+                    <form method="POST" action="{{ url_for('view.tarefa_concluir', id=tarefa.id) }}" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="parecer" class="form-label">Parecer *</label>
+                            <textarea class="form-control" id="parecer" name="parecer" rows="4" required></textarea>
+                        </div>
+
+                        {% if tarefa.tipo_tarefa in ['Aprovar', 'Validar Conteúdo', 'Validar Padronização'] %}
+                        <div class="mb-3">
+                            <label class="form-label">Decisão *</label>
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="aprovado" id="aprovado_sim" value="true" required>
+                                    <label class="form-check-label text-success" for="aprovado_sim">
+                                        <i class="bi bi-check-circle"></i> Aprovar
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="aprovado" id="aprovado_nao" value="false" required>
+                                    <label class="form-check-label text-danger" for="aprovado_nao">
+                                        <i class="bi bi-x-circle"></i> Reprovar
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if tarefa.tipo_tarefa == 'Publicar' %}
+                        <div class="mb-3">
+                            <label for="arquivo" class="form-label">Arquivo PDF Final *</label>
+                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".pdf" required>
+                            <small class="text-muted">Anexe o PDF final do documento para publicação</small>
+                        </div>
+                        {% endif %}
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('view.tarefas') }}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Voltar
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle"></i> Concluir Tarefa
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> Você não tem permissão para concluir esta tarefa.
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Informações</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>ID da Tarefa:</strong> {{ tarefa.id }}</p>
+                    <p><strong>Tipo:</strong> {{ tarefa.tipo_tarefa }}</p>
+                    <p class="mb-0">
+                        <strong>Status:</strong>
+                        {% if tarefa.concluida %}
+                            <span class="badge bg-success">Concluída</span>
+                        {% else %}
+                            <span class="badge bg-warning">Pendente</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            {% if tarefa.esta_atrasada() and not tarefa.concluida %}
+            <div class="alert alert-danger mt-3">
+                <i class="bi bi-exclamation-triangle"></i> <strong>Tarefa Atrasada!</strong>
+                <br>
+                Dias em atraso: {{ abs(tarefa.dias_ate_prazo() or 0) }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

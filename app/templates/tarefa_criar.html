@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Criar Tarefa - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('view.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view.tarefas') }}">Tarefas</a></li>
+            <li class="breadcrumb-item active">Nova Tarefa</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Criar Nova Tarefa</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('view.tarefa_criar') }}">
+                        <div class="mb-3">
+                            <label for="documento_id" class="form-label">Documento *</label>
+                            <select class="form-select" id="documento_id" name="documento_id" required>
+                                <option value="">Selecione um documento...</option>
+                                {% for doc in documentos %}
+                                <option value="{{ doc.id }}" {% if request.args.get('documento_id')|int == doc.id %}selected{% endif %}>
+                                    {{ doc.codigo_provisorio or doc.codigo_definitivo }} - {{ doc.titulo }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tipo_tarefa" class="form-label">Tipo de Tarefa *</label>
+                            <select class="form-select" id="tipo_tarefa" name="tipo_tarefa" required>
+                                <option value="">Selecione...</option>
+                                <option value="Analisar">Analisar</option>
+                                <option value="Validar Conteúdo">Validar Conteúdo</option>
+                                <option value="Validar Padronização">Validar Padronização</option>
+                                <option value="Aprovar">Aprovar</option>
+                                <option value="Publicar">Publicar</option>
+                                <option value="Realizar Correção">Realizar Correção</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="responsavel_id" class="form-label">Responsável *</label>
+                            <select class="form-select" id="responsavel_id" name="responsavel_id" required>
+                                <option value="">Selecione um usuário...</option>
+                                {% for usuario in usuarios %}
+                                <option value="{{ usuario.id }}">
+                                    {{ usuario.nome }} ({{ usuario.perfil }}) - {{ usuario.email }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="descricao" class="form-label">Descrição</label>
+                            <textarea class="form-control" id="descricao" name="descricao" rows="3"></textarea>
+                            <small class="form-text text-muted">Instruções ou observações sobre a tarefa</small>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="prioridade" class="form-label">Prioridade</label>
+                                <select class="form-select" id="prioridade" name="prioridade">
+                                    <option value="normal" selected>Normal</option>
+                                    <option value="baixa">Baixa</option>
+                                    <option value="alta">Alta</option>
+                                    <option value="urgente">Urgente</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="prazo" class="form-label">Prazo</label>
+                                <input type="date" class="form-control" id="prazo" name="prazo">
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> <strong>Tipos de Tarefas:</strong>
+                            <ul class="mb-0 mt-2 small">
+                                <li><strong>Analisar:</strong> Análise geral do documento</li>
+                                <li><strong>Validar Conteúdo:</strong> Verificar se o conteúdo está correto</li>
+                                <li><strong>Validar Padronização:</strong> Verificar formatação e padrões</li>
+                                <li><strong>Aprovar:</strong> Aprovar ou reprovar o documento</li>
+                                <li><strong>Publicar:</strong> Publicar documento com PDF final</li>
+                                <li><strong>Realizar Correção:</strong> Solicitar correções</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('view.tarefas') }}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-circle"></i> Criar Tarefa
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Definir data mínima como hoje
+document.getElementById('prazo').min = new Date().toISOString().split('T')[0];
+
+// Sugerir prazo baseado no tipo de tarefa
+document.getElementById('tipo_tarefa').addEventListener('change', function() {
+    const tipo = this.value;
+    const prazoInput = document.getElementById('prazo');
+    const hoje = new Date();
+
+    let diasPrazo = 7; // Padrão
+
+    switch(tipo) {
+        case 'Analisar':
+            diasPrazo = 5;
+            break;
+        case 'Validar Conteúdo':
+        case 'Validar Padronização':
+            diasPrazo = 3;
+            break;
+        case 'Aprovar':
+            diasPrazo = 2;
+            break;
+        case 'Publicar':
+            diasPrazo = 1;
+            break;
+        case 'Realizar Correção':
+            diasPrazo = 7;
+            break;
+    }
+
+    const datasugerida = new Date(hoje.getTime() + diasPrazo * 24 * 60 * 60 * 1000);
+    prazoInput.value = datasugerida.toISOString().split('T')[0];
+});
+</script>
+{% endblock %}

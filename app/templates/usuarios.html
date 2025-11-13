@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Usuários - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h1><i class="bi bi-people"></i> Usuários</h1>
+        </div>
+        <div class="col-md-6 text-end">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoUsuario">
+                <i class="bi bi-person-plus"></i> Novo Usuário
+            </button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if usuarios %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Perfil</th>
+                            <th>Setor</th>
+                            <th>Status</th>
+                            <th>Último Acesso</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usuario in usuarios %}
+                        <tr>
+                            <td>{{ usuario.id }}</td>
+                            <td>{{ usuario.nome }}</td>
+                            <td>{{ usuario.email }}</td>
+                            <td>
+                                <span class="badge bg-{% if usuario.perfil == 'administrador' %}danger{% elif usuario.perfil == 'gerente' %}warning{% elif usuario.perfil == 'responsavel_interno' %}info{% else %}secondary{% endif %}">
+                                    {{ usuario.perfil }}
+                                </span>
+                            </td>
+                            <td>{{ usuario.setor or '-' }}</td>
+                            <td>
+                                {% if usuario.ativo %}
+                                    <span class="badge bg-success">Ativo</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inativo</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if usuario.ultimo_acesso %}
+                                    {{ usuario.ultimo_acesso.strftime('%d/%m/%Y %H:%M') }}
+                                {% else %}
+                                    Nunca acessou
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if usuario.id != current_user.id %}
+                                <button class="btn btn-sm btn-warning" onclick="editarUsuario({{ usuario.id }}, '{{ usuario.nome }}', '{{ usuario.email }}', '{{ usuario.perfil }}', '{{ usuario.setor or '' }}', {{ 'true' if usuario.ativo else 'false' }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info mb-0">
+                <i class="bi bi-info-circle"></i> Nenhum usuário cadastrado.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo Usuário -->
+<div class="modal fade" id="modalNovoUsuario" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-person-plus"></i> Novo Usuário</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('view.usuario_criar') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nome *</label>
+                        <input type="text" class="form-control" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email *</label>
+                        <input type="email" class="form-control" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Senha *</label>
+                        <input type="password" class="form-control" name="senha" required minlength="6">
+                        <small class="text-muted">Mínimo 6 caracteres</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Perfil *</label>
+                        <select class="form-select" name="perfil" required>
+                            <option value="comum">Comum</option>
+                            <option value="gerente">Gerente</option>
+                            <option value="responsavel_interno">Responsável Interno</option>
+                            <option value="administrador">Administrador</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Setor</label>
+                        <input type="text" class="form-control" name="setor">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Criar Usuário</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Usuário -->
+<div class="modal fade" id="modalEditarUsuario" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="bi bi-pencil"></i> Editar Usuário</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="formEditarUsuario">
+                <div class="modal-body">
+                    <input type="hidden" name="usuario_id" id="edit_id">
+                    <div class="mb-3">
+                        <label class="form-label">Nome *</label>
+                        <input type="text" class="form-control" name="nome" id="edit_nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email *</label>
+                        <input type="email" class="form-control" name="email" id="edit_email" required disabled>
+                        <small class="text-muted">Email não pode ser alterado</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Perfil *</label>
+                        <select class="form-select" name="perfil" id="edit_perfil" required>
+                            <option value="comum">Comum</option>
+                            <option value="gerente">Gerente</option>
+                            <option value="responsavel_interno">Responsável Interno</option>
+                            <option value="administrador">Administrador</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Setor</label>
+                        <input type="text" class="form-control" name="setor" id="edit_setor">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="ativo" id="edit_ativo" value="true">
+                            <label class="form-check-label" for="edit_ativo">Usuário Ativo</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function editarUsuario(id, nome, email, perfil, setor, ativo) {
+    document.getElementById('edit_id').value = id;
+    document.getElementById('edit_nome').value = nome;
+    document.getElementById('edit_email').value = email;
+    document.getElementById('edit_perfil').value = perfil;
+    document.getElementById('edit_setor').value = setor;
+    document.getElementById('edit_ativo').checked = ativo;
+    document.getElementById('formEditarUsuario').action = '/view/usuario/' + id + '/editar';
+
+    new bootstrap.Modal(document.getElementById('modalEditarUsuario')).show();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </h1>
+        </div>
+    </div>
+
+    <!-- Cards de Estatísticas -->
+    <div class="row">
+        <div class="col-md-3 mb-4">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase">Minhas Tarefas</h6>
+                            <h2 class="mb-0">{{ stats.minhas_pendentes or 0 }}</h2>
+                        </div>
+                        <div>
+                            <i class="bi bi-list-check" style="font-size: 3rem; opacity: 0.5;"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-primary bg-opacity-75">
+                    <a href="{{ url_for('view.tarefas') }}" class="text-white text-decoration-none small">
+                        Ver todas <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-4">
+            <div class="card bg-warning text-dark h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase">Atrasadas</h6>
+                            <h2 class="mb-0">{{ stats.minhas_atrasadas or 0 }}</h2>
+                        </div>
+                        <div>
+                            <i class="bi bi-exclamation-triangle" style="font-size: 3rem; opacity: 0.5;"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-warning bg-opacity-75">
+                    <a href="{{ url_for('view.tarefas') }}?atrasadas=1" class="text-dark text-decoration-none small">
+                        Ver atrasadas <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-4">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase">Concluídas (Mês)</h6>
+                            <h2 class="mb-0">{{ stats.minhas_concluidas_mes or 0 }}</h2>
+                        </div>
+                        <div>
+                            <i class="bi bi-check-circle" style="font-size: 3rem; opacity: 0.5;"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-success bg-opacity-75">
+                    <span class="text-white small">Últimos 30 dias</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-4">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase">Documentos</h6>
+                            <h2 class="mb-0">{{ stats.total_documentos or 0 }}</h2>
+                        </div>
+                        <div>
+                            <i class="bi bi-file-earmark-text" style="font-size: 3rem; opacity: 0.5;"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-info bg-opacity-75">
+                    <a href="{{ url_for('view.documentos') }}" class="text-white text-decoration-none small">
+                        Ver todos <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Minhas Tarefas Pendentes -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-list-task"></i> Minhas Tarefas Pendentes</h5>
+                </div>
+                <div class="card-body">
+                    {% if tarefas %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Documento</th>
+                                    <th>Descrição</th>
+                                    <th>Prazo</th>
+                                    <th>Prioridade</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for tarefa in tarefas %}
+                                <tr class="{% if tarefa.esta_atrasada %}table-danger{% endif %}">
+                                    <td><span class="badge bg-secondary">{{ tarefa.tipo_tarefa }}</span></td>
+                                    <td>{{ tarefa.documento.titulo[:40] }}...</td>
+                                    <td>{{ (tarefa.descricao or '')[:50] }}...</td>
+                                    <td>
+                                        {% if tarefa.prazo %}
+                                            {{ tarefa.prazo.strftime('%d/%m/%Y') }}
+                                            {% if tarefa.esta_atrasada %}
+                                                <span class="badge bg-danger">ATRASADA</span>
+                                            {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if tarefa.prioridade == 'urgente' %}danger{% elif tarefa.prioridade == 'alta' %}warning{% else %}info{% endif %}">
+                                            {{ tarefa.prioridade }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('view.tarefa_detalhe', id=tarefa.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-eye"></i> Ver
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> Você não possui tarefas pendentes no momento.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Documentos - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h1><i class="bi bi-file-earmark-text"></i> Documentos</h1>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="{{ url_for('view.documento_criar') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Novo Documento
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('view.documentos') }}" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Buscar</label>
+                    <input type="text" class="form-control" name="q" value="{{ request.args.get('q', '') }}" placeholder="Título ou código">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" name="status">
+                        <option value="">Todos</option>
+                        <option value="Novo" {% if request.args.get('status') == 'Novo' %}selected{% endif %}>Novo</option>
+                        <option value="Em Análise" {% if request.args.get('status') == 'Em Análise' %}selected{% endif %}>Em Análise</option>
+                        <option value="Aprovado" {% if request.args.get('status') == 'Aprovado' %}selected{% endif %}>Aprovado</option>
+                        <option value="Aprovado e Publicado" {% if request.args.get('status') == 'Aprovado e Publicado' %}selected{% endif %}>Publicado</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select" name="tipo">
+                        <option value="">Todos</option>
+                        <option value="POP" {% if request.args.get('tipo') == 'POP' %}selected{% endif %}>POP</option>
+                        <option value="Manual" {% if request.args.get('tipo') == 'Manual' %}selected{% endif %}>Manual</option>
+                        <option value="Protocolo" {% if request.args.get('tipo') == 'Protocolo' %}selected{% endif %}>Protocolo</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Setor</label>
+                    <input type="text" class="form-control" name="setor" value="{{ request.args.get('setor', '') }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Filtrar</button>
+                        <a href="{{ url_for('view.documentos') }}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Limpar</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lista de Documentos -->
+    <div class="card">
+        <div class="card-body">
+            {% if documentos %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Título</th>
+                            <th>Tipo</th>
+                            <th>Setor</th>
+                            <th>Status</th>
+                            <th>Data</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for doc in documentos %}
+                        <tr>
+                            <td><strong>{{ doc.codigo_definitivo or doc.codigo_provisorio }}</strong></td>
+                            <td>{{ doc.titulo }}</td>
+                            <td><span class="badge bg-info">{{ doc.tipo_documento }}</span></td>
+                            <td>{{ doc.setor or '-' }}</td>
+                            <td>
+                                <span class="badge bg-{% if doc.status == 'Aprovado e Publicado' %}success{% elif doc.status == 'Aprovado' %}primary{% elif doc.status == 'Em Análise' %}warning{% else %}secondary{% endif %}">
+                                    {{ doc.status }}
+                                </span>
+                                {% if doc.esta_vencido() %}
+                                <span class="badge bg-danger">Vencido</span>
+                                {% elif doc.dias_ate_vencimento() and doc.dias_ate_vencimento() <= 30 %}
+                                <span class="badge bg-warning">Vence em {{ doc.dias_ate_vencimento() }} dias</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ doc.data_criacao.strftime('%d/%m/%Y') }}</td>
+                            <td>
+                                <a href="{{ url_for('view.documento_detalhe', id=doc.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-eye"></i> Ver
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginação -->
+            {% if pagination and pagination.pages > 1 %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                        <a class="page-link" href="?page={{ pagination.prev_num }}">Anterior</a>
+                    </li>
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="?page={{ page_num }}">{{ page_num }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="?page={{ pagination.next_num }}">Próximo</a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+            {% else %}
+            <div class="alert alert-info mb-0">
+                <i class="bi bi-info-circle"></i> Nenhum documento encontrado.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
