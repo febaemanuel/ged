@@ -202,14 +202,13 @@ def documento_criar():
             tipo_documento=tipo_documento,
             setor=setor,
             descricao=descricao,
-            caminho_arquivo=caminho_completo,
+            arquivo_original=filename_final,
             criador_id=current_user.id,
-            responsavel_atual_id=current_user.id
+            validade_anos=validade_anos or 5
         )
 
-        # Calcular data de vencimento
-        if validade_anos:
-            documento.data_vencimento = datetime.utcnow() + timedelta(days=validade_anos * 365)
+        # Calcular data de vencimento (já configurado no modelo via validade_anos)
+        # Será calculado quando o documento for publicado
 
         db.session.add(documento)
         db.session.commit()

@@ -46,9 +46,11 @@ class Config:
 
     # Configurações de upload
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'app', 'uploads', 'documentos')
+    UPLOAD_FOLDER_DOCUMENTOS = os.path.join(BASE_DIR, 'app', 'uploads', 'documentos')  # Alias
     PUBLISHED_FOLDER = os.path.join(BASE_DIR, 'app', 'uploads', 'publicados')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max
     ALLOWED_EXTENSIONS = {'doc', 'docx', 'odt', 'pdf'}
+    ALLOWED_EXTENSIONS_DOCUMENTO = {'doc', 'docx', 'odt', 'pdf'}  # Alias
 
     # Configurações de sessão
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)

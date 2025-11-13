@@ -18,7 +18,7 @@ import os
 
 from app.models import db, Tarefa, Documento, Usuario
 
-bp = Blueprint('tarefa', __name__, url_prefix='/tarefa')
+bp = Blueprint('tarefa', __name__, url_prefix='/api/tarefa')
 
 
 @bp.route('/lista', methods=['GET'])

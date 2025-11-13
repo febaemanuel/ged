@@ -189,8 +189,13 @@ class Documento(db.Model):
         """Verifica se o documento pode ser publicado"""
         return self.status == 'Aprovado'
 
+    @property
+    def codigo(self):
+        """Retorna o código do documento (definitivo se existir, senão provisório)"""
+        return self.codigo_definitivo or self.codigo_provisorio
+
     def __repr__(self):
-        return f'<Documento {self.codigo_provisorio or self.codigo_definitivo}>'
+        return f'<Documento {self.codigo}>'
 
 
 class Tarefa(db.Model):

@@ -20,7 +20,7 @@ import os
 from app.models import db, Documento, Tarefa, Usuario
 from app.services import extract_text
 
-bp = Blueprint('documento', __name__, url_prefix='/documento')
+bp = Blueprint('documento', __name__, url_prefix='/api/documento')
 
 
 def allowed_file(filename):

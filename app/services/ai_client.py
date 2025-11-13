@@ -167,16 +167,16 @@ def _make_request(endpoint, method='POST', files=None, json_data=None):
 
 def extract_text(file_path):
     """
-    Extrai texto de um documento
+    Extrai texto de um documento (.doc, .docx, .odt, .pdf)
 
     Args:
-        file_path: Caminho do arquivo (.doc, .odt, .pdf)
+        file_path: Caminho do arquivo
 
     Returns:
         dict: {
             'texto': str,
-            'entidades': dict,
-            'metadados': dict
+            'metadados': dict,
+            'num_paginas': int (se aplicável)
         }
 
     Example:
@@ -185,11 +185,56 @@ def extract_text(file_path):
     """
     logger.info(f"Extraindo texto do arquivo: {file_path}")
 
-    with open(file_path, 'rb') as f:
-        files = {'file': f}
-        result = _make_request('/api/ai/extract', files=files)
+    if not os.path.exists(file_path):
+        raise AIClientError(f"Arquivo não encontrado: {file_path}")
 
-    return result
+    extensao = file_path.lower().split('.')[-1]
+    texto = ""
+    metadados = {}
+
+    try:
+        if extensao == 'pdf':
+            # Extrai texto de PDF
+            from PyPDF2 import PdfReader
+            reader = PdfReader(file_path)
+            metadados['num_paginas'] = len(reader.pages)
+            for page in reader.pages:
+                texto += page.extract_text() + "\n"
+
+        elif extensao in ['doc', 'docx']:
+            # Extrai texto de Word
+            from docx import Document
+            doc = Document(file_path)
+            metadados['num_paragrafos'] = len(doc.paragraphs)
+            for para in doc.paragraphs:
+                texto += para.text + "\n"
+
+        elif extensao == 'odt':
+            # Extrai texto de ODT
+            from odf import text, teletype
+            from odf.opendocument import load
+            textdoc = load(file_path)
+            allparas = textdoc.getElementsByType(text.P)
+            for para in allparas:
+                texto += teletype.extractText(para) + "\n"
+
+        else:
+            raise AIClientError(f"Extensão não suportada: {extensao}")
+
+        metadados['tamanho_caracteres'] = len(texto)
+        metadados['tamanho_palavras'] = len(texto.split())
+
+        return {
+            'texto': texto.strip(),
+            'metadados': metadados
+        }
+
+    except ImportError as e:
+        logger.error(f"Biblioteca necessária não instalada: {str(e)}")
+        raise AIClientError(f"Biblioteca de processamento não instalada: {str(e)}")
+    except Exception as e:
+        logger.error(f"Erro ao extrair texto: {str(e)}")
+        raise AIClientError(f"Erro ao extrair texto: {str(e)}")
 
 
 def classify_document(text):

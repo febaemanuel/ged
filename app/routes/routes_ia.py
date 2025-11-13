@@ -26,7 +26,7 @@ from app.services import (
 )
 from app.services.ai_client import AIClientError
 
-bp = Blueprint('ia', __name__, url_prefix='/ia')
+bp = Blueprint('ia', __name__, url_prefix='/api/ia')
 
 
 def registrar_log_ia(documento_id, funcao, parametros, resposta, sucesso=True, erro=None, tempo_ms=0):

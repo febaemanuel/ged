@@ -38,7 +38,7 @@ Flask-Migrate==4.0.5
 # Logging aprimorado
 colorlog==6.8.0
 
-# Processamento de documentos (opcional)
-# python-docx==1.1.0
-# odfpy==1.4.1
-# PyPDF2==3.0.1
+# Processamento de documentos
+python-docx==1.1.0
+odfpy==1.4.1
+PyPDF2==3.0.1
