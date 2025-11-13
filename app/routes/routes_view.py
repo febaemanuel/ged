@@ -857,7 +857,7 @@ def concluir_triagem(tarefa_id):
     # Verifica permissão
     if tarefa.responsavel_id != current_user.id and not current_user.is_admin():
         flash('Você não tem permissão para concluir esta tarefa', 'danger')
-        return redirect(url_for('view.minhas_tarefas'))
+        return redirect(url_for('tarefa.minhas_tarefas'))
 
     # Pega dados do formulário
     acao = request.form.get('acao')  # 'aprovar' ou 'devolver'
@@ -906,7 +906,7 @@ def concluir_triagem(tarefa_id):
         logger.error(f"Erro ao concluir triagem: {str(e)}")
         flash(f'Erro ao processar triagem: {str(e)}', 'danger')
 
-    return redirect(url_for('view.minhas_tarefas'))
+    return redirect(url_for('tarefa.minhas_tarefas'))
 
 
 @view_bp.route('/tarefa/<int:tarefa_id>/codificar', methods=['GET', 'POST'])
@@ -924,7 +924,7 @@ def codificar_documento(tarefa_id):
     # Verifica permissão
     if tarefa.responsavel_id != current_user.id and not current_user.is_admin():
         flash('Você não tem permissão para esta tarefa', 'danger')
-        return redirect(url_for('view.minhas_tarefas'))
+        return redirect(url_for('tarefa.minhas_tarefas'))
 
     if request.method == 'GET':
         # Sugere próximo código
@@ -1043,7 +1043,7 @@ def assinar_documento(tarefa_id):
     # Verifica permissão
     if tarefa.responsavel_id != current_user.id and not current_user.is_admin():
         flash('Você não tem permissão para assinar este documento', 'danger')
-        return redirect(url_for('view.minhas_tarefas'))
+        return redirect(url_for('tarefa.minhas_tarefas'))
 
     acao = request.form.get('acao')  # 'aprovar' ou 'reprovar'
     parecer = request.form.get('parecer')
@@ -1068,7 +1068,7 @@ def assinar_documento(tarefa_id):
         logger.error(f"Erro ao assinar: {str(e)}")
         flash(f'Erro: {str(e)}', 'danger')
 
-    return redirect(url_for('view.minhas_tarefas'))
+    return redirect(url_for('tarefa.minhas_tarefas'))
 
 
 @view_bp.route('/tarefa/<int:tarefa_id>/publicar', methods=['POST'])
@@ -1084,7 +1084,7 @@ def publicar_documento(tarefa_id):
     # Verifica permissão
     if tarefa.responsavel_id != current_user.id and not current_user.is_admin():
         flash('Você não tem permissão para publicar', 'danger')
-        return redirect(url_for('view.minhas_tarefas'))
+        return redirect(url_for('tarefa.minhas_tarefas'))
 
     try:
         documento = WorkflowUGQ.validador_publica_documento(tarefa)
