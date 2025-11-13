@@ -95,6 +95,196 @@
                     <!-- Formulário de Conclusão -->
                     {% if tarefa.pode_concluir(current_user) %}
                     <hr>
+
+                    <!-- WORKFLOW UGQ: TRIAGEM -->
+                    {% if tarefa.tipo_tarefa == 'Documento Recebido' or tarefa.tipo_tarefa == 'Triagem de Documento' %}
+                    <h5><i class="bi bi-funnel"></i> Triagem UGQ - 3 Checkpoints</h5>
+                    <form method="POST" action="{{ url_for('view.concluir_triagem', tarefa_id=tarefa.id) }}">
+                        <div class="alert alert-info">
+                            <strong>Instruções:</strong> Verifique os 3 checkpoints obrigatórios antes de aprovar o documento.
+                        </div>
+
+                        <!-- Checkpoint 1: Duplicata -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <strong>Checkpoint 1:</strong> Documento já existe na Lista Mestra?
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="checkpoint_1" id="cp1_sim" value="sim" required>
+                                    <label class="form-check-label text-danger" for="cp1_sim">
+                                        <i class="bi bi-x-circle"></i> Sim (duplicata - devolver)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="checkpoint_1" id="cp1_nao" value="nao">
+                                    <label class="form-check-label text-success" for="cp1_nao">
+                                        <i class="bi bi-check-circle"></i> Não (continuar)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Checkpoint 2: Colegiado (só para Manuais) -->
+                        {% if tarefa.documento.tipo_documento == 'Manual' %}
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <strong>Checkpoint 2:</strong> Manual foi validado pelo Colegiado Executivo?
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="checkpoint_2" id="cp2_sim" value="sim" required>
+                                    <label class="form-check-label text-success" for="cp2_sim">
+                                        <i class="bi bi-check-circle"></i> Sim
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="checkpoint_2" id="cp2_nao" value="nao">
+                                    <label class="form-check-label text-danger" for="cp2_nao">
+                                        <i class="bi bi-x-circle"></i> Não (devolver)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <input type="hidden" name="checkpoint_2" value="nao_se_aplica">
+                        {% endif %}
+
+                        <!-- Checkpoint 3: Formatação -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <strong>Checkpoint 3:</strong> Formatação está de acordo com o padrão UGQ?
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="checkpoint_3" id="cp3_sim" value="sim" required>
+                                    <label class="form-check-label text-success" for="cp3_sim">
+                                        <i class="bi bi-check-circle"></i> Sim (continuar)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="checkpoint_3" id="cp3_nao" value="nao">
+                                    <label class="form-check-label text-danger" for="cp3_nao">
+                                        <i class="bi bi-x-circle"></i> Não (devolver para correção)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Parecer -->
+                        <div class="mb-3">
+                            <label for="parecer" class="form-label">Observações</label>
+                            <textarea class="form-control" id="parecer" name="parecer" rows="3" placeholder="Adicione observações (opcional)"></textarea>
+                        </div>
+
+                        <!-- Botões -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('view.minhas_tarefas') }}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </a>
+                            <button type="submit" name="acao" value="devolver" class="btn btn-warning">
+                                <i class="bi bi-arrow-return-left"></i> Devolver ao Autor
+                            </button>
+                            <button type="submit" name="acao" value="aprovar" class="btn btn-success">
+                                <i class="bi bi-check-circle"></i> Aprovar Triagem
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- WORKFLOW UGQ: CODIFICAÇÃO -->
+                    {% elif modo == 'codificar' %}
+                    <h5><i class="bi bi-upc-scan"></i> Codificar Documento</h5>
+                    <form method="POST" action="{{ url_for('view.codificar_documento', tarefa_id=tarefa.id) }}">
+                        <div class="alert alert-info">
+                            <strong>Validador UGQ:</strong> Defina o código definitivo e versão do documento.
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="codigo_definitivo" class="form-label">Código Definitivo *</label>
+                            <input type="text" class="form-control" id="codigo_definitivo" name="codigo_definitivo"
+                                   value="{{ codigo_sugerido }}" required>
+                            <small class="text-muted">Código sugerido pela Lista Mestra: <strong>{{ codigo_sugerido }}</strong></small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="versao" class="form-label">Versão *</label>
+                            <input type="text" class="form-control" id="versao" name="versao" value="v1.0" required>
+                            <small class="text-muted">Ex: v1.0, v2.0, v2.1</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="observacoes_validacao" class="form-label">Observações de Validação</label>
+                            <textarea class="form-control" id="observacoes_validacao" name="observacoes_validacao" rows="3"></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('view.minhas_tarefas') }}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Codificar e Continuar
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- WORKFLOW UGQ: ASSINATURA -->
+                    {% elif tarefa.tipo_tarefa == 'Assinar Documento' %}
+                    <h5><i class="bi bi-pen"></i> Assinatura de Documento</h5>
+                    <form method="POST" action="{{ url_for('view.assinar_documento', tarefa_id=tarefa.id) }}">
+                        <div class="alert alert-primary">
+                            <strong>Aprovador:</strong> Revise o documento e decida sobre a aprovação.
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="parecer" class="form-label">Parecer *</label>
+                            <textarea class="form-control" id="parecer" name="parecer" rows="4"
+                                      placeholder="Justifique sua decisão..." required></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('view.minhas_tarefas') }}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </a>
+                            <button type="submit" name="acao" value="reprovar" class="btn btn-danger">
+                                <i class="bi bi-x-circle"></i> Reprovar
+                            </button>
+                            <button type="submit" name="acao" value="aprovar" class="btn btn-success">
+                                <i class="bi bi-check-circle"></i> Aprovar
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- WORKFLOW UGQ: PUBLICAÇÃO -->
+                    {% elif tarefa.tipo_tarefa == 'Publicar Documento Aprovado' %}
+                    <h5><i class="bi bi-cloud-upload"></i> Publicar Documento</h5>
+                    <form method="POST" action="{{ url_for('view.publicar_documento', tarefa_id=tarefa.id) }}">
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle"></i> <strong>Documento aprovado por todos os aprovadores!</strong><br>
+                            Validador UGQ: clique em "Publicar" para adicionar o documento à Lista Mestra e torná-lo VIGENTE.
+                        </div>
+
+                        <div class="mb-3">
+                            <p><strong>Ações realizadas ao publicar:</strong></p>
+                            <ul>
+                                <li>Documento será marcado como <strong>VIGENTE</strong></li>
+                                <li>Será adicionado à <strong>Lista Mestra oficial</strong></li>
+                                <li>Arquivo será movido para pasta de publicados</li>
+                                <li>Código definitivo será registrado</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('view.minhas_tarefas') }}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Voltar
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-cloud-upload"></i> Publicar Documento
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- WORKFLOW ANTIGO (DEPRECATED) -->
+                    {% else %}
                     <h5>Concluir Tarefa</h5>
                     <form method="POST" action="{{ url_for('view.tarefa_concluir', id=tarefa.id) }}" enctype="multipart/form-data">
                         <div class="mb-3">
@@ -139,6 +329,8 @@
                             </button>
                         </div>
                     </form>
+                    {% endif %}
+
                     {% else %}
                     <div class="alert alert-warning">
                         <i class="bi bi-exclamation-triangle"></i> Você não tem permissão para concluir esta tarefa.

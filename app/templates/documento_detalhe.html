@@ -303,6 +303,143 @@
             {% endif %}
             {% endif %}
 
+            <!-- WORKFLOW UGQ: CRIAR BLOCO DE ASSINATURA -->
+            {% if modo == 'criar_bloco' %}
+            <div class="card shadow-sm mb-4 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-people"></i> Criar Bloco de Assinatura</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>Validador UGQ:</strong> Selecione os aprovadores e o modo de assinatura para o documento <strong>{{ documento.codigo_definitivo }}</strong>.
+                    </div>
+
+                    <form method="POST" action="{{ url_for('view.criar_bloco_assinatura', documento_id=documento.id) }}" id="formBlocoAssinatura">
+                        <!-- Modo de Assinatura -->
+                        <div class="mb-4">
+                            <label class="form-label"><strong>Modo de Assinatura *</strong></label>
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="modo" id="modo_sequencial" value="sequencial" checked>
+                                        <label class="form-check-label" for="modo_sequencial">
+                                            <strong>Sequencial</strong>
+                                            <br><small class="text-muted">Aprovadores assinam um por vez, na ordem definida. O próximo só recebe a tarefa após o anterior aprovar.</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="modo" id="modo_concomitante" value="concomitante">
+                                        <label class="form-check-label" for="modo_concomitante">
+                                            <strong>Concomitante</strong>
+                                            <br><small class="text-muted">Todos aprovadores recebem a tarefa ao mesmo tempo e podem assinar simultaneamente.</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lista de Aprovadores -->
+                        <div class="mb-4">
+                            <label class="form-label"><strong>Aprovadores *</strong></label>
+                            <div id="listaAprovadores">
+                                <div class="card mb-2 aprovador-item">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <div class="col-1">
+                                                <strong>1º</strong>
+                                            </div>
+                                            <div class="col-10">
+                                                <select name="aprovador_1" class="form-select" required>
+                                                    <option value="">Selecione um aprovador...</option>
+                                                    {% for aprovador in aprovadores %}
+                                                    <option value="{{ aprovador.id }}">{{ aprovador.nome }} ({{ aprovador.setor }})</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-1 text-end">
+                                                <button type="button" class="btn btn-sm btn-danger" onclick="removerAprovador(this)" style="visibility: hidden;">
+                                                    <i class="bi bi-x"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="adicionarAprovador()">
+                                <i class="bi bi-plus-circle"></i> Adicionar Aprovador
+                            </button>
+                        </div>
+
+                        <!-- Observações -->
+                        <div class="mb-3">
+                            <label for="observacoes" class="form-label">Observações</label>
+                            <textarea class="form-control" id="observacoes" name="observacoes" rows="3" placeholder="Instruções para os aprovadores (opcional)"></textarea>
+                        </div>
+
+                        <!-- Botões -->
+                        <hr>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('view.documento_detalhe', id=documento.id) }}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-circle"></i> Criar Bloco de Assinatura
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <script>
+            let contadorAprovadores = 1;
+
+            function adicionarAprovador() {
+                contadorAprovadores++;
+                const lista = document.getElementById('listaAprovadores');
+                const novoItem = document.createElement('div');
+                novoItem.className = 'card mb-2 aprovador-item';
+                novoItem.innerHTML = `
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-1">
+                                <strong>${contadorAprovadores}º</strong>
+                            </div>
+                            <div class="col-10">
+                                <select name="aprovador_${contadorAprovadores}" class="form-select" required>
+                                    <option value="">Selecione um aprovador...</option>
+                                    {% for aprovador in aprovadores %}
+                                    <option value="{{ aprovador.id }}">{{ aprovador.nome }} ({{ aprovador.setor }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-1 text-end">
+                                <button type="button" class="btn btn-sm btn-danger" onclick="removerAprovador(this)">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                lista.appendChild(novoItem);
+            }
+
+            function removerAprovador(btn) {
+                btn.closest('.aprovador-item').remove();
+                // Renumera os aprovadores
+                const itens = document.querySelectorAll('.aprovador-item');
+                itens.forEach((item, index) => {
+                    item.querySelector('.col-1 strong').textContent = `${index + 1}º`;
+                    item.querySelector('select').name = `aprovador_${index + 1}`;
+                });
+                contadorAprovadores = itens.length;
+            }
+            </script>
+            {% endif %}
+
             <!-- Texto Extraído -->
             {% if documento.texto_extraido %}
             <div class="card shadow-sm mb-4">
