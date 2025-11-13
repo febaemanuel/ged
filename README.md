@@ -25,13 +25,15 @@
 
 ## 📦 Instalação Rápida
 
-### 1. Pré-requisitos
+### 🐧 Linux / macOS
+
+#### 1. Pré-requisitos
 ```bash
 python3 --version  # 3.11+
 psql --version     # PostgreSQL 12+
 ```
 
-### 2. Setup PostgreSQL
+#### 2. Setup PostgreSQL
 ```sql
 sudo -u postgres psql
 CREATE DATABASE ged_db;
@@ -40,7 +42,7 @@ GRANT ALL PRIVILEGES ON DATABASE ged_db TO ged_user;
 \q
 ```
 
-### 3. Instalar
+#### 3. Instalar
 ```bash
 ./setup.sh
 source venv/bin/activate
@@ -50,7 +52,27 @@ flask seed-db
 python app.py
 ```
 
-✅ **API**: http://localhost:5000
+### 🪟 Windows
+
+**Instalação super fácil com scripts .bat!**
+
+#### 1. Duplo clique em `setup.bat`
+O script instala tudo automaticamente.
+
+#### 2. Configure PostgreSQL e `.env`
+Edite o arquivo `.env` com suas credenciais.
+
+#### 3. Duplo clique em `init-db.bat`
+Cria tabelas e usuários padrão.
+
+#### 4. Duplo clique em `start.bat`
+Inicia o servidor!
+
+**📘 Guia completo**: [WINDOWS_SETUP.md](WINDOWS_SETUP.md)
+
+---
+
+✅ **Acesse**: http://localhost:5000
 
 ## 🔑 Usuários Padrão
 
@@ -237,9 +259,10 @@ lsof -ti:5000 | xargs kill -9
 
 ## 📚 Documentação
 
-- **START_HERE.md** - Início rápido
-- **INSTALACAO_COMPLETA.md** - Guia detalhado de instalação
-- **FRONTEND_COMPLETO.md** - Documentação completa do frontend ✨
+- **START_HERE.md** - Início rápido (5 minutos)
+- **INSTALACAO_COMPLETA.md** - Guia detalhado Linux/macOS
+- **WINDOWS_SETUP.md** - Guia completo para Windows 🪟
+- **FRONTEND_COMPLETO.md** - Documentação do frontend ✨
 - **http://localhost:5000/home** - API docs
 - **http://localhost:5000** - Interface web (após login)
 
