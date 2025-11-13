@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Bem-vindo ao Sistema GED</h2>
+    <p>Este é um sistema de Gerenciamento Eletrônico de Documentos com integração de IA.</p>
+
+    <h3 style="margin-top: 20px;">API REST</h3>
+    <p>O sistema funciona principalmente através de uma API REST. Endpoints disponíveis:</p>
+
+    <ul style="margin: 15px 0; line-height: 1.8;">
+        <li><strong>Autenticação:</strong> /auth/login, /auth/register, /auth/me</li>
+        <li><strong>Documentos:</strong> /documento/lista, /documento/criar, /documento/&lt;id&gt;</li>
+        <li><strong>Tarefas:</strong> /tarefa/lista, /tarefa/criar, /tarefa/&lt;id&gt;/concluir</li>
+        <li><strong>IA:</strong> /ia/extract/&lt;id&gt;, /ia/classify/&lt;id&gt;, /ia/search</li>
+        <li><strong>Relatórios:</strong> /relatorio/pdf/tarefas_atrasadas, /relatorio/pdf/geral</li>
+        <li><strong>Dashboard:</strong> /, /dashboard/stats</li>
+    </ul>
+
+    <h3 style="margin-top: 20px;">Funcionalidades</h3>
+    <ul style="margin: 15px 0; line-height: 1.8;">
+        <li>Gerenciamento completo de documentos (POPs, Manuais, Protocolos)</li>
+        <li>Fluxo de aprovação com tarefas</li>
+        <li>Integração com APIs de IA (extração, classificação, busca semântica)</li>
+        <li>Geração de relatórios em PDF</li>
+        <li>Controle de vencimento automático</li>
+        <li>Repositório público de documentos</li>
+    </ul>
+
+    <h3 style="margin-top: 20px;">Para começar</h3>
+    <p>Use uma ferramenta como Postman ou cURL para interagir com a API:</p>
+    <pre style="background: #f0f0f0; padding: 15px; border-radius: 4px; overflow-x: auto;">
+# Login
+curl -X POST http://localhost:5000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "senha": "admin123"}'
+
+# Listar documentos
+curl -X GET http://localhost:5000/documento/lista \
+  -H "Cookie: session=&lt;session_cookie&gt;"
+    </pre>
+</div>
+
+<div class="card">
+    <h2>Documentação da API</h2>
+    <p>Para mais informações sobre os endpoints disponíveis, consulte o código-fonte em:</p>
+    <ul style="margin: 15px 0; line-height: 1.8;">
+        <li>app/routes/routes_documento.py</li>
+        <li>app/routes/routes_tarefa.py</li>
+        <li>app/routes/routes_ia.py</li>
+        <li>app/routes/routes_dashboard.py</li>
+    </ul>
+</div>
+{% endblock %}

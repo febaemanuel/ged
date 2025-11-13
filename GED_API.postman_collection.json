@@ -1,0 +1,356 @@
+{
+  "info": {
+    "name": "Sistema GED - API",
+    "description": "Collection completa da API do Sistema GED",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Autenticação",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"senha\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        },
+        {
+          "name": "Usuário Atual",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Listar Usuários",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/auth/usuarios",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "usuarios"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documentos",
+      "item": [
+        {
+          "name": "Listar Documentos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/documento/lista?page=1&per_page=20",
+              "host": ["{{base_url}}"],
+              "path": ["documento", "lista"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "per_page", "value": "20"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Visualizar Documento",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/documento/1",
+              "host": ["{{base_url}}"],
+              "path": ["documento", "1"]
+            }
+          }
+        },
+        {
+          "name": "Criar Documento",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "titulo", "value": "Procedimento de Teste", "type": "text"},
+                {"key": "tipo_documento", "value": "POP", "type": "text"},
+                {"key": "descricao", "value": "Descrição do procedimento", "type": "text"},
+                {"key": "setor", "value": "Qualidade", "type": "text"},
+                {"key": "validade_anos", "value": "5", "type": "text"},
+                {"key": "arquivo", "type": "file", "src": ""}
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/documento/criar",
+              "host": ["{{base_url}}"],
+              "path": ["documento", "criar"]
+            }
+          }
+        },
+        {
+          "name": "Repositório Público",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/documento/publico?q=&tipo=&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["documento", "publico"],
+              "query": [
+                {"key": "q", "value": ""},
+                {"key": "tipo", "value": ""},
+                {"key": "page", "value": "1"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tarefas",
+      "item": [
+        {
+          "name": "Minhas Tarefas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/tarefa/minhas",
+              "host": ["{{base_url}}"],
+              "path": ["tarefa", "minhas"]
+            }
+          }
+        },
+        {
+          "name": "Listar Tarefas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/tarefa/lista?concluida=false",
+              "host": ["{{base_url}}"],
+              "path": ["tarefa", "lista"],
+              "query": [
+                {"key": "concluida", "value": "false"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Criar Tarefa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento_id\": 1,\n  \"responsavel_id\": 2,\n  \"tipo_tarefa\": \"Analisar\",\n  \"descricao\": \"Analisar documento\",\n  \"prioridade\": \"normal\",\n  \"prazo\": \"2024-12-31T23:59:59\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tarefa/criar",
+              "host": ["{{base_url}}"],
+              "path": ["tarefa", "criar"]
+            }
+          }
+        },
+        {
+          "name": "Concluir Tarefa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parecer\": \"Documento aprovado\",\n  \"aprovado\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tarefa/1/concluir",
+              "host": ["{{base_url}}"],
+              "path": ["tarefa", "1", "concluir"]
+            }
+          }
+        },
+        {
+          "name": "Tarefas Atrasadas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/tarefa/atrasadas",
+              "host": ["{{base_url}}"],
+              "path": ["tarefa", "atrasadas"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "IA",
+      "item": [
+        {
+          "name": "Extrair Texto",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/ia/extract/1",
+              "host": ["{{base_url}}"],
+              "path": ["ia", "extract", "1"]
+            }
+          }
+        },
+        {
+          "name": "Classificar Documento",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/ia/classify/1",
+              "host": ["{{base_url}}"],
+              "path": ["ia", "classify", "1"]
+            }
+          }
+        },
+        {
+          "name": "Resumir Documento",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/ia/summarize/1?max_length=500",
+              "host": ["{{base_url}}"],
+              "path": ["ia", "summarize", "1"],
+              "query": [
+                {"key": "max_length", "value": "500"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Busca Semântica",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"procedimentos de segurança\",\n  \"limit\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ia/search",
+              "host": ["{{base_url}}"],
+              "path": ["ia", "search"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard e Relatórios",
+      "item": [
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            }
+          }
+        },
+        {
+          "name": "Estatísticas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/dashboard/stats",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Buscar Documentos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/search?q=teste",
+              "host": ["{{base_url}}"],
+              "path": ["search"],
+              "query": [
+                {"key": "q", "value": "teste"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Relatório PDF - Tarefas Atrasadas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/relatorio/pdf/tarefas_atrasadas",
+              "host": ["{{base_url}}"],
+              "path": ["relatorio", "pdf", "tarefas_atrasadas"]
+            }
+          }
+        },
+        {
+          "name": "Relatório PDF - Documentos Vencendo",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/relatorio/pdf/documentos_vencendo?dias=30",
+              "host": ["{{base_url}}"],
+              "path": ["relatorio", "pdf", "documentos_vencendo"],
+              "query": [
+                {"key": "dias", "value": "30"}
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    }
+  ]
+}
