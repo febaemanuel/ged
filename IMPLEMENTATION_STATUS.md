@@ -3,12 +3,10 @@
 ## ✅ COMPLETAMENTE IMPLEMENTADO (Partes 1, 2, 3, 4 e 5)
 
 ### 🗄️ Banco de Dados e Modelos (100%)
-- ✅ Migration SQL completa (`migrations/add_workflow_ugq.sql`)
-- ✅ 4 novas tabelas criadas
+- ✅ 4 novas tabelas: `lista_mestra`, `blocos_assinatura`, `itens_bloco_assinatura`, `validacoes_ugq`
 - ✅ 4 novos modelos no `app/models/models.py`
-- ✅ Campos adicionados em tabelas existentes
-- ✅ Views e funções SQL
-- ✅ Script de aplicação: `aplicar_migracao_ugq.py`
+- ✅ Campos adicionados em tabelas existentes (`arquivo_final`, `codigo_definitivo`, `versao`, `metadata_json`)
+- ✅ Script de inicialização: `init_database.py` (cria tudo automaticamente)
 
 ### ⚙️ Configuração (100%)
 - ✅ 2 novos perfis de usuário (`config.py`)
@@ -54,20 +52,27 @@
 
 ## 🚀 Como Usar Agora
 
-### 1. Aplicar Migration
+### 1. Inicializar Banco do Zero
 ```bash
-python aplicar_migracao_ugq.py
-```
-
-### 2. Criar Usuários UGQ
-```bash
-# Se já existem usuários, delete e recrie:
-# psql -d ged_db -c "DROP TABLE usuarios CASCADE; DROP TABLE documentos CASCADE; DROP TABLE tarefas CASCADE; DROP TABLE logs_ia CASCADE;"
-
+# Cria TODAS as tabelas (incluindo UGQ) + 12 usuários de teste
 python init_database.py
 ```
 
-### 3. Testar Workflow Programaticamente (Python Shell)
+### 2. Iniciar Servidor
+```bash
+python app.py
+```
+
+### 3. Testar via Interface Web
+Acesse: http://localhost:5000
+
+**Usuários UGQ:**
+- Triador: `triador.ugq@example.com` / `ugq123`
+- Validador: `validador.ugq@example.com` / `ugq123`
+- Aprovador: `maria.silva@example.com` / `gerente123`
+- Autor: `rafael.alves@example.com` / `usuario123`
+
+### 4. (Opcional) Testar Workflow Programaticamente (Python Shell)
 ```python
 from app import create_app, db
 from app.models import Usuario, Documento
@@ -105,8 +110,8 @@ with app.app_context():
 ### Imediato
 - [x] Criar rotas HTTP em `routes_view.py`
 - [x] Criar/adaptar templates HTML
+- [x] Remover arquivos de migration (não necessários para banco do zero)
 - [ ] Testar fluxo completo E2E via interface web
-- [ ] Aplicar migration no banco de dados de produção
 
 ### Melhorias Futuras
 - [ ] Adicionar validação de formulários
