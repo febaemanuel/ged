@@ -269,6 +269,33 @@ def extract_text(file_path):
         raise AIClientError(f"Erro ao extrair texto: {str(e)}")
 
 
+def _clean_json_response(text):
+    """
+    Limpa resposta do DeepSeek removendo markdown e texto extra
+
+    Args:
+        text: Texto bruto da resposta
+
+    Returns:
+        str: JSON limpo
+    """
+    import re
+    import json
+
+    # Remove markdown code blocks (```json ... ``` ou ``` ... ```)
+    text = re.sub(r'```json\s*', '', text)
+    text = re.sub(r'```\s*', '', text)
+
+    # Tenta encontrar JSON válido na resposta
+    # Procura por { ... } ou [ ... ]
+    json_match = re.search(r'(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})', text, re.DOTALL)
+    if json_match:
+        return json_match.group(1)
+
+    # Se não encontrou, retorna o texto limpo
+    return text.strip()
+
+
 def classify_document(text):
     """
     Classifica o tipo de documento baseado no conteúdo usando DeepSeek
@@ -296,7 +323,7 @@ Analise o texto e classifique em uma das categorias:
 - Manual: documentação técnica, guias de uso, manuais de equipamentos
 - Protocolo: regras, normas, diretrizes, acordos
 
-Responda APENAS em formato JSON válido:
+Responda APENAS em formato JSON válido, sem markdown:
 {
     "tipo_documento": "POP" ou "Manual" ou "Protocolo",
     "confianca": 0.0 a 1.0,
@@ -310,14 +337,16 @@ Responda APENAS em formato JSON válido:
     try:
         result_text = _call_deepseek(system_prompt, user_prompt, temperature=0.3)
 
-        # Parse JSON da resposta
+        # Limpa resposta e parse JSON
         import json
-        result = json.loads(result_text)
+        json_limpo = _clean_json_response(result_text)
+        logger.info(f"JSON limpo: {json_limpo[:200]}")  # Log para debug
+        result = json.loads(json_limpo)
 
         return result
 
-    except json.JSONDecodeError:
-        logger.warning("DeepSeek retornou resposta inválida, usando fallback")
+    except json.JSONDecodeError as e:
+        logger.warning(f"DeepSeek retornou resposta inválida: {str(e)}, resposta: {result_text[:500]}")
         return {
             'tipo_documento': 'Manual',
             'confianca': 0.5,
@@ -350,25 +379,27 @@ def summarize_text(text, max_length=500):
     logger.info(f"Gerando resumo de texto ({len(text)} caracteres)")
 
     system_prompt = """Você é um especialista em análise e resumo de documentos técnicos.
-Analise o texto e forneça um resumo conciso, palavras-chave e tópicos principais.
+Analise o texto COMPLETO e forneça um resumo conciso, palavras-chave e tópicos principais.
 
-Responda APENAS em formato JSON válido:
+Responda APENAS em formato JSON válido, sem markdown:
 {
     "resumo": "resumo conciso do documento",
     "palavras_chave": ["palavra1", "palavra2", "palavra3"],
     "topicos_principais": ["tópico 1", "tópico 2", "tópico 3"]
 }"""
 
-    # Limita texto para não exceder tokens
-    texto_limitado = text[:4000] if len(text) > 4000 else text
-    user_prompt = f"Resuma este documento (máximo {max_length} caracteres):\n\n{texto_limitado}"
+    # Limita texto para não exceder tokens (mas envia o máximo possível)
+    texto_limitado = text[:8000] if len(text) > 8000 else text
+    user_prompt = f"Resuma este documento (máximo {max_length} caracteres no resumo):\n\n{texto_limitado}"
 
     try:
         result_text = _call_deepseek(system_prompt, user_prompt, temperature=0.5)
 
-        # Parse JSON da resposta
+        # Limpa resposta e parse JSON
         import json
-        result = json.loads(result_text)
+        json_limpo = _clean_json_response(result_text)
+        logger.info(f"JSON limpo (resumo): {json_limpo[:200]}")  # Log para debug
+        result = json.loads(json_limpo)
 
         # Limita resumo ao tamanho máximo
         if len(result.get('resumo', '')) > max_length:
@@ -376,8 +407,8 @@ Responda APENAS em formato JSON válido:
 
         return result
 
-    except json.JSONDecodeError:
-        logger.warning("DeepSeek retornou resposta inválida, usando fallback")
+    except json.JSONDecodeError as e:
+        logger.warning(f"DeepSeek retornou resposta inválida: {str(e)}, resposta: {result_text[:500]}")
         return {
             'resumo': text[:max_length] + '...' if len(text) > max_length else text,
             'palavras_chave': [],
