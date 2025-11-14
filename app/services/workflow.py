@@ -501,12 +501,9 @@ class WorkflowUGQ:
 
         else:
             # APROVADO - Verifica se todos aprovaram
-            # IMPORTANTE: Flush para garantir que as mudanças sejam visíveis nas queries
-            db.session.flush()
-
-            # CRÍTICO: Expire os itens do bloco para forçar reload nas próximas queries
-            # Isso é necessário porque lazy='dynamic' pode cachear queries antigas
-            db.session.expire(bloco, ['itens'])
+            # IMPORTANTE: Commit imediato para garantir que as mudanças sejam persistidas
+            db.session.commit()
+            log_debug("✅ Assinatura commitada no banco de dados")
 
             if modo == 'sequencial':
                 # Cria tarefa para próximo aprovador (se houver)
@@ -533,6 +530,7 @@ class WorkflowUGQ:
                         'modo': 'sequencial'
                     })
                     db.session.add(proxima_tarefa)
+                    db.session.commit()
 
                     resultado['proximo'] = 'proximo_aprovador'
                     resultado['tarefa_id'] = proxima_tarefa.id
@@ -543,31 +541,38 @@ class WorkflowUGQ:
                     resultado['proximo'] = 'publicacao'
 
             elif modo == 'concomitante':
-                # Verifica se todos assinaram
-                total = bloco.total_aprovadores()
-                aprovados = bloco.aprovadores_aprovaram()
-                pendentes = bloco.aprovadores_pendentes()
+                # CRÍTICO: Busca itens diretamente do banco para evitar cache
+                total_itens = ItemBlocoAssinatura.query.filter_by(bloco_id=bloco.id).count()
+                itens_aprovados = ItemBlocoAssinatura.query.filter_by(
+                    bloco_id=bloco.id,
+                    status='Aprovado'
+                ).count()
+                itens_pendentes = ItemBlocoAssinatura.query.filter_by(
+                    bloco_id=bloco.id,
+                    status='Pendente'
+                ).count()
+
                 log_debug(f"📊 Modo concomitante - STATUS DO BLOCO:")
-                log_debug(f"   Total de aprovadores: {total}")
-                log_debug(f"   Já aprovaram: {aprovados}")
-                log_debug(f"   Pendentes: {pendentes}")
-                log_debug(f"   Resultado de todos_aprovaram(): {bloco.todos_aprovaram()}")
+                log_debug(f"   Total de aprovadores: {total_itens}")
+                log_debug(f"   Já aprovaram: {itens_aprovados}")
+                log_debug(f"   Pendentes: {itens_pendentes}")
 
                 # Debug: Lista todos os itens
                 log_debug(f"   DEBUG - Status de cada item:")
-                for item_debug in bloco.itens:
+                todos_itens = ItemBlocoAssinatura.query.filter_by(bloco_id=bloco.id).order_by(ItemBlocoAssinatura.ordem).all()
+                for item_debug in todos_itens:
                     log_debug(f"      Item #{item_debug.ordem} - {item_debug.aprovador.nome}: {item_debug.status}")
 
-                if bloco.todos_aprovaram():
+                # Verifica se todos aprovaram usando dados frescos do banco
+                if itens_aprovados == total_itens and itens_pendentes == 0:
                     log_debug("🎉 Todos aprovadores assinaram! Bloco completo!")
                     cls._finalizar_bloco_assinatura(bloco, documento)
                     resultado['proximo'] = 'publicacao'
                 else:
-                    log_debug(f"⏳ Aguardando {pendentes} aprovador(es)")
+                    log_debug(f"⏳ Aguardando {itens_pendentes} aprovador(es)")
                     resultado['proximo'] = 'aguardando'
-                    resultado['pendentes'] = pendentes
+                    resultado['pendentes'] = itens_pendentes
 
-        db.session.commit()
         log_debug("=" * 80)
 
         return resultado
@@ -623,9 +628,11 @@ class WorkflowUGQ:
             prioridade='alta'
         )
         db.session.add(tarefa_publicar)
-        db.session.flush()  # Força a criação do ID
 
-        log_debug(f"✅ TAREFA DE PUBLICAÇÃO CRIADA!")
+        # CRÍTICO: Commit imediato para garantir que a tarefa seja criada
+        db.session.commit()
+
+        log_debug(f"✅ TAREFA DE PUBLICAÇÃO CRIADA E COMMITADA!")
         log_debug(f"   ID da tarefa: #{tarefa_publicar.id}")
         log_debug(f"   Responsável: {validador.nome} (ID: {validador_id})")
         log_debug(f"   Tipo: {Config.TAREFA_PUBLICAR_APROVADO}")
