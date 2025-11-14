@@ -218,6 +218,11 @@
                             <i class="bi bi-file-pdf"></i> Download PDF Publicado
                         </a>
                         {% endif %}
+                        {% if documento.arquivo_final %}
+                        <a href="{{ url_for('view.documento_download_assinaturas', id=documento.id) }}" class="btn btn-info action-btn">
+                            <i class="bi bi-file-earmark-check"></i> PDF de Assinaturas
+                        </a>
+                        {% endif %}
                         {% if current_user.is_gerente_ou_superior() %}
                         <a href="{{ url_for('view.documento_editar', id=documento.id) }}" class="btn btn-warning action-btn">
                             <i class="bi bi-pencil"></i> Editar
@@ -469,21 +474,51 @@
                         {% for tarefa in tarefas %}
                         <div class="timeline-item">
                             <div>
-                                <strong>{{ tarefa.tipo_tarefa }}</strong>
-                                {% if tarefa.concluida %}
-                                <span class="badge bg-success ms-1">Concluída</span>
+                                {% if tarefa.is_grupo is defined and tarefa.is_grupo %}
+                                    <strong>Assinar Documento (Bloco #{{ tarefa.tipo_tarefa.split('#')[1].split(']')[0] }})</strong>
+                                    <span class="badge bg-info ms-1">{{ tarefa.total_grupo }} aprovadores</span>
+                                    {% if tarefa.concluidas_grupo == tarefa.total_grupo %}
+                                    <span class="badge bg-success ms-1">Todos assinaram</span>
+                                    {% else %}
+                                    <span class="badge bg-warning ms-1">{{ tarefa.concluidas_grupo }}/{{ tarefa.total_grupo }} assinaram</span>
+                                    {% endif %}
                                 {% else %}
-                                <span class="badge bg-warning ms-1">Pendente</span>
+                                    <strong>{{ tarefa.tipo_tarefa }}</strong>
+                                    {% if tarefa.concluida %}
+                                    <span class="badge bg-success ms-1">Concluída</span>
+                                    {% else %}
+                                    <span class="badge bg-warning ms-1">Pendente</span>
+                                    {% endif %}
                                 {% endif %}
                             </div>
-                            <small class="text-muted">
-                                Responsável: {{ tarefa.responsavel.nome }}<br>
-                                Criada: {{ tarefa.data_criacao.strftime('%d/%m/%Y %H:%M') }}
-                            </small>
-                            {% if tarefa.concluida and tarefa.parecer %}
-                            <div class="mt-2 p-2 bg-light rounded">
-                                <small><strong>Parecer:</strong> {{ tarefa.parecer }}</small>
-                            </div>
+
+                            {% if tarefa.is_grupo is defined and tarefa.is_grupo %}
+                                <small class="text-muted">Aprovadores:</small>
+                                <ul class="mt-2 mb-0" style="font-size: 0.85rem;">
+                                {% for t in tarefa.tarefas_grupo %}
+                                    <li>
+                                        {{ t.responsavel.nome }}
+                                        {% if t.concluida %}
+                                        <span class="badge bg-success" style="font-size: 0.7rem;">✓</span>
+                                        {% if t.parecer %}
+                                        <br><small class="text-muted">{{ t.parecer }}</small>
+                                        {% endif %}
+                                        {% else %}
+                                        <span class="badge bg-warning" style="font-size: 0.7rem;">Pendente</span>
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                                </ul>
+                            {% else %}
+                                <small class="text-muted">
+                                    Responsável: {{ tarefa.responsavel.nome }}<br>
+                                    Criada: {{ tarefa.data_criacao.strftime('%d/%m/%Y %H:%M') }}
+                                </small>
+                                {% if tarefa.concluida and tarefa.parecer %}
+                                <div class="mt-2 p-2 bg-light rounded">
+                                    <small><strong>Parecer:</strong> {{ tarefa.parecer }}</small>
+                                </div>
+                                {% endif %}
                             {% endif %}
                         </div>
                         {% endfor %}
