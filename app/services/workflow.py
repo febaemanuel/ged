@@ -562,24 +562,40 @@ class WorkflowUGQ:
         """
         log_debug("🎉 Finalizando bloco de assinatura")
 
-        bloco.status = 'Aprovado'
+        bloco.status = 'APROVADO'  # Status consistente
         bloco.data_conclusao = datetime.utcnow()
         documento.status = Config.STATUS_APROVADO
 
         # Cria tarefa de publicação para Validador UGQ
         validador_id = bloco.criador_id
+
+        # IMPORTANTE: Busca o Validador para garantir que existe
+        validador = Usuario.query.get(validador_id)
+        if not validador:
+            log_debug("⚠️ Validador não encontrado! Buscando qualquer Validador UGQ ativo...")
+            validador = Usuario.query.filter_by(
+                perfil=Config.PERFIL_QUALIDADE_VALIDADOR,
+                ativo=True
+            ).first()
+            if validador:
+                validador_id = validador.id
+            else:
+                raise ValueError("Nenhum Validador UGQ disponível para publicação!")
+
         tarefa_publicar = Tarefa(
             documento_id=documento.id,
             criador_id=validador_id,
             responsavel_id=validador_id,
             tipo_tarefa=Config.TAREFA_PUBLICAR_APROVADO,
-            descricao=f'Publicar: {documento.codigo_definitivo}',
+            descricao=f'Publicar documento aprovado: {documento.codigo_definitivo}',
             prazo=datetime.utcnow() + timedelta(days=3),
-            concluida=False
+            concluida=False,
+            prioridade='alta'
         )
         db.session.add(tarefa_publicar)
+        db.session.flush()  # Força a criação do ID
 
-        log_debug(f"✅ Tarefa de publicação #{tarefa_publicar.id} criada para Validador UGQ")
+        log_debug(f"✅ Tarefa de publicação #{tarefa_publicar.id} criada para Validador {validador.nome} (ID: {validador_id})")
 
     # ========================================================================
     # ETAPA 4: VALIDADOR UGQ PUBLICA DOCUMENTO
@@ -645,25 +661,43 @@ class WorkflowUGQ:
         tarefa.data_conclusao = datetime.utcnow()
         tarefa.parecer = f'Publicado em {datetime.utcnow().strftime("%d/%m/%Y %H:%M")}'
 
-        # NOVO: Notifica Triador UGQ sobre publicação
-        triador = Usuario.query.filter_by(
-            perfil=Config.PERFIL_QUALIDADE_TRIADOR,
-            ativo=True
-        ).first()
+        # NOVO: Notifica APROVADORES e AUTOR sobre publicação
+        bloco = BlocoAssinatura.query.filter_by(
+            documento_id=documento.id
+        ).order_by(BlocoAssinatura.id.desc()).first()
 
-        if triador:
-            tarefa_notificacao = Tarefa(
+        if bloco:
+            # 1. Notifica todos os aprovadores que assinaram
+            for item in bloco.itens:
+                if item.status == 'APROVADO':
+                    tarefa_notificacao_aprovador = Tarefa(
+                        documento_id=documento.id,
+                        criador_id=tarefa.responsavel_id,  # Validador
+                        responsavel_id=item.aprovador_id,  # Aprovador que assinou
+                        tipo_tarefa='Notificação de Publicação',
+                        descricao=f'✅ Documento que você aprovou foi publicado: {documento.codigo_definitivo} {documento.versao}',
+                        prazo=datetime.utcnow() + timedelta(days=3),
+                        concluida=False,
+                        prioridade='baixa'
+                    )
+                    db.session.add(tarefa_notificacao_aprovador)
+                    log_debug(f"📬 Notificação enviada para aprovador: {item.aprovador.nome}")
+
+        # 2. Notifica o AUTOR do documento
+        autor = documento.criador
+        if autor:
+            tarefa_notificacao_autor = Tarefa(
                 documento_id=documento.id,
                 criador_id=tarefa.responsavel_id,  # Validador
-                responsavel_id=triador.id,  # Triador
+                responsavel_id=autor.id,  # Autor do documento
                 tipo_tarefa='Notificação de Publicação',
-                descricao=f'✅ Documento publicado: {documento.codigo_definitivo} {documento.versao}',
-                prazo=datetime.utcnow() + timedelta(days=1),
+                descricao=f'✅ Seu documento foi publicado: {documento.codigo_definitivo} {documento.versao}',
+                prazo=datetime.utcnow() + timedelta(days=3),
                 concluida=False,
                 prioridade='baixa'
             )
-            db.session.add(tarefa_notificacao)
-            log_debug(f"📬 Notificação enviada para Triador UGQ")
+            db.session.add(tarefa_notificacao_autor)
+            log_debug(f"📬 Notificação enviada para autor: {autor.nome}")
 
         db.session.commit()
 
