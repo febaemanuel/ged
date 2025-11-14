@@ -109,7 +109,6 @@ class Documento(db.Model):
 
     # Status e controle
     status = db.Column(db.String(50), default='Novo', nullable=False, index=True)
-    versao = db.Column(db.Integer, default=1)
 
     # IA - texto e metadados extraídos
     texto_extraido = db.Column(db.Text)
