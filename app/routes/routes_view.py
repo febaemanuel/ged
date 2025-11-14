@@ -518,13 +518,29 @@ def tarefas():
         pendentes = sum(1 for t in tarefas_doc if not t.concluida)
         concluidas = sum(1 for t in tarefas_doc if t.concluida)
 
+        # Determina status atual (última tarefa vigente)
+        # Prioridade: pendente mais urgente, ou última concluída
+        tarefa_atual = None
+        for t in sorted(tarefas_doc, key=lambda x: (x.concluida, x.prazo)):
+            if not t.concluida:
+                tarefa_atual = t
+                break
+
+        if not tarefa_atual and tarefas_doc:
+            # Se não tem pendente, pega a última concluída
+            tarefas_concluidas = [t for t in tarefas_doc if t.concluida]
+            if tarefas_concluidas:
+                tarefa_atual = max(tarefas_concluidas, key=lambda t: t.data_conclusao or t.data_criacao)
+
         grupos_documentos.append({
             'documento': documento,
             'tarefas': sorted(tarefas_doc, key=lambda t: (t.concluida, t.prazo)),
             'total': len(tarefas_doc),
             'pendentes': pendentes,
             'concluidas': concluidas,
-            'tem_pendente': pendentes > 0
+            'tem_pendente': pendentes > 0,
+            'tarefa_atual': tarefa_atual,
+            'status_atual': tarefa_atual.tipo_tarefa if tarefa_atual else 'Sem tarefas'
         })
 
     # Ordena: documentos com pendentes primeiro, depois por número de pendentes
