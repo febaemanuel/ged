@@ -10,7 +10,8 @@ from .models import (
     ListaMestra,
     BlocoAssinatura,
     ItemBlocoAssinatura,
-    ValidacaoUGQ
+    ValidacaoUGQ,
+    Notificacao
 )
 
 __all__ = [
@@ -22,5 +23,6 @@ __all__ = [
     'ListaMestra',
     'BlocoAssinatura',
     'ItemBlocoAssinatura',
-    'ValidacaoUGQ'
+    'ValidacaoUGQ',
+    'Notificacao'
 ]
