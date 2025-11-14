@@ -502,9 +502,33 @@ def tarefas():
             Tarefa.prazo < datetime.utcnow()
         )
 
-    tarefas = query.order_by(Tarefa.prazo.asc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
+    tarefas_list = query.order_by(Tarefa.prazo.asc()).all()
+
+    # Agrupa tarefas por documento
+    from collections import defaultdict
+    tarefas_por_documento = defaultdict(list)
+
+    for tarefa in tarefas_list:
+        tarefas_por_documento[tarefa.documento_id].append(tarefa)
+
+    # Cria lista de grupos ordenada por prioridade (documentos com tarefas pendentes primeiro)
+    grupos_documentos = []
+    for documento_id, tarefas_doc in tarefas_por_documento.items():
+        documento = tarefas_doc[0].documento
+        pendentes = sum(1 for t in tarefas_doc if not t.concluida)
+        concluidas = sum(1 for t in tarefas_doc if t.concluida)
+
+        grupos_documentos.append({
+            'documento': documento,
+            'tarefas': sorted(tarefas_doc, key=lambda t: (t.concluida, t.prazo)),
+            'total': len(tarefas_doc),
+            'pendentes': pendentes,
+            'concluidas': concluidas,
+            'tem_pendente': pendentes > 0
+        })
+
+    # Ordena: documentos com pendentes primeiro, depois por número de pendentes
+    grupos_documentos.sort(key=lambda g: (not g['tem_pendente'], -g['pendentes']))
 
     # Estatísticas
     stats = {
@@ -525,7 +549,7 @@ def tarefas():
         'total': Tarefa.query.filter_by(responsavel_id=current_user.id).count()
     }
 
-    return render_template('tarefas.html', tarefas=tarefas, stats=stats)
+    return render_template('tarefas.html', grupos_documentos=grupos_documentos, stats=stats)
 
 
 @view_bp.route('/tarefa/<int:id>')
