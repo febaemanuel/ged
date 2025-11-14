@@ -536,6 +536,10 @@ class WorkflowUGQ:
 
             elif modo == 'concomitante':
                 # Verifica se todos assinaram
+                total = bloco.total_aprovadores()
+                aprovados = bloco.aprovadores_aprovaram()
+                log_debug(f"📊 Modo concomitante: {aprovados}/{total} aprovadores assinaram")
+
                 if bloco.todos_aprovaram():
                     log_debug("🎉 Todos aprovadores assinaram! Bloco completo!")
                     cls._finalizar_bloco_assinatura(bloco, documento)
@@ -560,9 +564,15 @@ class WorkflowUGQ:
             bloco: BlocoAssinatura aprovado
             documento: Documento aprovado
         """
-        log_debug("🎉 Finalizando bloco de assinatura")
+        log_debug("=" * 80)
+        log_debug("🎉 FINALIZANDO BLOCO DE ASSINATURA")
+        log_debug(f"📄 Documento: {documento.codigo_definitivo}")
+        log_debug(f"📦 Bloco ID: {bloco.id}")
+        log_debug(f"📊 Total de aprovadores: {bloco.total_aprovadores()}")
+        log_debug(f"✅ Aprovadores que aprovaram: {bloco.aprovadores_aprovaram()}")
+        log_debug("=" * 80)
 
-        bloco.status = 'APROVADO'  # Status consistente
+        bloco.status = 'Aprovado'  # Status consistente com ItemBlocoAssinatura
         bloco.data_conclusao = datetime.utcnow()
         documento.status = Config.STATUS_APROVADO
 
@@ -580,7 +590,10 @@ class WorkflowUGQ:
             if validador:
                 validador_id = validador.id
             else:
+                log_debug("❌ ERRO CRÍTICO: Nenhum Validador UGQ disponível!")
                 raise ValueError("Nenhum Validador UGQ disponível para publicação!")
+
+        log_debug(f"👤 Validador encontrado: {validador.nome} (ID: {validador_id})")
 
         tarefa_publicar = Tarefa(
             documento_id=documento.id,
@@ -595,7 +608,12 @@ class WorkflowUGQ:
         db.session.add(tarefa_publicar)
         db.session.flush()  # Força a criação do ID
 
-        log_debug(f"✅ Tarefa de publicação #{tarefa_publicar.id} criada para Validador {validador.nome} (ID: {validador_id})")
+        log_debug(f"✅ TAREFA DE PUBLICAÇÃO CRIADA!")
+        log_debug(f"   ID da tarefa: #{tarefa_publicar.id}")
+        log_debug(f"   Responsável: {validador.nome} (ID: {validador_id})")
+        log_debug(f"   Tipo: {Config.TAREFA_PUBLICAR_APROVADO}")
+        log_debug(f"   Prazo: {tarefa_publicar.prazo.strftime('%d/%m/%Y')}")
+        log_debug("=" * 80)
 
     # ========================================================================
     # ETAPA 4: VALIDADOR UGQ PUBLICA DOCUMENTO
@@ -669,7 +687,7 @@ class WorkflowUGQ:
         if bloco:
             # 1. Notifica todos os aprovadores que assinaram
             for item in bloco.itens:
-                if item.status == 'APROVADO':
+                if item.status == 'Aprovado':  # Status consistente
                     tarefa_notificacao_aprovador = Tarefa(
                         documento_id=documento.id,
                         criador_id=tarefa.responsavel_id,  # Validador
@@ -805,7 +823,7 @@ class WorkflowUGQ:
 
         for item in bloco.itens.order_by(ItemBlocoAssinatura.ordem):
             aprovador = item.aprovador
-            decisao = '✅ APROVADO' if item.status == 'APROVADO' else '❌ REPROVADO' if item.status == 'REPROVADO' else '⏳ PENDENTE'
+            decisao = '✅ APROVADO' if item.status == 'Aprovado' else '❌ REPROVADO' if item.status == 'Reprovado' else '⏳ PENDENTE'
             data_assinatura = item.data_assinatura.strftime('%d/%m/%Y %H:%M') if item.data_assinatura else '---'
             parecer_resumido = (item.parecer[:50] + '...') if item.parecer and len(item.parecer) > 50 else (item.parecer or '---')
 
