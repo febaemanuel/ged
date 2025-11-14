@@ -276,37 +276,17 @@ def concluir_tarefa(id):
     tarefa.concluir(parecer=parecer, aprovado=aprovado, arquivo=arquivo_nome)
 
     # WORKFLOW AUTOMÁTICO: Cria próxima tarefa se aprovado
+    # ============================================================================
+    # NOTA: Workflow UGQ é gerenciado pelas rotas específicas em routes_view.py:
+    #   - /tarefa/<id>/concluir_triagem
+    #   - /tarefa/<id>/codificar
+    #   - /documento/<id>/criar_bloco
+    #   - /tarefa/<id>/assinar
+    #   - /tarefa/<id>/publicar
+    # Esta API retorna apenas o status da tarefa concluída
+    # ============================================================================
     proxima_tarefa_info = None
     workflow_erro = None
-
-    print(f"\n{'='*80}")
-    print(f"[ROUTES] Tarefa concluída! Iniciando workflow automático...")
-    print(f"[ROUTES] Tarefa ID: {tarefa.id} | Tipo: {tarefa.tipo_tarefa} | Aprovado: {tarefa.aprovado}")
-    print(f"{'='*80}\n")
-
-    try:
-        from app.services.workflow import WorkflowGED
-
-        proxima_tarefa = WorkflowGED.proximo_passo(tarefa)
-
-        if proxima_tarefa:
-            proxima_tarefa_info = {
-                'tipo': proxima_tarefa.tipo_tarefa,
-                'responsavel': proxima_tarefa.responsavel.nome,
-                'prazo': proxima_tarefa.prazo.isoformat()
-            }
-            print(f"[ROUTES] ✅ Próxima tarefa criada: {proxima_tarefa.tipo_tarefa} para {proxima_tarefa.responsavel.nome}")
-            current_app.logger.info(f"✅ Próxima tarefa criada: {proxima_tarefa.tipo_tarefa} para {proxima_tarefa.responsavel.nome}")
-        else:
-            print(f"[ROUTES] ℹ️  Nenhuma próxima tarefa (última etapa ou reprovado)")
-            current_app.logger.info("ℹ️  Nenhuma próxima tarefa (última etapa ou reprovado)")
-    except Exception as e:
-        import traceback
-        workflow_erro = str(e)
-        print(f"[ROUTES] ❌ ERRO no workflow: {str(e)}")
-        print(traceback.format_exc())
-        current_app.logger.error(f"❌ Erro ao criar próxima tarefa do workflow: {str(e)}")
-        current_app.logger.error(traceback.format_exc())
 
     # Lógica de mudança de status do documento (mantida para compatibilidade)
     documento = tarefa.documento
