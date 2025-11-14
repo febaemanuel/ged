@@ -500,6 +500,9 @@ class WorkflowUGQ:
 
         else:
             # APROVADO - Verifica se todos aprovaram
+            # IMPORTANTE: Flush para garantir que as mudanças sejam visíveis nas queries
+            db.session.flush()
+
             if modo == 'sequencial':
                 # Cria tarefa para próximo aprovador (se houver)
                 proximo_item = ItemBlocoAssinatura.query.filter_by(
