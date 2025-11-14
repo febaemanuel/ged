@@ -15,7 +15,7 @@ Baseado em: FLX.UGQ-CHUFC.002 e POPs da Qualidade
 """
 
 from datetime import datetime, timedelta
-from app.models import db, Tarefa, Documento, Usuario, ListaMestra, BlocoAssinatura, ItemBlocoAssinatura
+from app.models import db, Tarefa, Documento, Usuario, ListaMestra, BlocoAssinatura, ItemBlocoAssinatura, Notificacao
 from config import Config
 import logging
 import json
@@ -761,7 +761,7 @@ class WorkflowUGQ:
         tarefa.data_conclusao = datetime.utcnow()
         tarefa.parecer = f'Publicado em {datetime.utcnow().strftime("%d/%m/%Y %H:%M")}'
 
-        # NOVO: Notifica APROVADORES e AUTOR sobre publicação
+        # NOVO: Notifica APROVADORES e AUTOR sobre publicação (usando Notificações, NÃO tarefas)
         bloco = BlocoAssinatura.query.filter_by(
             documento_id=documento.id
         ).order_by(BlocoAssinatura.id.desc()).first()
@@ -770,33 +770,27 @@ class WorkflowUGQ:
             # 1. Notifica todos os aprovadores que assinaram
             for item in bloco.itens:
                 if item.status == 'Aprovado':  # Status consistente
-                    tarefa_notificacao_aprovador = Tarefa(
+                    notificacao = Notificacao(
+                        usuario_id=item.aprovador_id,
                         documento_id=documento.id,
-                        criador_id=tarefa.responsavel_id,  # Validador
-                        responsavel_id=item.aprovador_id,  # Aprovador que assinou
-                        tipo_tarefa='Notificação de Publicação',
-                        descricao=f'✅ Documento que você aprovou foi publicado: {documento.codigo_definitivo} {documento.versao}',
-                        prazo=datetime.utcnow() + timedelta(days=3),
-                        concluida=False,
-                        prioridade='baixa'
+                        tipo='publicacao',
+                        titulo='Documento Publicado',
+                        mensagem=f'✅ O documento que você aprovou foi publicado: {documento.codigo_definitivo} {documento.versao}'
                     )
-                    db.session.add(tarefa_notificacao_aprovador)
+                    db.session.add(notificacao)
                     log_debug(f"📬 Notificação enviada para aprovador: {item.aprovador.nome}")
 
         # 2. Notifica o AUTOR do documento
         autor = documento.criador
         if autor:
-            tarefa_notificacao_autor = Tarefa(
+            notificacao_autor = Notificacao(
+                usuario_id=autor.id,
                 documento_id=documento.id,
-                criador_id=tarefa.responsavel_id,  # Validador
-                responsavel_id=autor.id,  # Autor do documento
-                tipo_tarefa='Notificação de Publicação',
-                descricao=f'✅ Seu documento foi publicado: {documento.codigo_definitivo} {documento.versao}',
-                prazo=datetime.utcnow() + timedelta(days=3),
-                concluida=False,
-                prioridade='baixa'
+                tipo='publicacao',
+                titulo='Seu Documento foi Publicado',
+                mensagem=f'🎉 Seu documento foi publicado com sucesso: {documento.codigo_definitivo} {documento.versao}'
             )
-            db.session.add(tarefa_notificacao_autor)
+            db.session.add(notificacao_autor)
             log_debug(f"📬 Notificação enviada para autor: {autor.nome}")
 
         db.session.commit()

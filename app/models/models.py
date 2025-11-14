@@ -94,6 +94,7 @@ class Documento(db.Model):
     arquivo_final = db.Column(db.String(255))  # PDF codificado final (UGQ)
 
     # Códigos
+    codigo_unico = db.Column(db.String(50), unique=True, nullable=False, index=True)  # ID único permanente (DOC-YYYYMMDD-HHMMSS-XXX)
     codigo_provisorio = db.Column(db.String(50), unique=True, index=True)
     codigo_definitivo = db.Column(db.String(50), unique=True, index=True)  # Gerado pela UGQ
 
@@ -124,8 +125,21 @@ class Documento(db.Model):
 
     def __init__(self, *args, **kwargs):
         super(Documento, self).__init__(*args, **kwargs)
+        if not self.codigo_unico:
+            self.gerar_codigo_unico()
         if not self.codigo_provisorio:
             self.gerar_codigo_provisorio()
+
+    def gerar_codigo_unico(self):
+        """
+        Gera código único permanente do documento (identidade)
+        Formato: DOC-YYYYMMDD-HHMMSS-XXX
+        Este código nunca muda e identifica o documento ao longo de todo ciclo de vida
+        """
+        import random
+        timestamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+        random_suffix = f"{random.randint(0, 999):03d}"
+        self.codigo_unico = f"DOC-{timestamp}-{random_suffix}"
 
     def gerar_codigo_provisorio(self):
         """Gera código provisório único: TIPO-PROV-TIMESTAMP"""
@@ -477,3 +491,33 @@ class ValidacaoUGQ(db.Model):
 
     def __repr__(self):
         return f'<ValidacaoUGQ Doc {self.documento_id} - {self.data_validacao.strftime("%d/%m/%Y")}>'
+
+
+class Notificacao(db.Model):
+    """
+    Notificações para usuários (não são tarefas)
+    Usado para informar sobre publicações, atualizações, etc.
+    """
+    __tablename__ = 'notificacoes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)
+    documento_id = db.Column(db.Integer, db.ForeignKey('documentos.id'), nullable=True, index=True)
+    tipo = db.Column(db.String(50), nullable=False)  # 'publicacao', 'atualizacao', 'aprovacao', etc.
+    titulo = db.Column(db.String(200), nullable=False)
+    mensagem = db.Column(db.Text, nullable=False)
+    lida = db.Column(db.Boolean, default=False, index=True)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    data_leitura = db.Column(db.DateTime)
+
+    # Relacionamentos
+    usuario = db.relationship('Usuario', backref='notificacoes')
+    documento = db.relationship('Documento', backref='notificacoes')
+
+    def marcar_como_lida(self):
+        """Marca notificação como lida"""
+        self.lida = True
+        self.data_leitura = datetime.utcnow()
+
+    def __repr__(self):
+        return f'<Notificacao {self.tipo} para User {self.usuario_id}>'
