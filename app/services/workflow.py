@@ -457,11 +457,12 @@ class WorkflowUGQ:
         if aprovado:
             item.aprovar(parecer)
             tarefa.aprovado = True
-            log_debug(f"✅ Aprovador #{item.ordem} APROVOU")
+            log_debug(f"✅ Aprovador #{item.ordem} ({item.aprovador.nome}) APROVOU")
+            log_debug(f"   Status do item após aprovar: {item.status}")
         else:
             item.reprovar(parecer)
             tarefa.aprovado = False
-            log_debug(f"❌ Aprovador #{item.ordem} REPROVOU")
+            log_debug(f"❌ Aprovador #{item.ordem} ({item.aprovador.nome}) REPROVOU")
 
         tarefa.concluida = True
         tarefa.data_conclusao = datetime.utcnow()
@@ -541,14 +542,23 @@ class WorkflowUGQ:
                 # Verifica se todos assinaram
                 total = bloco.total_aprovadores()
                 aprovados = bloco.aprovadores_aprovaram()
-                log_debug(f"📊 Modo concomitante: {aprovados}/{total} aprovadores assinaram")
+                pendentes = bloco.aprovadores_pendentes()
+                log_debug(f"📊 Modo concomitante - STATUS DO BLOCO:")
+                log_debug(f"   Total de aprovadores: {total}")
+                log_debug(f"   Já aprovaram: {aprovados}")
+                log_debug(f"   Pendentes: {pendentes}")
+                log_debug(f"   Resultado de todos_aprovaram(): {bloco.todos_aprovaram()}")
+
+                # Debug: Lista todos os itens
+                log_debug(f"   DEBUG - Status de cada item:")
+                for item_debug in bloco.itens:
+                    log_debug(f"      Item #{item_debug.ordem} - {item_debug.aprovador.nome}: {item_debug.status}")
 
                 if bloco.todos_aprovaram():
                     log_debug("🎉 Todos aprovadores assinaram! Bloco completo!")
                     cls._finalizar_bloco_assinatura(bloco, documento)
                     resultado['proximo'] = 'publicacao'
                 else:
-                    pendentes = bloco.aprovadores_pendentes()
                     log_debug(f"⏳ Aguardando {pendentes} aprovador(es)")
                     resultado['proximo'] = 'aguardando'
                     resultado['pendentes'] = pendentes
