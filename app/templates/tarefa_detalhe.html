@@ -228,7 +228,7 @@
                     </form>
 
                     <!-- WORKFLOW UGQ: ASSINATURA -->
-                    {% elif tarefa.tipo_tarefa == 'Assinar Documento' %}
+                    {% elif 'Assinar Documento' in tarefa.tipo_tarefa %}
                     <h5><i class="bi bi-pen"></i> Assinatura de Documento</h5>
                     <form method="POST" action="{{ url_for('view.assinar_documento', tarefa_id=tarefa.id) }}">
                         <div class="alert alert-primary">
