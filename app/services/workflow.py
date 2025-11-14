@@ -602,6 +602,16 @@ class WorkflowUGQ:
 
         documento = tarefa.documento
 
+        # NOVO: Gera PDF de assinaturas ANTES de publicar
+        bloco = BlocoAssinatura.query.filter_by(
+            documento_id=documento.id
+        ).order_by(BlocoAssinatura.id.desc()).first()
+
+        if bloco:
+            pdf_assinaturas = cls._gerar_pdf_assinaturas(documento, bloco)
+            documento.arquivo_final = pdf_assinaturas
+            log_debug(f"📄 PDF de assinaturas gerado: {pdf_assinaturas}")
+
         # Atualiza status do documento
         documento.status = Config.STATUS_PUBLICADO
         documento.data_publicacao = datetime.utcnow()
@@ -635,6 +645,26 @@ class WorkflowUGQ:
         tarefa.data_conclusao = datetime.utcnow()
         tarefa.parecer = f'Publicado em {datetime.utcnow().strftime("%d/%m/%Y %H:%M")}'
 
+        # NOVO: Notifica Triador UGQ sobre publicação
+        triador = Usuario.query.filter_by(
+            perfil=Config.PERFIL_QUALIDADE_TRIADOR,
+            ativo=True
+        ).first()
+
+        if triador:
+            tarefa_notificacao = Tarefa(
+                documento_id=documento.id,
+                criador_id=tarefa.responsavel_id,  # Validador
+                responsavel_id=triador.id,  # Triador
+                tipo_tarefa='Notificação de Publicação',
+                descricao=f'✅ Documento publicado: {documento.codigo_definitivo} {documento.versao}',
+                prazo=datetime.utcnow() + timedelta(days=1),
+                concluida=False,
+                prioridade='baixa'
+            )
+            db.session.add(tarefa_notificacao)
+            log_debug(f"📬 Notificação enviada para Triador UGQ")
+
         db.session.commit()
 
         log_debug(f"✅ Documento {documento.codigo_definitivo} publicado!")
@@ -643,3 +673,162 @@ class WorkflowUGQ:
         log_debug("=" * 80)
 
         return documento
+
+    # ========================================================================
+    # GERAÇÃO DE PDF DE ASSINATURAS
+    # ========================================================================
+
+    @classmethod
+    def _gerar_pdf_assinaturas(cls, documento, bloco):
+        """
+        Gera PDF formatado com todas as assinaturas do documento
+
+        Args:
+            documento: Documento aprovado
+            bloco: BlocoAssinatura com os itens assinados
+
+        Returns:
+            String com nome do arquivo PDF gerado
+        """
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        import os
+
+        # Define nome do arquivo
+        filename = f"assinaturas_{documento.codigo_definitivo.replace('.', '_')}.pdf"
+        filepath = os.path.join('uploads', 'assinaturas', filename)
+
+        # Cria diretório se não existir
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        # Cria documento PDF
+        doc = SimpleDocTemplate(filepath, pagesize=A4)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        # Estilo customizado para título
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            textColor=colors.HexColor('#1a5490'),
+            spaceAfter=30,
+            alignment=TA_CENTER
+        )
+
+        # Estilo para subtítulo
+        subtitle_style = ParagraphStyle(
+            'CustomSubtitle',
+            parent=styles['Heading2'],
+            fontSize=12,
+            textColor=colors.HexColor('#666666'),
+            spaceAfter=20,
+            alignment=TA_CENTER
+        )
+
+        # Título
+        elements.append(Paragraph("FOLHA DE ASSINATURAS", title_style))
+        elements.append(Paragraph(f"Documento: {documento.codigo_definitivo}", subtitle_style))
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Informações do documento
+        data_info = [
+            ['Título:', documento.titulo],
+            ['Tipo:', documento.tipo_documento],
+            ['Setor:', documento.setor],
+            ['Versão:', documento.versao],
+            ['Data de Aprovação:', bloco.data_conclusao.strftime('%d/%m/%Y %H:%M') if bloco.data_conclusao else '---']
+        ]
+
+        table_info = Table(data_info, colWidths=[4*cm, 12*cm])
+        table_info.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f0f0f0')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+
+        elements.append(table_info)
+        elements.append(Spacer(1, 1*cm))
+
+        # Título da seção de assinaturas
+        elements.append(Paragraph(f"ASSINATURAS ({bloco.modo.upper()})", title_style))
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Tabela de assinaturas
+        data_assinaturas = [
+            ['Ordem', 'Nome', 'Cargo', 'Data/Hora', 'Decisão', 'Parecer']
+        ]
+
+        for item in bloco.itens.order_by(ItemBlocoAssinatura.ordem):
+            aprovador = item.aprovador
+            decisao = '✅ APROVADO' if item.status == 'APROVADO' else '❌ REPROVADO' if item.status == 'REPROVADO' else '⏳ PENDENTE'
+            data_assinatura = item.data_assinatura.strftime('%d/%m/%Y %H:%M') if item.data_assinatura else '---'
+            parecer_resumido = (item.parecer[:50] + '...') if item.parecer and len(item.parecer) > 50 else (item.parecer or '---')
+
+            data_assinaturas.append([
+                str(item.ordem),
+                aprovador.nome,
+                'Gerente',  # Perfil
+                data_assinatura,
+                decisao,
+                parecer_resumido
+            ])
+
+        table_assinaturas = Table(data_assinaturas, colWidths=[1.5*cm, 4*cm, 3*cm, 3.5*cm, 3*cm, 5*cm])
+        table_assinaturas.setStyle(TableStyle([
+            # Cabeçalho
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a5490')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+
+            # Corpo
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Ordem centralizada
+            ('ALIGN', (1, 1), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+
+            # Grid
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+
+            # Linhas alternadas
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9f9f9')]),
+        ]))
+
+        elements.append(table_assinaturas)
+        elements.append(Spacer(1, 1*cm))
+
+        # Rodapé
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.grey,
+            alignment=TA_CENTER
+        )
+
+        elements.append(Paragraph(
+            f"Documento gerado automaticamente pelo Sistema GED UGQ em {datetime.utcnow().strftime('%d/%m/%Y às %H:%M')}",
+            footer_style
+        ))
+
+        # Constrói PDF
+        doc.build(elements)
+
+        log_debug(f"📄 PDF de assinaturas salvo em: {filepath}")
+
+        return filename
