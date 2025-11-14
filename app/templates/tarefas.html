@@ -106,14 +106,27 @@
                                 aria-expanded="{% if loop.first %}true{% else %}false{% endif %}"
                                 aria-controls="collapse{{ grupo.documento.id }}">
                             <div class="d-flex w-100 justify-content-between align-items-center pe-3">
-                                <div>
+                                <div style="flex: 1;">
                                     <strong>{{ grupo.documento.titulo }}</strong>
                                     <br>
                                     <small class="text-muted">
                                         {{ grupo.documento.codigo_provisorio or grupo.documento.codigo_definitivo or grupo.documento.codigo_unico }}
                                     </small>
+                                    <br>
+                                    <small>
+                                        <strong>Status:</strong>
+                                        {% if grupo.tarefa_atual %}
+                                            {% if grupo.tarefa_atual.concluida %}
+                                                <span class="badge bg-success">✓ {{ grupo.status_atual }}</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">⏳ {{ grupo.status_atual }}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">Sem tarefas</span>
+                                        {% endif %}
+                                    </small>
                                 </div>
-                                <div class="d-flex gap-2">
+                                <div class="d-flex gap-2 flex-wrap justify-content-end" style="max-width: 400px;">
                                     <span class="badge bg-primary">{{ grupo.total }} tarefas</span>
                                     {% if grupo.pendentes > 0 %}
                                     <span class="badge bg-warning">{{ grupo.pendentes }} pendentes</span>
