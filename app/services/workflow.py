@@ -439,6 +439,12 @@ class WorkflowUGQ:
         Returns:
             Dict com informações sobre o próximo passo
         """
+        import sys
+        print("=" * 80, file=sys.stderr, flush=True)
+        print(f"[WORKFLOW] ETAPA 3: Aprovador assina documento", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW] Decisão: {'APROVADO' if aprovado else 'REPROVADO'}", file=sys.stderr, flush=True)
+        print("=" * 80, file=sys.stderr, flush=True)
+
         log_debug("=" * 80)
         log_debug(f"ETAPA 3: Aprovador assina documento")
         log_debug(f"Decisão: {'APROVADO' if aprovado else 'REPROVADO'}")
@@ -449,9 +455,13 @@ class WorkflowUGQ:
         item_id = metadata.get('item_id')
         modo = metadata.get('modo')
 
+        print(f"[WORKFLOW] Bloco ID: {bloco_id}, Item ID: {item_id}, Modo: {modo}", file=sys.stderr, flush=True)
+
         bloco = BlocoAssinatura.query.get(bloco_id)
         item = ItemBlocoAssinatura.query.get(item_id)
         documento = tarefa.documento
+
+        print(f"[WORKFLOW] Aprovador: {item.aprovador.nome}, Ordem: {item.ordem}", file=sys.stderr, flush=True)
 
         # Registra assinatura/rejeição
         if aprovado:
@@ -542,6 +552,9 @@ class WorkflowUGQ:
 
             elif modo == 'concomitante':
                 # CRÍTICO: Busca itens diretamente do banco para evitar cache
+                import sys
+                print(f"[WORKFLOW] 🔍 VERIFICANDO STATUS DO BLOCO CONCOMITANTE", file=sys.stderr, flush=True)
+
                 total_itens = ItemBlocoAssinatura.query.filter_by(bloco_id=bloco.id).count()
                 itens_aprovados = ItemBlocoAssinatura.query.filter_by(
                     bloco_id=bloco.id,
@@ -552,6 +565,10 @@ class WorkflowUGQ:
                     status='Pendente'
                 ).count()
 
+                print(f"[WORKFLOW] Total de aprovadores: {total_itens}", file=sys.stderr, flush=True)
+                print(f"[WORKFLOW] Já aprovaram: {itens_aprovados}", file=sys.stderr, flush=True)
+                print(f"[WORKFLOW] Pendentes: {itens_pendentes}", file=sys.stderr, flush=True)
+
                 log_debug(f"📊 Modo concomitante - STATUS DO BLOCO:")
                 log_debug(f"   Total de aprovadores: {total_itens}")
                 log_debug(f"   Já aprovaram: {itens_aprovados}")
@@ -561,14 +578,28 @@ class WorkflowUGQ:
                 log_debug(f"   DEBUG - Status de cada item:")
                 todos_itens = ItemBlocoAssinatura.query.filter_by(bloco_id=bloco.id).order_by(ItemBlocoAssinatura.ordem).all()
                 for item_debug in todos_itens:
-                    log_debug(f"      Item #{item_debug.ordem} - {item_debug.aprovador.nome}: {item_debug.status}")
+                    status_msg = f"Item #{item_debug.ordem} - {item_debug.aprovador.nome}: {item_debug.status}"
+                    log_debug(f"      {status_msg}")
+                    print(f"[WORKFLOW]    {status_msg}", file=sys.stderr, flush=True)
 
                 # Verifica se todos aprovaram usando dados frescos do banco
+                print(f"[WORKFLOW] 🧮 Verificando: {itens_aprovados} == {total_itens} and {itens_pendentes} == 0", file=sys.stderr, flush=True)
+
                 if itens_aprovados == total_itens and itens_pendentes == 0:
+                    print(f"[WORKFLOW] 🎉 TODOS APROVARAM! Chamando _finalizar_bloco_assinatura", file=sys.stderr, flush=True)
                     log_debug("🎉 Todos aprovadores assinaram! Bloco completo!")
-                    cls._finalizar_bloco_assinatura(bloco, documento)
-                    resultado['proximo'] = 'publicacao'
+
+                    try:
+                        cls._finalizar_bloco_assinatura(bloco, documento)
+                        print(f"[WORKFLOW] ✅ _finalizar_bloco_assinatura executado com sucesso", file=sys.stderr, flush=True)
+                        resultado['proximo'] = 'publicacao'
+                    except Exception as e:
+                        print(f"[WORKFLOW] ❌ ERRO em _finalizar_bloco_assinatura: {str(e)}", file=sys.stderr, flush=True)
+                        import traceback
+                        traceback.print_exc(file=sys.stderr)
+                        raise
                 else:
+                    print(f"[WORKFLOW] ⏳ Aguardando {itens_pendentes} aprovador(es)", file=sys.stderr, flush=True)
                     log_debug(f"⏳ Aguardando {itens_pendentes} aprovador(es)")
                     resultado['proximo'] = 'aguardando'
                     resultado['pendentes'] = itens_pendentes
@@ -586,6 +617,13 @@ class WorkflowUGQ:
             bloco: BlocoAssinatura aprovado
             documento: Documento aprovado
         """
+        import sys
+        print("=" * 80, file=sys.stderr, flush=True)
+        print("[WORKFLOW] 🎉 FINALIZANDO BLOCO DE ASSINATURA", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW] 📄 Documento: {documento.codigo_definitivo}", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW] 📦 Bloco ID: {bloco.id}", file=sys.stderr, flush=True)
+        print("=" * 80, file=sys.stderr, flush=True)
+
         log_debug("=" * 80)
         log_debug("🎉 FINALIZANDO BLOCO DE ASSINATURA")
         log_debug(f"📄 Documento: {documento.codigo_definitivo}")
@@ -616,6 +654,8 @@ class WorkflowUGQ:
                 raise ValueError("Nenhum Validador UGQ disponível para publicação!")
 
         log_debug(f"👤 Validador encontrado: {validador.nome} (ID: {validador_id})")
+        print(f"[WORKFLOW] 👤 Validador: {validador.nome} (ID: {validador_id})", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW] 📝 Criando tarefa de publicação...", file=sys.stderr, flush=True)
 
         tarefa_publicar = Tarefa(
             documento_id=documento.id,
@@ -627,10 +667,28 @@ class WorkflowUGQ:
             concluida=False,
             prioridade='alta'
         )
+
+        print(f"[WORKFLOW] ➕ Tarefa criada (ainda não adicionada à sessão)", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW] 📋 Detalhes da tarefa:", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW]    - documento_id: {documento.id}", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW]    - criador_id: {validador_id}", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW]    - responsavel_id: {validador_id}", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW]    - tipo_tarefa: {Config.TAREFA_PUBLICAR_APROVADO}", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW]    - concluida: False", file=sys.stderr, flush=True)
+
         db.session.add(tarefa_publicar)
+        print(f"[WORKFLOW] ✅ Tarefa adicionada à sessão", file=sys.stderr, flush=True)
 
         # CRÍTICO: Commit imediato para garantir que a tarefa seja criada
+        print(f"[WORKFLOW] 💾 Fazendo commit...", file=sys.stderr, flush=True)
         db.session.commit()
+        print(f"[WORKFLOW] ✅ COMMIT REALIZADO COM SUCESSO!", file=sys.stderr, flush=True)
+
+        print(f"[WORKFLOW] 🎊 TAREFA DE PUBLICAÇÃO CRIADA E COMMITADA!", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW]    ID da tarefa: #{tarefa_publicar.id}", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW]    Responsável: {validador.nome} (ID: {validador_id})", file=sys.stderr, flush=True)
+        print(f"[WORKFLOW]    Tipo: {Config.TAREFA_PUBLICAR_APROVADO}", file=sys.stderr, flush=True)
+        print("=" * 80, file=sys.stderr, flush=True)
 
         log_debug(f"✅ TAREFA DE PUBLICAÇÃO CRIADA E COMMITADA!")
         log_debug(f"   ID da tarefa: #{tarefa_publicar.id}")
