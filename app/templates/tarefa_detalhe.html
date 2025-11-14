@@ -192,7 +192,7 @@
                     </form>
 
                     <!-- WORKFLOW UGQ: CODIFICAÇÃO -->
-                    {% elif modo == 'codificar' %}
+                    {% elif tarefa.tipo_tarefa == 'Validar e Codificar Documento' %}
                     <h5><i class="bi bi-upc-scan"></i> Codificar Documento</h5>
                     <form method="POST" action="{{ url_for('view.codificar_documento', tarefa_id=tarefa.id) }}">
                         <div class="alert alert-info">

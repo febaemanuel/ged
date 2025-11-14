@@ -486,7 +486,16 @@ def tarefa_detalhe(id):
         flash('Acesso negado', 'danger')
         return redirect(url_for('view.tarefas'))
 
-    return render_template('tarefa_detalhe.html', tarefa=tarefa)
+    # Se for tarefa de codificação, gerar código sugerido
+    codigo_sugerido = None
+    if tarefa.tipo_tarefa == 'Validar e Codificar Documento':
+        from app.services.workflow import WorkflowUGQ
+        codigo_sugerido = WorkflowUGQ.gerar_proximo_codigo(
+            tarefa.documento.tipo_documento,
+            tarefa.documento.setor
+        )
+
+    return render_template('tarefa_detalhe.html', tarefa=tarefa, codigo_sugerido=codigo_sugerido)
 
 
 @view_bp.route('/tarefa/criar', methods=['GET', 'POST'])
