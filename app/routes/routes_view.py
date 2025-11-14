@@ -146,9 +146,40 @@ def documento_detalhe(id):
     documento = Documento.query.get_or_404(id)
 
     # Timeline de tarefas
-    tarefas = Tarefa.query.filter_by(documento_id=id).order_by(
+    tarefas_raw = Tarefa.query.filter_by(documento_id=id).order_by(
         Tarefa.data_criacao.desc()
     ).all()
+
+    # Agrupa tarefas de assinatura do mesmo bloco
+    tarefas = []
+    blocos_processados = set()
+
+    for tarefa in tarefas_raw:
+        # Verifica se é tarefa de assinatura
+        if 'Assinar Documento [Bloco #' in tarefa.tipo_tarefa:
+            # Extrai número do bloco
+            import re
+            match = re.search(r'Bloco #(\d+)', tarefa.tipo_tarefa)
+            if match:
+                bloco_id = match.group(1)
+
+                # Se já processamos este bloco, pula
+                if bloco_id in blocos_processados:
+                    continue
+
+                # Marca bloco como processado
+                blocos_processados.add(bloco_id)
+
+                # Busca TODAS as tarefas deste bloco
+                tarefas_bloco = [t for t in tarefas_raw if f'Bloco #{bloco_id}' in t.tipo_tarefa]
+
+                # Cria objeto agrupado
+                tarefa.is_grupo = True
+                tarefa.tarefas_grupo = tarefas_bloco
+                tarefa.total_grupo = len(tarefas_bloco)
+                tarefa.concluidas_grupo = sum(1 for t in tarefas_bloco if t.concluida)
+
+        tarefas.append(tarefa)
 
     # Logs de IA
     logs_ia = LogAI.query.filter_by(documento_id=id).order_by(
@@ -379,6 +410,28 @@ def documento_download(id):
         caminho_arquivo,
         as_attachment=True,
         download_name=f"{documento.codigo}_{documento.arquivo_original}"
+    )
+
+
+@view_bp.route('/documento/<int:id>/download_assinaturas')
+@login_required
+def documento_download_assinaturas(id):
+    """Download do PDF de assinaturas do documento"""
+    documento = Documento.query.get_or_404(id)
+
+    if not documento.arquivo_final:
+        flash('PDF de assinaturas não encontrado', 'danger')
+        return redirect(url_for('view.documento_detalhe', id=id))
+
+    caminho_pdf = os.path.join('uploads', 'assinaturas', documento.arquivo_final)
+    if not os.path.exists(caminho_pdf):
+        flash('Arquivo PDF de assinaturas não encontrado', 'danger')
+        return redirect(url_for('view.documento_detalhe', id=id))
+
+    return send_file(
+        caminho_pdf,
+        as_attachment=True,
+        download_name=f"assinaturas_{documento.codigo_definitivo or documento.codigo_unico}.pdf"
     )
 
 
