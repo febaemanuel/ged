@@ -504,6 +504,10 @@ class WorkflowUGQ:
             # IMPORTANTE: Flush para garantir que as mudanças sejam visíveis nas queries
             db.session.flush()
 
+            # CRÍTICO: Expire os itens do bloco para forçar reload nas próximas queries
+            # Isso é necessário porque lazy='dynamic' pode cachear queries antigas
+            db.session.expire(bloco, ['itens'])
+
             if modo == 'sequencial':
                 # Cria tarefa para próximo aprovador (se houver)
                 proximo_item = ItemBlocoAssinatura.query.filter_by(
