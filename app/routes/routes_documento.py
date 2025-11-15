@@ -332,12 +332,14 @@ def repositorio_publico():
         - q: Busca por título
         - tipo: Filtro por tipo de documento
         - setor: Filtro por setor
+        - palavras_chave: Busca por palavras-chave da IA
         - page: Página
     """
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
 
-    query = Documento.query.filter_by(status='Aprovado e Publicado')
+    # FIX: Corrigido status para 'Publicado' (Config.STATUS_PUBLICADO)
+    query = Documento.query.filter_by(status='Publicado')
 
     # Apenas documentos válidos (não vencidos)
     query = query.filter(
@@ -347,7 +349,20 @@ def repositorio_publico():
     # Filtros
     q = request.args.get('q')
     if q:
-        query = query.filter(Documento.titulo.ilike(f'%{q}%'))
+        # Busca expandida: título, código ou texto extraído
+        query = query.filter(
+            db.or_(
+                Documento.titulo.ilike(f'%{q}%'),
+                Documento.codigo_definitivo.ilike(f'%{q}%'),
+                Documento.codigo_provisorio.ilike(f'%{q}%'),
+                Documento.texto_extraido.ilike(f'%{q}%')
+            )
+        )
+
+    # Busca por palavras-chave extraídas pela IA
+    palavras_chave = request.args.get('palavras_chave')
+    if palavras_chave:
+        query = query.filter(Documento.metadados_json.ilike(f'%{palavras_chave}%'))
 
     tipo = request.args.get('tipo')
     if tipo:
@@ -357,12 +372,52 @@ def repositorio_publico():
     if setor:
         query = query.filter_by(setor=setor)
 
-    # Ordenação
-    query = query.order_by(Documento.data_publicacao.desc())
+    # Ordenação: agrupa por setor e tipo, depois por data
+    order_by = request.args.get('order_by', 'setor_tipo')
+    if order_by == 'data':
+        query = query.order_by(Documento.data_publicacao.desc())
+    elif order_by == 'setor_tipo':
+        # Organiza por Setor > Tipo > Data
+        query = query.order_by(
+            Documento.setor.asc(),
+            Documento.tipo_documento.asc(),
+            Documento.data_publicacao.desc()
+        )
+    elif order_by == 'tipo_setor':
+        # Organiza por Tipo > Setor > Data
+        query = query.order_by(
+            Documento.tipo_documento.asc(),
+            Documento.setor.asc(),
+            Documento.data_publicacao.desc()
+        )
 
     # Paginação
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     documentos = pagination.items
+
+    # Extrai metadados para exibição
+    import json
+
+    def parse_metadados(doc):
+        """Extrai metadados do documento"""
+        try:
+            metadados = json.loads(doc.metadados_json) if doc.metadados_json else {}
+            return {
+                'palavras_chave': metadados.get('palavras_chave', []),
+                'resumo': metadados.get('resumo', ''),
+                'topicos_principais': metadados.get('topicos_principais', [])
+            }
+        except:
+            return {'palavras_chave': [], 'resumo': '', 'topicos_principais': []}
+
+    # Estatísticas do repositório (para organização visual)
+    stats_por_setor = db.session.query(
+        Documento.setor, db.func.count(Documento.id)
+    ).filter_by(status='Publicado').group_by(Documento.setor).all()
+
+    stats_por_tipo = db.session.query(
+        Documento.tipo_documento, db.func.count(Documento.id)
+    ).filter_by(status='Publicado').group_by(Documento.tipo_documento).all()
 
     return jsonify({
         'documentos': [{
@@ -373,11 +428,16 @@ def repositorio_publico():
             'setor': doc.setor,
             'data_publicacao': doc.data_publicacao.isoformat(),
             'data_vencimento': doc.data_vencimento.isoformat() if doc.data_vencimento else None,
-            'versao': doc.versao
+            'versao': doc.versao,
+            'metadados': parse_metadados(doc)
         } for doc in documentos],
         'total': pagination.total,
         'pages': pagination.pages,
-        'current_page': page
+        'current_page': page,
+        'stats': {
+            'por_setor': {setor: count for setor, count in stats_por_setor},
+            'por_tipo': {tipo: count for tipo, count in stats_por_tipo}
+        }
     })
 
 
@@ -411,3 +471,129 @@ def mudar_status(id):
         'mensagem': 'Status alterado com sucesso',
         'novo_status': novo_status
     })
+
+
+@bp.route('/<int:id>/nova_versao', methods=['POST'])
+@login_required
+def criar_nova_versao(id):
+    """
+    Cria nova versão de um documento (triador/validador pode alterar e criar nova versão)
+
+    Usado quando:
+    - Documento já está publicado e precisa ser revisado
+    - Triador/Validador quer fazer alterações que geram nova versão
+
+    Form data:
+        - arquivo: Novo arquivo do documento (opcional, se não enviar mantém o anterior)
+        - motivo: Motivo da revisão
+        - alteracoes: Descrição das alterações
+
+    Returns:
+        - Novo documento criado (versão incrementada)
+        - Documento anterior marcado como Obsoleto
+    """
+    from app.models import ListaMestra, Notificacao
+    from config import Config
+    import shutil
+
+    documento_original = Documento.query.get_or_404(id)
+
+    # Verifica permissão: Triador UGQ ou Validador UGQ
+    if not (current_user.is_triador_ugq() or current_user.is_validador_ugq()):
+        return jsonify({'erro': 'Apenas Triador UGQ ou Validador UGQ podem criar nova versão'}), 403
+
+    # Extrai dados do formulário
+    motivo = request.form.get('motivo', 'Revisão do documento')
+    alteracoes = request.form.get('alteracoes', '')
+    arquivo_novo = request.files.get('arquivo')
+
+    # Incrementa versão
+    versao_atual = documento_original.versao or 'v1.0'
+    try:
+        major, minor = versao_atual.replace('v', '').split('.')
+        nova_versao = f"v{int(major)}.{int(minor) + 1}"
+    except:
+        nova_versao = 'v2.0'
+
+    # Cria novo documento (nova versão)
+    novo_documento = Documento(
+        titulo=request.form.get('titulo', documento_original.titulo),
+        tipo_documento=request.form.get('tipo_documento', documento_original.tipo_documento),
+        setor=request.form.get('setor', documento_original.setor),
+        descricao=request.form.get('descricao', documento_original.descricao),
+        versao=nova_versao,
+        versao_anterior_id=documento_original.id,
+        criador_id=current_user.id,
+        chefia_imediata_id=documento_original.chefia_imediata_id,
+        validade_anos=documento_original.validade_anos,
+        status=Config.STATUS_NOVO  # Inicia como Novo, vai passar pelo workflow novamente
+    )
+
+    # Se enviou arquivo novo, usa ele. Senão, copia o arquivo anterior
+    if arquivo_novo and arquivo_novo.filename != '':
+        # Validar extensão
+        extensao = arquivo_novo.filename.rsplit('.', 1)[1].lower()
+        if extensao not in Config.ALLOWED_EXTENSIONS_DOCUMENTO:
+            return jsonify({'erro': f'Extensão .{extensao} não permitida'}), 400
+
+        # Salvar novo arquivo
+        filename = secure_filename(arquivo_novo.filename)
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename_final = f"{timestamp}_{filename}"
+        caminho_completo = os.path.join(Config.UPLOAD_FOLDER_DOCUMENTOS, filename_final)
+
+        os.makedirs(Config.UPLOAD_FOLDER_DOCUMENTOS, exist_ok=True)
+        arquivo_novo.save(caminho_completo)
+
+        novo_documento.arquivo_original = filename_final
+    else:
+        # Copia arquivo anterior
+        if documento_original.arquivo_original:
+            arquivo_original_path = os.path.join(Config.UPLOAD_FOLDER_DOCUMENTOS, documento_original.arquivo_original)
+            if os.path.exists(arquivo_original_path):
+                novo_nome = f"v{nova_versao}_{documento_original.arquivo_original}"
+                novo_caminho = os.path.join(Config.UPLOAD_FOLDER_DOCUMENTOS, novo_nome)
+                shutil.copy2(arquivo_original_path, novo_caminho)
+                novo_documento.arquivo_original = novo_nome
+
+    # Mantém código definitivo (mesmo POP.SETOR-XXX, só muda a versão)
+    if documento_original.codigo_definitivo:
+        novo_documento.codigo_definitivo = documento_original.codigo_definitivo
+
+    db.session.add(novo_documento)
+
+    # Marca documento anterior como Obsoleto
+    documento_original.status = Config.STATUS_OBSOLETO
+
+    # Atualiza Lista Mestra
+    lista_mestra_antiga = ListaMestra.query.filter_by(documento_id=documento_original.id).first()
+    if lista_mestra_antiga:
+        lista_mestra_antiga.status = 'OBSOLETO'
+
+    # Cria notificação para o autor original
+    notificacao = Notificacao(
+        usuario_id=documento_original.criador_id,
+        documento_id=novo_documento.id,
+        tipo='revisao',
+        titulo='Nova Versão do Seu Documento',
+        mensagem=f'Uma nova versão ({nova_versao}) do documento "{documento_original.titulo}" foi criada por {current_user.nome}. Motivo: {motivo}'
+    )
+    db.session.add(notificacao)
+
+    # NOVO: Cria tarefa para Triador UGQ automaticamente
+    from app.services.workflow import WorkflowUGQ
+    try:
+        WorkflowUGQ.autor_submete_documento(novo_documento)
+    except Exception as e:
+        # Se falhar, pelo menos salva o documento
+        pass
+
+    db.session.commit()
+
+    return jsonify({
+        'mensagem': 'Nova versão criada com sucesso!',
+        'documento_novo_id': novo_documento.id,
+        'versao_nova': nova_versao,
+        'versao_anterior': versao_atual,
+        'status': novo_documento.status
+    }), 201
