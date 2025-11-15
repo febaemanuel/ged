@@ -236,7 +236,10 @@ def atualizar_documento(id):
         - descricao
         - setor
         - tipo_documento
+        - versao_anterior_id (apenas para triadores/validadores)
     """
+    from config import Config
+
     documento = Documento.query.get_or_404(id)
 
     # Verifica permissão
@@ -253,6 +256,34 @@ def atualizar_documento(id):
         documento.setor = data['setor']
     if 'tipo_documento' in data and data['tipo_documento'] in current_app.config['TIPOS_DOCUMENTO']:
         documento.tipo_documento = data['tipo_documento']
+
+    # Marcar como nova versão (apenas triador/validador)
+    if 'versao_anterior_id' in data:
+        if not (current_user.is_triador_ugq() or current_user.is_validador_ugq()):
+            return jsonify({'erro': 'Apenas Triador ou Validador UGQ podem marcar versões'}), 403
+
+        doc_anterior_id = data['versao_anterior_id']
+        doc_anterior = Documento.query.get(doc_anterior_id)
+
+        if not doc_anterior:
+            return jsonify({'erro': 'Documento anterior não encontrado'}), 404
+
+        if doc_anterior.status != Config.STATUS_PUBLICADO:
+            return jsonify({'erro': 'Documento anterior precisa estar Publicado'}), 400
+
+        documento.versao_anterior_id = doc_anterior_id
+
+        # Incrementa a versão baseada na anterior
+        if doc_anterior.versao:
+            try:
+                # Extrai número da versão (ex: v1.0 -> 1.0)
+                versao_str = doc_anterior.versao.replace('v', '').replace('V', '')
+                partes = versao_str.split('.')
+                if len(partes) >= 1:
+                    major = int(partes[0])
+                    documento.versao = f'v{major + 1}.0'
+            except:
+                documento.versao = 'v2.0'
 
     db.session.commit()
 
