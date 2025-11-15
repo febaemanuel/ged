@@ -64,6 +64,17 @@ class Config:
     AI_API_MODEL = os.environ.get('AI_API_MODEL') or 'deepseek-chat'
     AI_API_TIMEOUT = int(os.environ.get('AI_API_TIMEOUT', 30))  # segundos
 
+    # Configurações de E-mail
+    MAIL_SERVER = os.environ.get('MAIL_SERVER') or 'smtp.gmail.com'
+    MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
+    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'True').lower() in ['true', '1', 'yes']
+    MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'False').lower() in ['true', '1', 'yes']
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME') or ''
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD') or ''
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or 'noreply@ged.com'
+    MAIL_MAX_EMAILS = None
+    MAIL_ASCII_ATTACHMENTS = False
+
     # Configurações de documentos
     VALIDADE_PADRAO_ANOS = 5
     DIAS_ALERTA_VENCIMENTO = 30

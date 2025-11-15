@@ -322,6 +322,135 @@ def download_arquivo(id, tipo):
     return send_file(caminho, as_attachment=True, download_name=nome_download)
 
 
+@bp.route('/<int:id>/substituir_arquivo', methods=['POST'])
+@login_required
+def substituir_arquivo(id):
+    """
+    Substitui o arquivo de um documento (apenas Triador UGQ ou Validador UGQ)
+
+    Permite que triadores e validadores alterem o arquivo durante o processo de análise
+    sem precisar criar uma nova versão do documento.
+
+    Form data:
+        - arquivo: Novo arquivo do documento (.doc, .docx, .odt, .pdf)
+        - motivo: Motivo da substituição (opcional)
+
+    Permissões:
+        - Triador UGQ: pode alterar durante triagem
+        - Validador UGQ: pode alterar durante validação
+
+    Returns:
+        JSON com mensagem de sucesso e informações do novo arquivo
+    """
+    from config import Config
+    import logging
+
+    logger = logging.getLogger(__name__)
+    documento = Documento.query.get_or_404(id)
+
+    # Verifica permissão: apenas Triador UGQ ou Validador UGQ
+    if not (current_user.is_triador_ugq() or current_user.is_validador_ugq()):
+        return jsonify({'erro': 'Apenas Triador UGQ ou Validador UGQ podem substituir arquivos'}), 403
+
+    # Verifica se o documento está em status permitido para edição
+    status_permitidos = [
+        Config.STATUS_NOVO,
+        Config.STATUS_EM_TRIAGEM,
+        Config.STATUS_EM_VALIDACAO,
+        Config.STATUS_EM_CORRECAO
+    ]
+
+    if documento.status not in status_permitidos:
+        return jsonify({
+            'erro': f'Documento no status "{documento.status}" não pode ter o arquivo substituído. Status permitidos: {", ".join(status_permitidos)}'
+        }), 400
+
+    # Verifica se foi enviado um arquivo
+    if 'arquivo' not in request.files:
+        return jsonify({'erro': 'Nenhum arquivo foi enviado'}), 400
+
+    arquivo = request.files['arquivo']
+
+    if arquivo.filename == '':
+        return jsonify({'erro': 'Nenhum arquivo selecionado'}), 400
+
+    # Valida extensão do arquivo
+    if not allowed_file(arquivo.filename):
+        extensoes_permitidas = ', '.join(current_app.config['ALLOWED_EXTENSIONS'])
+        return jsonify({
+            'erro': f'Tipo de arquivo não permitido. Extensões aceitas: {extensoes_permitidas}'
+        }), 400
+
+    motivo = request.form.get('motivo', 'Arquivo substituído pelo validador/triador')
+
+    try:
+        # Salva o arquivo antigo como backup (opcional)
+        arquivo_antigo = documento.arquivo_original
+
+        # Salva o novo arquivo
+        filename = secure_filename(arquivo.filename)
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        nome_arquivo = f"{timestamp}_{filename}"
+        caminho_arquivo = os.path.join(current_app.config['UPLOAD_FOLDER'], nome_arquivo)
+
+        # Garante que o diretório existe
+        os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+        # Salva o novo arquivo
+        arquivo.save(caminho_arquivo)
+
+        # Atualiza o documento
+        documento.arquivo_original = nome_arquivo
+
+        # Registra a alteração em um log ou observação
+        if hasattr(documento, 'observacoes'):
+            observacao_atual = documento.observacoes or ''
+            nova_observacao = f"{observacao_atual}\n[{datetime.utcnow().strftime('%d/%m/%Y %H:%M')}] Arquivo substituído por {current_user.nome}. Motivo: {motivo}"
+            documento.observacoes = nova_observacao
+
+        db.session.commit()
+
+        logger.info(f"Arquivo do documento {documento.id} substituído por {current_user.nome}")
+
+        # Envia notificação para o autor original (se houver)
+        if documento.criador and documento.criador_id != current_user.id:
+            from app.models import Notificacao
+            notificacao = Notificacao(
+                usuario_id=documento.criador_id,
+                documento_id=documento.id,
+                tipo='atualizacao',
+                titulo='Arquivo do Documento Substituído',
+                mensagem=f'O arquivo do documento "{documento.titulo}" foi substituído por {current_user.nome}. Motivo: {motivo}'
+            )
+            db.session.add(notificacao)
+            db.session.commit()
+
+            # Envia e-mail
+            try:
+                from app.services.email_service import EmailService
+                EmailService.enviar_notificacao_tarefa(
+                    usuario_id=documento.criador_id,
+                    tipo_tarefa='Atualização de Documento',
+                    documento_titulo=documento.titulo,
+                    documento_codigo=documento.codigo_provisorio or documento.codigo_unico
+                )
+            except Exception as e:
+                logger.warning(f"Erro ao enviar e-mail: {str(e)}")
+
+        return jsonify({
+            'mensagem': 'Arquivo substituído com sucesso',
+            'arquivo_anterior': arquivo_antigo,
+            'arquivo_novo': nome_arquivo,
+            'substituido_por': current_user.nome,
+            'data_substituicao': datetime.utcnow().isoformat()
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Erro ao substituir arquivo: {str(e)}")
+        return jsonify({'erro': f'Erro ao substituir arquivo: {str(e)}'}), 500
+
+
 @bp.route('/hierarquia', methods=['GET'])
 def get_hierarquia():
     """
@@ -658,6 +787,21 @@ def criar_nova_versao(id):
         pass
 
     db.session.commit()
+
+    # Envia e-mail para o autor original
+    try:
+        from app.services.email_service import EmailService
+        EmailService.enviar_notificacao_nova_versao(
+            usuario_id=documento_original.criador_id,
+            documento_titulo=documento_original.titulo,
+            codigo_original=documento_original.codigo_definitivo or documento_original.codigo_unico,
+            nova_versao=nova_versao,
+            motivo=motivo,
+            criador_nome=current_user.nome
+        )
+    except Exception as e:
+        # Se falhar o envio do e-mail, não interrompe o processo
+        logger.warning(f"Erro ao enviar e-mail de nova versão: {str(e)}")
 
     return jsonify({
         'mensagem': 'Nova versão criada com sucesso!',
