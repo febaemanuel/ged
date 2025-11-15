@@ -1053,6 +1053,49 @@ def codificar_documento(tarefa_id):
         return redirect(url_for('view.tarefa_detalhe', id=tarefa_id))
 
 
+@view_bp.route('/tarefa/<int:tarefa_id>/validador_devolver', methods=['POST'])
+@login_required
+def validador_devolver_documento(tarefa_id):
+    """
+    ETAPA 2/3: Validador UGQ devolve documento
+    """
+    from app.services.workflow import WorkflowUGQ
+
+    tarefa = Tarefa.query.get_or_404(tarefa_id)
+    documento = tarefa.documento
+
+    # Verifica permissão
+    if tarefa.responsavel_id != current_user.id and not current_user.is_admin():
+        flash('Você não tem permissão para esta ação', 'danger')
+        return redirect(url_for('view.tarefas'))
+
+    destino = request.form.get('destino')  # 'triador' ou 'autor'
+    motivo = request.form.get('motivo')
+
+    try:
+        if destino == 'triador':
+            WorkflowUGQ.validador_devolve_para_triador(documento, current_user.id, motivo)
+            flash('📤 Documento devolvido para o Triador UGQ', 'warning')
+        elif destino == 'autor':
+            WorkflowUGQ.validador_devolve_para_autor(documento, current_user.id, motivo)
+            flash('📤 Documento devolvido para o Autor', 'warning')
+        else:
+            flash('❌ Destino inválido', 'danger')
+
+        # Marca tarefa atual como concluída
+        tarefa.concluida = True
+        tarefa.aprovado = False
+        tarefa.data_conclusao = datetime.utcnow()
+        tarefa.parecer = f'Devolvido para {destino}: {motivo}'
+        db.session.commit()
+
+    except Exception as e:
+        logger.error(f"Erro ao devolver documento: {str(e)}")
+        flash(f'Erro: {str(e)}', 'danger')
+
+    return redirect(url_for('view.tarefas'))
+
+
 @view_bp.route('/documento/<int:documento_id>/bloco_assinatura/criar', methods=['GET', 'POST'])
 @login_required
 def criar_bloco_assinatura(documento_id):
@@ -1123,7 +1166,7 @@ def criar_bloco_assinatura(documento_id):
 @login_required
 def assinar_documento(tarefa_id):
     """
-    ETAPA 3: Aprovador assina documento
+    ETAPA 3: Aprovador assina documento com verificação de senha
     """
     from app.services.workflow import WorkflowUGQ
 
@@ -1134,13 +1177,36 @@ def assinar_documento(tarefa_id):
         flash('Você não tem permissão para assinar este documento', 'danger')
         return redirect(url_for('view.tarefas'))
 
-    acao = request.form.get('acao')  # 'aprovar' ou 'reprovar'
+    acao = request.form.get('acao')  # 'aprovar', 'reprovar', ou 'devolver'
     parecer = request.form.get('parecer')
+    senha = request.form.get('senha')  # Senha para confirmar assinatura
 
+    # Captura IP e User-Agent
+    ip_address = request.remote_addr
+    user_agent = request.headers.get('User-Agent', '')[:255]
+
+    # Se a ação for devolver, chama função específica
+    if acao == 'devolver':
+        try:
+            WorkflowUGQ.aprovador_devolve_para_validador(tarefa, parecer)
+            flash('📤 Documento devolvido para o Validador UGQ', 'warning')
+        except Exception as e:
+            logger.error(f"Erro ao devolver documento: {str(e)}")
+            flash(f'Erro: {str(e)}', 'danger')
+        return redirect(url_for('view.tarefas'))
+
+    # Caso contrário, é assinatura normal (aprovar ou reprovar)
     aprovado = (acao == 'aprovar')
 
     try:
-        resultado = WorkflowUGQ.aprovador_assina(tarefa, aprovado, parecer)
+        resultado = WorkflowUGQ.aprovador_assina(
+            tarefa,
+            aprovado,
+            parecer,
+            senha=senha,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
 
         if aprovado:
             if resultado.get('proximo') == 'publicacao':
@@ -1153,6 +1219,9 @@ def assinar_documento(tarefa_id):
         else:
             flash('❌ Documento reprovado. Devolvido para Validador UGQ', 'warning')
 
+    except ValueError as e:
+        # Erros de validação (senha incorreta, etc.)
+        flash(f'❌ {str(e)}', 'danger')
     except Exception as e:
         logger.error(f"Erro ao assinar: {str(e)}")
         flash(f'Erro: {str(e)}', 'danger')

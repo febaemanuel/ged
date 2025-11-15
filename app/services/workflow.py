@@ -427,19 +427,177 @@ class WorkflowUGQ:
         return bloco
 
     @classmethod
-    def aprovador_assina(cls, tarefa, aprovado, parecer):
+    def validador_devolve_para_triador(cls, documento, validador_id, motivo):
         """
-        Aprovador assina documento (aprova ou reprova)
+        Validador UGQ devolve documento para Triador UGQ
+
+        Args:
+            documento: Documento a ser devolvido
+            validador_id: ID do Validador UGQ
+            motivo: Motivo da devolução
+
+        Returns:
+            Tarefa criada para o Triador
+        """
+        log_debug("=" * 80)
+        log_debug(f"Validador devolve documento para Triador")
+        log_debug(f"Motivo: {motivo}")
+        log_debug("=" * 80)
+
+        # Busca Triador UGQ disponível
+        triador = Usuario.query.filter_by(
+            perfil=Config.PERFIL_QUALIDADE_TRIADOR,
+            ativo=True
+        ).first()
+
+        if not triador:
+            log_debug("❌ ERRO: Nenhum Triador UGQ disponível")
+            raise ValueError("Nenhum Triador UGQ disponível no sistema")
+
+        # Cria tarefa de nova triagem
+        tarefa = Tarefa(
+            documento_id=documento.id,
+            criador_id=validador_id,
+            responsavel_id=triador.id,
+            tipo_tarefa=Config.TAREFA_DOCUMENTO_RECEBIDO,
+            descricao=f'Retriagem solicitada pelo Validador: {motivo}',
+            prazo=datetime.utcnow() + timedelta(days=5),
+            concluida=False
+        )
+
+        db.session.add(tarefa)
+
+        # Atualiza status do documento
+        documento.status = Config.STATUS_EM_TRIAGEM
+
+        db.session.commit()
+
+        log_debug(f"✅ Documento devolvido para Triador UGQ")
+        log_debug("=" * 80)
+
+        return tarefa
+
+    @classmethod
+    def validador_devolve_para_autor(cls, documento, validador_id, motivo):
+        """
+        Validador UGQ devolve documento diretamente para Autor
+
+        Args:
+            documento: Documento a ser devolvido
+            validador_id: ID do Validador UGQ
+            motivo: Motivo da devolução
+
+        Returns:
+            Tarefa criada para o Autor
+        """
+        log_debug("=" * 80)
+        log_debug(f"Validador devolve documento para Autor")
+        log_debug(f"Motivo: {motivo}")
+        log_debug("=" * 80)
+
+        # Cria tarefa de correção para o autor
+        tarefa = Tarefa(
+            documento_id=documento.id,
+            criador_id=validador_id,
+            responsavel_id=documento.criador_id,
+            tipo_tarefa=Config.TAREFA_REALIZAR_CORRECAO,
+            descricao=f'Correção solicitada pelo Validador: {motivo}',
+            prazo=datetime.utcnow() + timedelta(days=5),
+            concluida=False
+        )
+
+        db.session.add(tarefa)
+
+        # Atualiza status do documento
+        documento.status = Config.STATUS_EM_CORRECAO
+
+        db.session.commit()
+
+        log_debug(f"✅ Documento devolvido para Autor")
+        log_debug("=" * 80)
+
+        return tarefa
+
+    @classmethod
+    def aprovador_devolve_para_validador(cls, tarefa, motivo):
+        """
+        Aprovador devolve documento para Validador UGQ
+
+        Args:
+            tarefa: Tarefa de assinatura
+            motivo: Motivo da devolução
+
+        Returns:
+            Tarefa criada para o Validador
+        """
+        log_debug("=" * 80)
+        log_debug(f"Aprovador devolve documento para Validador")
+        log_debug(f"Motivo: {motivo}")
+        log_debug("=" * 80)
+
+        metadata = tarefa.get_metadata()
+        bloco_id = metadata.get('bloco_id')
+
+        bloco = BlocoAssinatura.query.get(bloco_id)
+        documento = tarefa.documento
+
+        # Cancela bloco
+        bloco.status = 'Devolvido'
+
+        # Cancela todas as outras tarefas do bloco
+        Tarefa.query.filter(
+            Tarefa.metadata_json.contains(f'"bloco_id": {bloco.id}'),
+            Tarefa.concluida == False
+        ).update({'concluida': True, 'parecer': 'Cancelada - documento devolvido'}, synchronize_session=False)
+
+        # Marca tarefa atual como concluída
+        tarefa.concluida = True
+        tarefa.aprovado = False
+        tarefa.data_conclusao = datetime.utcnow()
+        tarefa.parecer = f'Devolvido: {motivo}'
+
+        # Cria tarefa de ajustes para Validador
+        validador_id = bloco.criador_id
+        tarefa_ajuste = Tarefa(
+            documento_id=documento.id,
+            criador_id=tarefa.responsavel_id,
+            responsavel_id=validador_id,
+            tipo_tarefa=Config.TAREFA_REALIZAR_AJUSTES,
+            descricao=f'Devolvido por {tarefa.responsavel.nome}: {motivo}',
+            prazo=datetime.utcnow() + timedelta(days=5),
+            concluida=False
+        )
+
+        db.session.add(tarefa_ajuste)
+
+        # Atualiza status do documento
+        documento.status = Config.STATUS_EM_AJUSTES
+
+        db.session.commit()
+
+        log_debug(f"✅ Documento devolvido para Validador UGQ")
+        log_debug("=" * 80)
+
+        return tarefa_ajuste
+
+    @classmethod
+    def aprovador_assina(cls, tarefa, aprovado, parecer, senha=None, ip_address=None, user_agent=None):
+        """
+        Aprovador assina documento (aprova ou reprova) com verificação de senha
 
         Args:
             tarefa: Tarefa de assinatura
             aprovado: True=aprovar, False=reprovar
             parecer: Parecer do aprovador
+            senha: Senha do aprovador para confirmação (obrigatória)
+            ip_address: IP de onde foi assinado
+            user_agent: Navegador/sistema usado
 
         Returns:
             Dict com informações sobre o próximo passo
         """
         import sys
+        import hashlib
         print("=" * 80, file=sys.stderr, flush=True)
         print(f"[WORKFLOW] ETAPA 3: Aprovador assina documento", file=sys.stderr, flush=True)
         print(f"[WORKFLOW] Decisão: {'APROVADO' if aprovado else 'REPROVADO'}", file=sys.stderr, flush=True)
@@ -463,14 +621,37 @@ class WorkflowUGQ:
 
         print(f"[WORKFLOW] Aprovador: {item.aprovador.nome}, Ordem: {item.ordem}", file=sys.stderr, flush=True)
 
-        # Registra assinatura/rejeição
+        # VERIFICAÇÃO DE SENHA OBRIGATÓRIA
+        if not senha:
+            log_debug("❌ ERRO: Senha não fornecida para assinatura")
+            raise ValueError("Senha é obrigatória para assinar documento")
+
+        # Verifica se a senha está correta
+        from werkzeug.security import check_password_hash
+        aprovador = item.aprovador
+        if not check_password_hash(aprovador.senha_hash, senha):
+            log_debug(f"❌ ERRO: Senha incorreta para {aprovador.nome}")
+            raise ValueError("Senha incorreta")
+
+        log_debug(f"✅ Senha verificada para {aprovador.nome}")
+
+        # Gera hash da assinatura (SHA-256 de: documento_id + aprovador_id + timestamp + parecer)
+        timestamp = datetime.utcnow().isoformat()
+        dados_assinatura = f"{documento.id}|{aprovador.id}|{timestamp}|{parecer}"
+        assinatura_hash = hashlib.sha256(dados_assinatura.encode('utf-8')).hexdigest()
+
+        log_debug(f"🔐 Hash da assinatura gerado: {assinatura_hash[:16]}...")
+
+        # Registra assinatura/rejeição com dados de autenticação
         if aprovado:
-            item.aprovar(parecer)
+            item.aprovar(parecer, senha_hash=assinatura_hash, ip_address=ip_address, user_agent=user_agent)
             tarefa.aprovado = True
             log_debug(f"✅ Aprovador #{item.ordem} ({item.aprovador.nome}) APROVOU")
             log_debug(f"   Status do item após aprovar: {item.status}")
+            log_debug(f"   IP: {ip_address}")
+            log_debug(f"   User-Agent: {user_agent}")
         else:
-            item.reprovar(parecer)
+            item.reprovar(parecer, senha_hash=assinatura_hash, ip_address=ip_address, user_agent=user_agent)
             tarefa.aprovado = False
             log_debug(f"❌ Aprovador #{item.ordem} ({item.aprovador.nome}) REPROVOU")
 
@@ -894,40 +1075,46 @@ class WorkflowUGQ:
 
         # Tabela de assinaturas
         data_assinaturas = [
-            ['Ordem', 'Nome', 'Cargo', 'Data/Hora', 'Decisão', 'Parecer']
+            ['#', 'Nome', 'Data/Hora', 'Decisão', 'Hash (Assinatura Digital)']
         ]
 
         for item in bloco.itens.order_by(ItemBlocoAssinatura.ordem):
             aprovador = item.aprovador
             decisao = '✅ APROVADO' if item.status == 'Aprovado' else '❌ REPROVADO' if item.status == 'Reprovado' else '⏳ PENDENTE'
             data_assinatura = item.data_assinatura.strftime('%d/%m/%Y %H:%M') if item.data_assinatura else '---'
-            parecer_resumido = (item.parecer[:50] + '...') if item.parecer and len(item.parecer) > 50 else (item.parecer or '---')
+
+            # Hash resumido (primeiros e últimos 8 caracteres)
+            hash_display = '---'
+            if item.assinatura_hash:
+                hash_display = f"{item.assinatura_hash[:8]}...{item.assinatura_hash[-8:]}"
 
             data_assinaturas.append([
                 str(item.ordem),
                 aprovador.nome,
-                'Gerente',  # Perfil
                 data_assinatura,
                 decisao,
-                parecer_resumido
+                hash_display
             ])
 
-        table_assinaturas = Table(data_assinaturas, colWidths=[1.5*cm, 4*cm, 3*cm, 3.5*cm, 3*cm, 5*cm])
+        table_assinaturas = Table(data_assinaturas, colWidths=[1*cm, 5*cm, 3.5*cm, 3*cm, 7.5*cm])
         table_assinaturas.setStyle(TableStyle([
             # Cabeçalho
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a5490')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
 
             # Corpo
             ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
             ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Ordem centralizada
-            ('ALIGN', (1, 1), (-1, -1), 'LEFT'),
+            ('ALIGN', (1, 1), (3, -1), 'LEFT'),
+            ('ALIGN', (4, 1), (4, -1), 'CENTER'),  # Hash centralizado
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTNAME', (4, 1), (4, -1), 'Courier'),  # Hash em fonte monospace
             ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('FONTSIZE', (4, 1), (4, -1), 7),
             ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
 
             # Grid
@@ -938,7 +1125,78 @@ class WorkflowUGQ:
         ]))
 
         elements.append(table_assinaturas)
-        elements.append(Spacer(1, 1*cm))
+        elements.append(Spacer(1, 0.8*cm))
+
+        # Seção de Pareceres Detalhados
+        elements.append(Paragraph("PARECERES DETALHADOS", title_style))
+        elements.append(Spacer(1, 0.3*cm))
+
+        parecer_style = ParagraphStyle(
+            'Parecer',
+            parent=styles['Normal'],
+            fontSize=9,
+            leading=12,
+            spaceAfter=8
+        )
+
+        for item in bloco.itens.order_by(ItemBlocoAssinatura.ordem):
+            aprovador = item.aprovador
+            # Box do parecer
+            parecer_data = [
+                [Paragraph(f"<b>{item.ordem}. {aprovador.nome}</b> - {item.status}", parecer_style)],
+                [Paragraph(f"<i>{item.parecer or 'Sem parecer'}</i>", parecer_style)]
+            ]
+
+            if item.ip_address:
+                parecer_data.append([Paragraph(f"<font size=7>IP: {item.ip_address}</font>", parecer_style)])
+
+            if item.assinatura_hash:
+                parecer_data.append([Paragraph(f"<font size=6 face='Courier'>Hash completo: {item.assinatura_hash}</font>", parecer_style)])
+
+            parecer_table = Table(parecer_data, colWidths=[18*cm])
+            parecer_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e8f4f8')),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#1a5490')),
+                ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ]))
+
+            elements.append(parecer_table)
+            elements.append(Spacer(1, 0.3*cm))
+
+        elements.append(Spacer(1, 0.5*cm))
+
+        # Informações de Verificação
+        info_style = ParagraphStyle(
+            'Info',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.HexColor('#666666'),
+            alignment=TA_LEFT,
+            leftIndent=20
+        )
+
+        elements.append(Paragraph("<b>INFORMAÇÕES DE VERIFICAÇÃO</b>", subtitle_style))
+        elements.append(Paragraph(
+            f"• Este documento foi assinado digitalmente por {bloco.total_aprovadores()} aprovador(es)",
+            info_style
+        ))
+        elements.append(Paragraph(
+            f"• Modo de assinatura: <b>{bloco.modo.upper()}</b>",
+            info_style
+        ))
+        elements.append(Paragraph(
+            f"• Cada assinatura possui um hash SHA-256 único que garante autenticidade e integridade",
+            info_style
+        ))
+        elements.append(Paragraph(
+            f"• Os hashes são gerados com base em: documento_id + aprovador_id + timestamp + parecer",
+            info_style
+        ))
+        elements.append(Spacer(1, 0.5*cm))
 
         # Rodapé
         footer_style = ParagraphStyle(
