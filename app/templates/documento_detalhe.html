@@ -608,6 +608,7 @@
                         </div>
                         {% endif %}
 
+                        {% if documento.data_publicacao %}
                         <div class="list-group-item d-flex align-items-center">
                             <i class="bi bi-check-circle-fill text-success me-3" style="font-size: 1.5rem;"></i>
                             <div>
@@ -615,6 +616,7 @@
                                 <div class="text-muted small">{{ documento.data_publicacao.strftime('%d/%m/%Y') }}</div>
                             </div>
                         </div>
+                        {% endif %}
 
                         {% if documento.data_vencimento %}
                         <div class="list-group-item d-flex align-items-center">
