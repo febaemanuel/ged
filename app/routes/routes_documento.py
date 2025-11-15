@@ -465,6 +465,11 @@ def repositorio_publico():
                 palavras_chave = metadados.get('palavras_chave', [])
                 topicos_principais = metadados.get('topicos_principais', [])
 
+            # Remove pareceres vazios tipo "ok", "aprovado", etc
+            import re
+            if resumo_texto:
+                resumo_texto = re.sub(r'\b(ok|aprovado|certo)\b\s*', '', resumo_texto, flags=re.IGNORECASE).strip()
+
             return {
                 'palavras_chave': palavras_chave,
                 'resumo': resumo_texto,
