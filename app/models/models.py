@@ -62,6 +62,16 @@ class Usuario(UserMixin, db.Model):
         """Verifica se o usuário pode acionar funções de IA"""
         return self.perfil in ['gerente', 'administrador']
 
+    def is_triador_ugq(self):
+        """Verifica se o usuário é Triador UGQ"""
+        from config import Config
+        return self.perfil == Config.PERFIL_QUALIDADE_TRIADOR
+
+    def is_validador_ugq(self):
+        """Verifica se o usuário é Validador UGQ"""
+        from config import Config
+        return self.perfil == Config.PERFIL_QUALIDADE_VALIDADOR
+
     def __repr__(self):
         return f'<Usuario {self.email}>'
 

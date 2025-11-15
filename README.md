@@ -146,11 +146,30 @@ cp .env.example .env  # Configure aqui
 
 #### 4. Configurar `.env`
 ```env
+# Banco de Dados
 DATABASE_URL=postgresql://ged_user:ged_password@localhost/ged_db
+
+# Segurança
 SECRET_KEY=sua-chave-secreta-aqui
+
+# IA (DeepSeek)
 AI_API_BASE_URL=https://api.deepseek.com
 AI_API_KEY=sua-chave-deepseek-aqui
+
+# E-mail (Notificações) - NOVO!
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=seu-email@gmail.com
+MAIL_PASSWORD=sua-senha-de-aplicativo
+MAIL_DEFAULT_SENDER=noreply@ged.com
+APP_URL=http://localhost:5000
 ```
+
+**Configuração de E-mail:**
+- Para **Gmail**: Use uma senha de aplicativo (não a senha normal). Ative verificação em duas etapas e gere uma senha de aplicativo em: https://myaccount.google.com/apppasswords
+- Para **Outlook/Office365**: Use `smtp.office365.com` como servidor
+- Se não configurar e-mail, o sistema continuará funcionando normalmente (apenas não enviará e-mails)
 
 #### 5. Inicializar Banco
 ```bash
@@ -310,6 +329,34 @@ GET /relatorio/pdf/geral              # PDF relatório geral
 - ✅ **Validação de IA** - Classificação e extração automática
 - ✅ **Filtros Avançados** - Por status, setor, tipo, data
 - ✅ **Timeline de Atividades** - Histórico visual completo
+
+### 📧 Sistema de Notificações por E-mail (NOVO!)
+
+- ✅ **Envio Automático** - E-mails enviados em todas as etapas do workflow
+- ✅ **Notificações Implementadas**:
+  - **Nova Tarefa Atribuída** - Quando um usuário recebe uma tarefa
+  - **Documento Devolvido** - Quando o triador devolve para correção
+  - **Documento Validado** - Quando o validador codifica o documento
+  - **Documento Aprovado** - Quando todos os aprovadores assinam
+  - **Documento Publicado** - Quando o documento é publicado no repositório
+  - **Nova Versão Criada** - Quando uma nova versão é criada
+  - **Arquivo Substituído** - Quando triador/validador altera o arquivo
+- ✅ **Templates HTML** - E-mails profissionais e responsivos
+- ✅ **Configuração Flexível** - Suporte a Gmail, Outlook e outros SMTP
+- ✅ **Fallback Seguro** - Sistema continua funcionando mesmo sem e-mail configurado
+
+### 📝 Edição de Documentos por Triador/Validador (NOVO!)
+
+- ✅ **Substituição de Arquivo** - Triadores e validadores podem alterar o arquivo do documento
+- ✅ **Controle de Permissões** - Apenas durante triagem/validação
+- ✅ **Status Permitidos**:
+  - Novo
+  - Em Triagem
+  - Em Validação
+  - Em Correção
+- ✅ **Auditoria Completa** - Registra quem alterou, quando e por quê
+- ✅ **Notificação ao Autor** - Autor recebe notificação quando arquivo é substituído
+- ✅ **Histórico de Alterações** - Todas as modificações são registradas
 
 ### ✅ Sistema de Tarefas e Workflow
 

@@ -22,6 +22,14 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# Import do serviço de email
+try:
+    from app.services.email_service import EmailService
+    EMAIL_ENABLED = True
+except ImportError:
+    EMAIL_ENABLED = False
+    logger.warning("EmailService não disponível")
+
 
 def log_debug(message):
     """Helper para logar tanto no logger quanto no console"""
@@ -89,6 +97,17 @@ class WorkflowUGQ:
 
         log_debug(f"✅ Tarefa #{tarefa.id} criada para Triador UGQ")
         log_debug(f"📊 Documento status: {documento.status}")
+
+        # Envia e-mail para o Triador UGQ
+        if EMAIL_ENABLED:
+            EmailService.enviar_notificacao_tarefa(
+                usuario_id=triador.id,
+                tipo_tarefa=Config.TAREFA_DOCUMENTO_RECEBIDO,
+                documento_titulo=documento.titulo,
+                documento_codigo=documento.codigo_provisorio
+            )
+            log_debug(f"📧 E-mail enviado para Triador UGQ: {triador.email}")
+
         log_debug("=" * 80)
 
         return tarefa
@@ -142,6 +161,17 @@ class WorkflowUGQ:
 
         log_debug(f"✅ Tarefa de correção #{tarefa_correcao.id} criada para Autor")
         log_debug(f"📊 Documento status: {documento.status}")
+
+        # Envia e-mail para o Autor
+        if EMAIL_ENABLED and documento.criador:
+            EmailService.enviar_notificacao_documento_devolvido(
+                usuario_id=documento.criador_id,
+                documento_titulo=documento.titulo,
+                documento_codigo=documento.codigo_provisorio or documento.codigo_unico,
+                motivo=motivo
+            )
+            log_debug(f"📧 E-mail enviado para Autor: {documento.criador.email}")
+
         log_debug("=" * 80)
 
         return tarefa_correcao
@@ -314,6 +344,17 @@ class WorkflowUGQ:
         log_debug(f"✅ Registro criado na Lista Mestra (ID: {registro.id})")
         log_debug(f"✅ Validação UGQ registrada (ID: {validacao.id})")
         log_debug(f"📊 Documento status: {documento.status}")
+
+        # Envia e-mail para o Autor informando que o documento foi validado
+        if EMAIL_ENABLED and documento.criador:
+            EmailService.enviar_notificacao_documento_validado(
+                usuario_id=documento.criador_id,
+                documento_titulo=documento.titulo,
+                codigo_definitivo=codigo_definitivo,
+                versao=versao
+            )
+            log_debug(f"📧 E-mail enviado para Autor: {documento.criador.email}")
+
         log_debug("=" * 80)
 
         return documento
@@ -422,6 +463,35 @@ class WorkflowUGQ:
         db.session.commit()
 
         log_debug(f"📊 Documento status: {documento.status}")
+
+        # Envia e-mails para os aprovadores
+        if EMAIL_ENABLED:
+            if modo == 'sequencial':
+                # Envia apenas para o primeiro aprovador
+                primeiro_item = ItemBlocoAssinatura.query.filter_by(
+                    bloco_id=bloco.id,
+                    ordem=1
+                ).first()
+                if primeiro_item:
+                    EmailService.enviar_notificacao_tarefa(
+                        usuario_id=primeiro_item.aprovador_id,
+                        tipo_tarefa='Assinar Documento',
+                        documento_titulo=documento.titulo,
+                        documento_codigo=documento.codigo_definitivo
+                    )
+                    log_debug(f"📧 E-mail enviado para primeiro aprovador: ID {primeiro_item.aprovador_id}")
+            elif modo == 'concomitante':
+                # Envia para todos os aprovadores
+                itens = ItemBlocoAssinatura.query.filter_by(bloco_id=bloco.id).all()
+                for item in itens:
+                    EmailService.enviar_notificacao_tarefa(
+                        usuario_id=item.aprovador_id,
+                        tipo_tarefa='Assinar Documento',
+                        documento_titulo=documento.titulo,
+                        documento_codigo=documento.codigo_definitivo
+                    )
+                    log_debug(f"📧 E-mail enviado para aprovador #{item.ordem}: ID {item.aprovador_id}")
+
         log_debug("=" * 80)
 
         return bloco
@@ -961,6 +1031,16 @@ class WorkflowUGQ:
                     db.session.add(notificacao)
                     log_debug(f"📬 Notificação enviada para aprovador: {item.aprovador.nome}")
 
+                    # Envia e-mail para o aprovador
+                    if EMAIL_ENABLED:
+                        EmailService.enviar_notificacao_documento_publicado(
+                            usuario_id=item.aprovador_id,
+                            documento_titulo=documento.titulo,
+                            documento_codigo=documento.codigo_definitivo,
+                            versao=documento.versao
+                        )
+                        log_debug(f"📧 E-mail enviado para aprovador: {item.aprovador.email}")
+
         # 2. Notifica o AUTOR do documento
         autor = documento.criador
         if autor:
@@ -973,6 +1053,16 @@ class WorkflowUGQ:
             )
             db.session.add(notificacao_autor)
             log_debug(f"📬 Notificação enviada para autor: {autor.nome}")
+
+            # Envia e-mail para o autor
+            if EMAIL_ENABLED:
+                EmailService.enviar_notificacao_documento_publicado(
+                    usuario_id=autor.id,
+                    documento_titulo=documento.titulo,
+                    documento_codigo=documento.codigo_definitivo,
+                    versao=documento.versao
+                )
+                log_debug(f"📧 E-mail enviado para autor: {autor.email}")
 
         db.session.commit()
 

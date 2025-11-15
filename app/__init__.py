@@ -3,6 +3,7 @@ Inicialização do aplicativo Flask GED
 """
 from flask import Flask, render_template
 from flask_login import LoginManager
+from flask_mail import Mail
 import os
 import logging
 from logging.handlers import RotatingFileHandler
@@ -12,6 +13,7 @@ from app.models import db, Usuario
 
 
 login_manager = LoginManager()
+mail = Mail()
 
 
 def create_app(config_name='default'):
@@ -34,6 +36,7 @@ def create_app(config_name='default'):
     login_manager.init_app(app)
     login_manager.login_view = 'view.login'
     login_manager.login_message = 'Por favor, faça login para acessar esta página.'
+    mail.init_app(app)
 
     # Configura logging
     if not app.debug and not app.testing:
