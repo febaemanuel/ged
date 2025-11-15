@@ -311,11 +311,27 @@
     position: relative;
     height: 100%;
     transition: all 0.3s ease;
+    overflow: hidden;
 }
 
 .document-card:hover {
     transform: translateY(-8px);
     box-shadow: 0 20px 30px rgba(0,0,0,0.15) !important;
+}
+
+.document-card .card-body {
+    overflow: hidden;
+}
+
+.document-card .card-title {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+.document-card .alert {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 /* ===== FASE 3: QUICK ACTIONS ===== */
@@ -953,7 +969,7 @@ function renderCardsView(docs) {
 function createCardHTML(doc) {
     const metadados = doc.metadados || {};
 
-    // Garante que resumo seja sempre uma string
+    // Garante que resumo seja sempre uma string e remove "ok" isolado
     let resumo = '';
     if (typeof metadados.resumo === 'string') {
         resumo = metadados.resumo;
@@ -963,6 +979,9 @@ function createCardHTML(doc) {
     if (!resumo) {
         resumo = doc.descricao || '';
     }
+
+    // Remove "ok" isolado ou no final
+    resumo = resumo.replace(/\s*\bok\b\s*/gi, ' ').trim();
 
     const palavrasChave = metadados.palavras_chave || [];
     const isFavorite = favorites.includes(doc.id);
@@ -982,11 +1001,10 @@ function createCardHTML(doc) {
 
             <div class="card-body">
                 <h5 class="card-title">${highlightText(doc.titulo, currentSearch)}</h5>
-                <p class="card-text text-muted small">${truncate(resumo, 100)}</p>
 
                 ${resumo ? `
                 <div class="alert alert-light py-2 mb-2">
-                    <small><i class="bi bi-robot"></i> <strong>IA:</strong> ${truncate(resumo, 120)}</small>
+                    <small><i class="bi bi-robot"></i> <strong>Resumo:</strong> ${truncate(resumo, 120)}</small>
                 </div>
                 ` : ''}
 
@@ -1000,23 +1018,24 @@ function createCardHTML(doc) {
 
                 <hr>
                 <p class="small mb-1"><i class="bi bi-building"></i> <strong>Setor:</strong> ${doc.setor || '-'}</p>
-                <p class="small mb-1"><i class="bi bi-calendar-check"></i> <strong>Publicado:</strong> ${formatDate(doc.data_publicacao)}</p>
-                ${doc.data_vencimento ? `
-                <p class="small mb-1">
-                    <i class="bi bi-calendar-x"></i> <strong>Validade:</strong> ${formatDate(doc.data_vencimento)}
-                </p>
-                ` : ''}
+                <p class="small mb-0"><i class="bi bi-calendar-check"></i> <strong>Publicado:</strong> ${formatDate(doc.data_publicacao)}</p>
+            </div>
+
+            <div class="card-footer bg-light">
+                <a href="/documento/${doc.id}" class="btn btn-sm btn-primary w-100">
+                    <i class="bi bi-info-circle"></i> Ver Mais Informações
+                </a>
             </div>
 
             <div class="quick-actions-overlay">
+                <button class="quick-action-btn" onclick="window.location.href='/documento/${doc.id}'" title="Ver Detalhes">
+                    <i class="bi bi-info-circle-fill"></i> Detalhes
+                </button>
                 <button class="quick-action-btn" onclick="quickView(${doc.id})" title="Preview">
-                    <i class="bi bi-eye-fill"></i> Ver
+                    <i class="bi bi-eye-fill"></i> Preview
                 </button>
-                <button class="quick-action-btn" onclick="downloadDoc(${doc.id})" title="Download">
+                <button class="quick-action-btn" onclick="downloadDoc(${doc.id}, event)" title="Download">
                     <i class="bi bi-download"></i> Baixar
-                </button>
-                <button class="quick-action-btn" onclick="copyLink(${doc.id})" title="Copiar Link">
-                    <i class="bi bi-link-45deg"></i> Link
                 </button>
             </div>
         </div>
@@ -1039,13 +1058,16 @@ function renderListView(docs) {
 function createListHTML(doc) {
     const metadados = doc.metadados || {};
 
-    // Garante que resumo seja sempre uma string
+    // Garante que resumo seja sempre uma string e remove "ok" isolado
     let resumo = '';
     if (typeof metadados.resumo === 'string') {
         resumo = metadados.resumo;
     } else if (typeof metadados.resumo === 'object' && metadados.resumo !== null) {
         resumo = metadados.resumo.resumo || '';
     }
+
+    // Remove "ok" isolado ou no final
+    resumo = resumo.replace(/\s*\bok\b\s*/gi, ' ').trim();
 
     const palavrasChave = metadados.palavras_chave || [];
     const isFavorite = favorites.includes(doc.id);
@@ -1205,7 +1227,8 @@ function downloadDoc(docId, event) {
         event.preventDefault();
     }
 
-    window.location.href = `/documento/${docId}/download`;
+    // Abre download em nova aba
+    window.open(`/documento/${docId}/download`, '_blank');
     showToast('✅ Download iniciado!', 'success');
 }
 

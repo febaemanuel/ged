@@ -488,6 +488,7 @@ def repositorio_publico():
             'titulo': doc.titulo,
             'tipo_documento': doc.tipo_documento,
             'codigo_definitivo': doc.codigo_definitivo,
+            'codigo': doc.codigo_provisorio or doc.codigo_unico,
             'setor': doc.setor,
             'data_publicacao': doc.data_publicacao.isoformat(),
             'data_vencimento': doc.data_vencimento.isoformat() if doc.data_vencimento else None,
