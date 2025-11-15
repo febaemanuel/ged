@@ -131,9 +131,13 @@
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-4 fade-in-up">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('view.dashboard') }}">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('view.documentos') }}">Documentos</a></li>
-            <li class="breadcrumb-item active">{{ documento.codigo }}</li>
+            {% if current_user.is_authenticated %}
+                <li class="breadcrumb-item"><a href="{{ url_for('view.dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('view.documentos') }}">Documentos</a></li>
+            {% else %}
+                <li class="breadcrumb-item"><a href="{{ url_for('view.repositorio_publico') }}">Repositório Público</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active">{{ documento.codigo_definitivo or documento.codigo }}</li>
         </ol>
     </nav>
 
@@ -208,27 +212,27 @@
                     <!-- Ações -->
                     <hr>
                     <div class="d-flex gap-2 flex-wrap">
-                        {% if documento.arquivo_original %}
+                        {% if documento.arquivo_original and current_user.is_authenticated %}
                         <a href="{{ url_for('view.documento_download', id=documento.id) }}" class="btn btn-primary action-btn">
                             <i class="bi bi-download"></i> Download Original
                         </a>
                         {% endif %}
                         {% if documento.arquivo_publicado_pdf %}
                         <a href="{{ url_for('view.documento_download', id=documento.id) }}" class="btn btn-success action-btn">
-                            <i class="bi bi-file-pdf"></i> Download PDF Publicado
+                            <i class="bi bi-file-pdf"></i> Download PDF
                         </a>
                         {% endif %}
-                        {% if documento.arquivo_final %}
+                        {% if documento.arquivo_final and current_user.is_authenticated %}
                         <a href="{{ url_for('view.documento_download_assinaturas', id=documento.id) }}" class="btn btn-info action-btn">
                             <i class="bi bi-file-earmark-check"></i> PDF de Assinaturas
                         </a>
                         {% endif %}
-                        {% if current_user.is_gerente_ou_superior() %}
+                        {% if current_user.is_authenticated and current_user.is_gerente_ou_superior() %}
                         <a href="{{ url_for('view.documento_editar', id=documento.id) }}" class="btn btn-warning action-btn">
                             <i class="bi bi-pencil"></i> Editar
                         </a>
                         {% endif %}
-                        {% if current_user.is_admin() %}
+                        {% if current_user.is_authenticated and current_user.is_admin() %}
                         <button class="btn btn-danger action-btn" onclick="confirmarExclusao()">
                             <i class="bi bi-trash"></i> Excluir
                         </button>
@@ -463,10 +467,12 @@
 
         <!-- COLUNA LATERAL -->
         <div class="col-lg-4">
-            <!-- Timeline de Tarefas -->
+            {% if usuario_participou %}
+            <!-- Timeline de Tarefas - Apenas para Participantes -->
             <div class="card shadow-sm mb-4 slide-in-left">
                 <div class="card-header text-white" style="background: linear-gradient(135deg, var(--info-color) 0%, var(--primary-color) 100%);">
                     <h5 class="mb-0"><i class="bi bi-list-check"></i> Histórico do Documento</h5>
+                    <small class="badge bg-light text-dark mt-2"><i class="bi bi-person-check"></i> Você participou do processo de elaboração/publicação deste documento</small>
                 </div>
                 <div class="card-body">
                     {% if tarefas %}
@@ -536,8 +542,107 @@
                 </div>
                 {% endif %}
             </div>
+            {% else %}
+            <!-- Informações do Documento - Para Não-Participantes -->
+            <div class="card shadow-sm mb-4 slide-in-left">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, var(--success-color) 0%, var(--primary-color) 100%);">
+                    <h5 class="mb-0"><i class="bi bi-shield-check"></i> Informações de Validação</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success mb-3">
+                        <h6 class="mb-2"><i class="bi bi-check-circle-fill"></i> Documento Válido para Uso</h6>
+                        <small>Este documento passou por todas as etapas de validação e está aprovado para uso.</small>
+                    </div>
+
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex align-items-center">
+                            <i class="bi bi-check-circle-fill text-success me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <strong>Versão Atual</strong>
+                                <div class="text-muted small">{{ documento.versao }}</div>
+                            </div>
+                        </div>
+
+                        <div class="list-group-item d-flex align-items-center">
+                            <i class="bi bi-check-circle-fill text-success me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <strong>Triagem UGQ</strong>
+                                <div class="text-muted small">Documento recebido e triado pela Unidade de Gestão de Qualidade</div>
+                            </div>
+                        </div>
+
+                        <div class="list-group-item d-flex align-items-center">
+                            <i class="bi bi-check-circle-fill text-success me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <strong>Validação e Codificação</strong>
+                                <div class="text-muted small">Validado e codificado como {{ documento.codigo_definitivo or documento.codigo }}</div>
+                            </div>
+                        </div>
+
+                        {% set assinantes = [] %}
+                        {% for tarefa in tarefas %}
+                            {% if 'Assinar Documento' in tarefa.tipo_tarefa and tarefa.concluida %}
+                                {% if tarefa.is_grupo is defined and tarefa.is_grupo %}
+                                    {% for t in tarefa.tarefas_grupo %}
+                                        {% if t.concluida %}
+                                            {% set _ = assinantes.append(t.responsavel.nome) %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    {% set _ = assinantes.append(tarefa.responsavel.nome) %}
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if assinantes %}
+                        <div class="list-group-item d-flex align-items-center">
+                            <i class="bi bi-check-circle-fill text-success me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <strong>Aprovado e Assinado por</strong>
+                                <div class="text-muted small">
+                                    {% for assinante in assinantes %}
+                                        {{ assinante }}{% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="list-group-item d-flex align-items-center">
+                            <i class="bi bi-check-circle-fill text-success me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <strong>Publicado em</strong>
+                                <div class="text-muted small">{{ documento.data_publicacao.strftime('%d/%m/%Y') }}</div>
+                            </div>
+                        </div>
+
+                        {% if documento.data_vencimento %}
+                        <div class="list-group-item d-flex align-items-center">
+                            {% if documento.esta_vencido() %}
+                                <i class="bi bi-exclamation-circle-fill text-warning me-3" style="font-size: 1.5rem;"></i>
+                            {% else %}
+                                <i class="bi bi-calendar-check-fill text-info me-3" style="font-size: 1.5rem;"></i>
+                            {% endif %}
+                            <div>
+                                <strong>Validade</strong>
+                                <div class="text-muted small">
+                                    Válido até {{ documento.data_vencimento.strftime('%d/%m/%Y') }}
+                                    {% if documento.esta_vencido() %}
+                                        <span class="badge bg-warning text-dark ms-1">VENCIDO</span>
+                                    {% elif documento.dias_ate_vencimento() and documento.dias_ate_vencimento() <= 30 %}
+                                        <span class="badge bg-warning text-dark ms-1">{{ documento.dias_ate_vencimento() }} dias restantes</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Estatísticas Rápidas -->
+            {% if usuario_participou %}
             <div class="card shadow-sm">
                 <div class="card-header bg-dark text-white">
                     <h6 class="mb-0"><i class="bi bi-graph-up"></i> Estatísticas</h6>
@@ -557,6 +662,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>

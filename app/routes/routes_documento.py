@@ -453,12 +453,24 @@ def repositorio_publico():
         """Extrai metadados do documento"""
         try:
             metadados = json.loads(doc.metadados_json) if doc.metadados_json else {}
+            resumo_obj = metadados.get('resumo', {})
+
+            # O resumo pode ser um objeto ou string
+            if isinstance(resumo_obj, dict):
+                resumo_texto = resumo_obj.get('resumo', '')
+                palavras_chave = resumo_obj.get('palavras_chave', [])
+                topicos_principais = resumo_obj.get('topicos_principais', [])
+            else:
+                resumo_texto = resumo_obj if isinstance(resumo_obj, str) else ''
+                palavras_chave = metadados.get('palavras_chave', [])
+                topicos_principais = metadados.get('topicos_principais', [])
+
             return {
-                'palavras_chave': metadados.get('palavras_chave', []),
-                'resumo': metadados.get('resumo', ''),
-                'topicos_principais': metadados.get('topicos_principais', [])
+                'palavras_chave': palavras_chave,
+                'resumo': resumo_texto,
+                'topicos_principais': topicos_principais
             }
-        except:
+        except Exception as e:
             return {'palavras_chave': [], 'resumo': '', 'topicos_principais': []}
 
     # Estatísticas do repositório (para organização visual)
@@ -476,6 +488,7 @@ def repositorio_publico():
             'titulo': doc.titulo,
             'tipo_documento': doc.tipo_documento,
             'codigo_definitivo': doc.codigo_definitivo,
+            'codigo': doc.codigo_provisorio or doc.codigo_unico,
             'setor': doc.setor,
             'data_publicacao': doc.data_publicacao.isoformat(),
             'data_vencimento': doc.data_vencimento.isoformat() if doc.data_vencimento else None,
