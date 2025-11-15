@@ -13,7 +13,6 @@ import logging
 from app import db
 from app.models.models import Usuario, Documento, Tarefa, LogAI
 from app.utils.security import sanitize_like_pattern, get_safe_file_path, validate_password_strength
-from app.utils.rate_limiter import rate_limit
 from app.constants import *
 from config import Config
 
@@ -34,7 +33,6 @@ def index():
 
 
 @view_bp.route('/login', methods=['GET', 'POST'])
-@rate_limit(max_attempts=RATE_LIMIT_LOGIN_ATTEMPTS, window_seconds=RATE_LIMIT_LOGIN_WINDOW)
 def login():
     """Página de login"""
     if current_user.is_authenticated:
