@@ -156,6 +156,25 @@
                     </span>
                 </div>
                 <div class="card-body">
+                    {# Alerta para Triador verificar duplicatas/versões #}
+                    {% if current_user.is_authenticated and current_user.is_triador_ugq() and documento.status in ['Novo', 'Em Triagem'] %}
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="bi bi-exclamation-triangle-fill"></i> Checkpoint de Triagem: Verificar Duplicatas
+                        </h6>
+                        <p class="mb-2">
+                            <strong>Atenção Triador:</strong> Antes de aprovar, verifique se este documento já existe no sistema.
+                        </p>
+                        <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalVerificarDuplicatas">
+                            <i class="bi bi-search"></i> Buscar Documentos Similares
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" data-bs-toggle="modal" data-bs-target="#modalMarcarComoVersao">
+                            <i class="bi bi-arrow-up-circle"></i> Marcar como Nova Versão
+                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endif %}
+
                     <!-- Informações Principais -->
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
@@ -217,6 +236,16 @@
                             <i class="bi bi-download"></i> Download Original
                         </a>
                         {% endif %}
+
+                        {# Botão Substituir Arquivo - Só para Triador/Validador em status permitidos #}
+                        {% if current_user.is_authenticated and (current_user.is_triador_ugq() or current_user.is_validador_ugq()) %}
+                            {% if documento.status in ['Novo', 'Em Triagem', 'Em Validação', 'Em Correção'] %}
+                        <button class="btn btn-outline-primary action-btn" data-bs-toggle="modal" data-bs-target="#modalSubstituirArquivo">
+                            <i class="bi bi-arrow-repeat"></i> Substituir Arquivo
+                        </button>
+                            {% endif %}
+                        {% endif %}
+
                         {% if documento.arquivo_publicado_pdf %}
                         <a href="{{ url_for('view.documento_download', id=documento.id) }}" class="btn btn-success action-btn">
                             <i class="bi bi-file-pdf"></i> Download PDF
@@ -669,7 +698,299 @@
     </div>
 </div>
 
+<!-- Modal: Verificar Duplicatas -->
+<div class="modal fade" id="modalVerificarDuplicatas" tabindex="-1" aria-labelledby="modalVerificarDuplicatasLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalVerificarDuplicatasLabel">
+                    <i class="bi bi-search"></i> Buscar Documentos Similares
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    Busque por documentos já existentes do mesmo tipo <strong>({{ documento.tipo_documento }})</strong> para verificar duplicatas ou versões anteriores.
+                </div>
+
+                <div class="mb-3">
+                    <input type="text" id="buscaSimilares" class="form-control" placeholder="Digite palavras-chave do título...">
+                </div>
+
+                <div id="resultadosSimilares">
+                    <div class="text-center text-muted">
+                        <i class="bi bi-search"></i> Digite para buscar documentos similares
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Marcar como Nova Versão -->
+<div class="modal fade" id="modalMarcarComoVersao" tabindex="-1" aria-labelledby="modalMarcarComoVersaoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalMarcarComoVersaoLabel">
+                    <i class="bi bi-arrow-up-circle"></i> Marcar como Nova Versão
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formMarcarVersao">
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Importante:</strong> Ao marcar como nova versão, este documento substituirá a versão anterior quando for publicado.
+                        A versão antiga será marcada como "Obsoleta".
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Documento Original (versão anterior) <span class="text-danger">*</span></label>
+                        <select id="selectDocumentoOriginal" class="form-select" required>
+                            <option value="">Selecione o documento que será substituído...</option>
+                        </select>
+                        <div class="form-text">Apenas documentos publicados do tipo <strong>{{ documento.tipo_documento }}</strong></div>
+                    </div>
+
+                    <div id="infoDocumentoOriginal" class="card bg-light" style="display: none;">
+                        <div class="card-body">
+                            <h6>Informações do Documento Original:</h6>
+                            <p id="infoTitulo" class="mb-1"><strong>Título:</strong> -</p>
+                            <p id="infoCodigo" class="mb-1"><strong>Código:</strong> -</p>
+                            <p id="infoVersao" class="mb-0"><strong>Versão Atual:</strong> -</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Marcar como Nova Versão
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Substituir Arquivo -->
+<div class="modal fade" id="modalSubstituirArquivo" tabindex="-1" aria-labelledby="modalSubstituirArquivoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalSubstituirArquivoLabel">
+                    <i class="bi bi-arrow-repeat"></i> Substituir Arquivo do Documento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formSubstituirArquivo" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Você está prestes a substituir o arquivo original deste documento. O arquivo anterior será preservado no histórico.
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="novoArquivo" class="form-label">Novo Arquivo <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" id="novoArquivo" name="arquivo" accept=".doc,.docx,.odt,.pdf" required>
+                        <div class="form-text">Formatos aceitos: .doc, .docx, .odt, .pdf (máx. 16MB)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="motivoSubstituicao" class="form-label">Motivo da Substituição</label>
+                        <textarea class="form-control" id="motivoSubstituicao" name="motivo" rows="3" placeholder="Ex: Correções de formatação solicitadas">Arquivo substituído pelo validador/triador durante processo de análise</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Substituir Arquivo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+// ========================================
+// 1. BUSCAR DOCUMENTOS SIMILARES
+// ========================================
+let documentosPublicados = [];
+
+// Carregar documentos publicados quando abrir o modal
+document.getElementById('modalVerificarDuplicatas')?.addEventListener('show.bs.modal', async function() {
+    try {
+        const response = await fetch('/api/documento/lista?status=Publicado&tipo={{ documento.tipo_documento }}');
+        const data = await response.json();
+        documentosPublicados = data.documentos || [];
+    } catch (error) {
+        console.error('Erro ao carregar documentos:', error);
+    }
+});
+
+document.getElementById('modalMarcarComoVersao')?.addEventListener('show.bs.modal', async function() {
+    const select = document.getElementById('selectDocumentoOriginal');
+    select.innerHTML = '<option value="">Carregando...</option>';
+
+    try {
+        const response = await fetch('/api/documento/lista?status=Publicado&tipo={{ documento.tipo_documento }}');
+        const data = await response.json();
+        const docs = data.documentos || [];
+
+        select.innerHTML = '<option value="">Selecione o documento que será substituído...</option>';
+        docs.forEach(doc => {
+            const option = document.createElement('option');
+            option.value = doc.id;
+            option.textContent = `${doc.codigo_definitivo || doc.codigo} - ${doc.titulo} (${doc.versao})`;
+            option.dataset.titulo = doc.titulo;
+            option.dataset.codigo = doc.codigo_definitivo || doc.codigo;
+            option.dataset.versao = doc.versao;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar documentos:', error);
+        select.innerHTML = '<option value="">Erro ao carregar documentos</option>';
+    }
+});
+
+// Busca em tempo real
+document.getElementById('buscaSimilares')?.addEventListener('input', function(e) {
+    const termo = e.target.value.toLowerCase().trim();
+    const resultados = document.getElementById('resultadosSimilares');
+
+    if (!termo) {
+        resultados.innerHTML = '<div class="text-center text-muted"><i class="bi bi-search"></i> Digite para buscar documentos similares</div>';
+        return;
+    }
+
+    const matches = documentosPublicados.filter(doc =>
+        doc.titulo.toLowerCase().includes(termo)
+    );
+
+    if (matches.length === 0) {
+        resultados.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle"></i> Nenhum documento similar encontrado. Este parece ser um documento novo!</div>';
+        return;
+    }
+
+    let html = `<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> <strong>${matches.length} documento(s) similar(es) encontrado(s):</strong></div>`;
+    html += '<div class="list-group">';
+
+    matches.forEach(doc => {
+        html += `
+            <div class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">${doc.titulo}</h6>
+                    <small>${doc.versao}</small>
+                </div>
+                <p class="mb-1"><strong>Código:</strong> ${doc.codigo_definitivo || doc.codigo}</p>
+                <small class="text-muted">Tipo: ${doc.tipo_documento} | Setor: ${doc.setor || '-'}</small>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    resultados.innerHTML = html;
+});
+
+// Mostrar informações do documento selecionado
+document.getElementById('selectDocumentoOriginal')?.addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    const infoCard = document.getElementById('infoDocumentoOriginal');
+
+    if (this.value) {
+        document.getElementById('infoTitulo').innerHTML = `<strong>Título:</strong> ${selected.dataset.titulo}`;
+        document.getElementById('infoCodigo').innerHTML = `<strong>Código:</strong> ${selected.dataset.codigo}`;
+        document.getElementById('infoVersao').innerHTML = `<strong>Versão Atual:</strong> ${selected.dataset.versao}`;
+        infoCard.style.display = 'block';
+    } else {
+        infoCard.style.display = 'none';
+    }
+});
+
+// ========================================
+// 2. MARCAR COMO NOVA VERSÃO
+// ========================================
+document.getElementById('formMarcarVersao')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const docOriginalId = document.getElementById('selectDocumentoOriginal').value;
+    if (!docOriginalId) {
+        alert('Por favor, selecione o documento original');
+        return;
+    }
+
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Marcando...';
+
+    try {
+        const response = await fetch('/api/documento/{{ documento.id }}', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                versao_anterior_id: docOriginalId
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ Documento marcado como nova versão com sucesso!\n\nQuando este documento for publicado, a versão anterior será automaticamente marcada como Obsoleta.');
+            location.reload();
+        } else {
+            alert('❌ Erro: ' + data.erro);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Marcar como Nova Versão';
+        }
+    } catch (error) {
+        alert('❌ Erro ao marcar documento: ' + error.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Marcar como Nova Versão';
+    }
+});
+
+// ========================================
+// 3. SUBSTITUIR ARQUIVO
+// ========================================
+// Substituir Arquivo
+document.getElementById('formSubstituirArquivo')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Substituindo...';
+
+    try {
+        const response = await fetch('/api/documento/{{ documento.id }}/substituir_arquivo', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ ' + data.mensagem + '\n\nArquivo anterior: ' + data.arquivo_anterior + '\nArquivo novo: ' + data.arquivo_novo);
+            location.reload(); // Recarrega a página para mostrar o novo arquivo
+        } else {
+            alert('❌ Erro: ' + data.erro);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Substituir Arquivo';
+        }
+    } catch (error) {
+        alert('❌ Erro ao substituir arquivo: ' + error.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Substituir Arquivo';
+    }
+});
+
 function confirmarExclusao() {
     if (confirm('Tem certeza que deseja excluir este documento? Esta ação não pode ser desfeita!')) {
         fetch('{{ url_for("view.documento_excluir", id=documento.id) }}', {
