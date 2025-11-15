@@ -521,7 +521,10 @@ Responda APENAS em formato JSON válido, sem markdown:
 
 def search_semantic(query, limit=10, filters=None):
     """
-    Busca semântica de documentos
+    Busca semântica de documentos (DESABILITADA - usar busca textual normal)
+
+    NOTA: Função desabilitada para evitar custos com API de IA.
+    Use a busca textual em /busca ao invés desta.
 
     Args:
         query: Consulta em linguagem natural
@@ -530,33 +533,18 @@ def search_semantic(query, limit=10, filters=None):
 
     Returns:
         dict: {
-            'resultados': [
-                {
-                    'documento_id': int,
-                    'titulo': str,
-                    'similaridade': float,
-                    'trecho_relevante': str
-                },
-                ...
-            ],
-            'total': int
+            'resultados': [],
+            'total': 0,
+            'mensagem': 'Busca semântica desabilitada'
         }
-
-    Example:
-        >>> result = search_semantic("procedimentos de segurança")
-        >>> for doc in result['resultados']:
-        ...     print(f"{doc['titulo']}: {doc['similaridade']}")
     """
-    logger.info(f"Realizando busca semântica: '{query}'")
+    logger.warning(f"Busca semântica desabilitada (evitar custos). Query: '{query}'")
 
-    json_data = {
-        'query': query,
-        'limit': limit,
-        'filters': filters or {}
+    return {
+        'resultados': [],
+        'total': 0,
+        'mensagem': 'Busca semântica com IA está desabilitada. Use a busca textual normal.'
     }
-    result = _make_request('/api/ai/search', json_data=json_data)
-
-    return result
 
 
 def suggest_responsavel(tipo_documento, setor, descricao=None):
