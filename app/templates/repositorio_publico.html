@@ -1000,7 +1000,10 @@ function createCardHTML(doc) {
             </div>
 
             <div class="card-body">
-                <h5 class="card-title">${highlightText(doc.titulo, currentSearch)}</h5>
+                <h5 class="card-title">${doc.codigo_definitivo || doc.codigo}</h5>
+                ${doc.titulo && doc.titulo.toLowerCase() !== 'ok' && doc.titulo.toLowerCase() !== 'teste' ? `
+                    <p class="text-muted small mb-2">${highlightText(doc.titulo, currentSearch)}</p>
+                ` : ''}
 
                 ${resumo ? `
                 <div class="alert alert-light py-2 mb-2">
@@ -1071,7 +1074,12 @@ function createListHTML(doc) {
             <div class="list-item-main">
                 <i class="bi bi-file-earmark-pdf list-item-icon"></i>
                 <span class="list-item-code">${doc.codigo_definitivo || doc.codigo}</span>
-                <span class="list-item-title">${highlightText(doc.titulo, currentSearch)}</span>
+                <span class="list-item-title">
+                    ${doc.codigo_definitivo || doc.codigo}
+                    ${doc.titulo && doc.titulo.toLowerCase() !== 'ok' && doc.titulo.toLowerCase() !== 'teste' ? `
+                        <span class="text-muted small"> - ${highlightText(doc.titulo, currentSearch)}</span>
+                    ` : ''}
+                </span>
                 <div class="list-item-meta">
                     <span><i class="bi bi-building"></i> ${doc.setor || '-'}</span>
                     <span><i class="bi bi-calendar"></i> ${formatDate(doc.data_publicacao)}</span>
