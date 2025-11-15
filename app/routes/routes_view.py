@@ -123,7 +123,9 @@ def documentos():
     if busca:
         query = query.filter(
             (Documento.titulo.ilike(f'%{busca}%')) |
-            (Documento.codigo.ilike(f'%{busca}%'))
+            (Documento.codigo_provisorio.ilike(f'%{busca}%')) |
+            (Documento.codigo_definitivo.ilike(f'%{busca}%')) |
+            (Documento.codigo_unico.ilike(f'%{busca}%'))
         )
     if status:
         query = query.filter_by(status=status)
@@ -906,25 +908,37 @@ def repositorio_publico():
     busca = request.args.get('q')
     tipo = request.args.get('tipo')
     setor = request.args.get('setor')
+    palavras_chave = request.args.get('palavras_chave')
+    order_by = request.args.get('order_by', 'data')
 
     if busca:
         query = query.filter(
             (Documento.titulo.ilike(f'%{busca}%')) |
-            (Documento.codigo.ilike(f'%{busca}%'))
+            (Documento.codigo_provisorio.ilike(f'%{busca}%')) |
+            (Documento.codigo_definitivo.ilike(f'%{busca}%')) |
+            (Documento.codigo_unico.ilike(f'%{busca}%')) |
+            (Documento.descricao.ilike(f'%{busca}%')) |
+            (Documento.texto_extraido.ilike(f'%{busca}%'))
         )
     if tipo:
         query = query.filter_by(tipo_documento=tipo)
     if setor:
         query = query.filter_by(setor=setor)
+    if palavras_chave:
+        # Busca em palavras-chave extraídas pela IA (armazenadas em metadados_json)
+        query = query.filter(Documento.metadados_json.ilike(f'%{palavras_chave}%'))
 
-    documentos = query.order_by(Documento.data_publicacao.desc()).paginate(
+    # Ordenação
+    if order_by == 'setor_tipo':
+        query = query.order_by(Documento.setor.asc(), Documento.tipo_documento.asc(), Documento.data_publicacao.desc())
+    elif order_by == 'tipo_setor':
+        query = query.order_by(Documento.tipo_documento.asc(), Documento.setor.asc(), Documento.data_publicacao.desc())
+    else:  # 'data'
+        query = query.order_by(Documento.data_publicacao.desc())
+
+    documentos = query.paginate(
         page=page, per_page=per_page, error_out=False
     )
-
-    # Adicionar propriedades de vencimento
-    for doc in documentos.items:
-        doc.esta_vencido_flag = doc.data_vencimento and doc.data_vencimento < datetime.utcnow()
-        doc.proxima_vencimento_flag = doc.data_vencimento and doc.data_vencimento < datetime.utcnow() + timedelta(days=30) and not doc.esta_vencido_flag
 
     return render_template('repositorio_publico.html', documentos=documentos)
 

@@ -185,6 +185,14 @@ class Documento(db.Model):
             return delta.days
         return None
 
+    def proxima_vencimento(self, dias=30):
+        """Verifica se o documento vence nos próximos X dias"""
+        if self.data_vencimento and not self.esta_vencido():
+            dias_restantes = self.dias_ate_vencimento()
+            if dias_restantes is not None and dias_restantes <= dias:
+                return True
+        return False
+
     def get_metadados(self):
         """Retorna metadados como dicionário"""
         if self.metadados_json:
