@@ -60,6 +60,7 @@ def create_app(config_name='default'):
     from app.routes import (
         auth_bp,
         documento_bp,
+        documentos_api_bp,
         tarefa_bp,
         ia_bp,
         dashboard_bp,
@@ -69,6 +70,7 @@ def create_app(config_name='default'):
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(documento_bp)
+    app.register_blueprint(documentos_api_bp)
     app.register_blueprint(tarefa_bp)
     app.register_blueprint(ia_bp)
     app.register_blueprint(dashboard_bp)

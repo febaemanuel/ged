@@ -14,6 +14,7 @@ Endpoints:
 from flask import Blueprint, request, jsonify, send_file, current_app, render_template
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
+from sqlalchemy import or_
 from datetime import datetime
 import os
 
@@ -21,6 +22,9 @@ from app.models import db, Documento, Tarefa, Usuario
 from app.services import extract_text
 
 bp = Blueprint('documento', __name__, url_prefix='/api/documento')
+
+# Blueprint adicional para rotas de API de documentos (plural)
+bp_api = Blueprint('documentos_api', __name__, url_prefix='/api/documentos')
 
 
 def allowed_file(filename):
@@ -841,3 +845,77 @@ def criar_nova_versao(id):
         'versao_anterior': versao_atual,
         'status': novo_documento.status
     }), 201
+
+
+# ============================================================================
+# ROTA DE BUSCA DE DOCUMENTOS (para Checkpoint 1)
+# ============================================================================
+
+@bp_api.route('/buscar', methods=['GET'])
+@login_required
+def buscar_documentos():
+    """
+    Busca documentos por termo (usado no Checkpoint 1 de triagem)
+
+    Query params:
+        - q: Termo de busca (título, código)
+        - limit: Número máximo de resultados (padrão: 15)
+
+    Returns:
+        Lista de documentos encontrados com informações básicas
+    """
+    termo = request.args.get('q', '').strip()
+    limit = request.args.get('limit', 15, type=int)
+
+    if not termo or len(termo) < 3:
+        return jsonify([])
+
+    # Query base
+    query = Documento.query
+
+    # Busca por título ou código
+    query = query.filter(
+        or_(
+            Documento.titulo.ilike(f'%{termo}%'),
+            Documento.codigo_provisorio.ilike(f'%{termo}%'),
+            Documento.codigo_definitivo.ilike(f'%{termo}%'),
+            Documento.codigo_unico.ilike(f'%{termo}%')
+        )
+    )
+
+    # Aplica filtros de permissão
+    if not current_user.is_admin():
+        if current_user.perfil == 'comum':
+            # Usuários comuns veem apenas seus documentos
+            query = query.filter_by(criador_id=current_user.id)
+        elif current_user.setor and not current_user.is_triador_ugq() and not current_user.is_validador_ugq():
+            # Usuários de setor veem documentos do setor ou próprios
+            query = query.filter(
+                or_(
+                    Documento.setor == current_user.setor,
+                    Documento.criador_id == current_user.id
+                )
+            )
+        # Triadores e Validadores UGQ veem todos os documentos
+
+    # Ordena por data de criação (mais recentes primeiro) e limita resultados
+    documentos = query.order_by(Documento.data_criacao.desc()).limit(limit).all()
+
+    # Prepara resposta
+    resultados = []
+    for doc in documentos:
+        resultado = {
+            'id': doc.id,
+            'titulo': doc.titulo,
+            'codigo': doc.codigo,
+            'codigo_unico': doc.codigo_unico,
+            'tipo_documento': doc.tipo_documento,
+            'status': doc.status,
+            'versao': doc.versao or 'v1.0',
+            'data_criacao': doc.data_criacao.strftime('%d/%m/%Y %H:%M'),
+            'criador': doc.criador.nome if doc.criador else 'Desconhecido',
+            'setor': doc.setor or 'Não definido'
+        }
+        resultados.append(resultado)
+
+    return jsonify(resultados)
