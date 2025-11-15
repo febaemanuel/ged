@@ -1021,12 +1021,6 @@ function createCardHTML(doc) {
                 <p class="small mb-0"><i class="bi bi-calendar-check"></i> <strong>Publicado:</strong> ${formatDate(doc.data_publicacao)}</p>
             </div>
 
-            <div class="card-footer bg-light">
-                <a href="/documento/${doc.id}" class="btn btn-sm btn-primary w-100">
-                    <i class="bi bi-info-circle"></i> Ver Mais Informações
-                </a>
-            </div>
-
             <div class="quick-actions-overlay">
                 <button class="quick-action-btn" onclick="window.location.href='/documento/${doc.id}'" title="Ver Detalhes">
                     <i class="bi bi-info-circle-fill"></i> Detalhes
@@ -1073,7 +1067,7 @@ function createListHTML(doc) {
     const isFavorite = favorites.includes(doc.id);
 
     return `
-        <div class="list-item" onclick="quickView(${doc.id})">
+        <div class="list-item">
             <div class="list-item-main">
                 <i class="bi bi-file-earmark-pdf list-item-icon"></i>
                 <span class="list-item-code">${doc.codigo_definitivo || doc.codigo}</span>
@@ -1085,14 +1079,17 @@ function createListHTML(doc) {
                 </div>
             </div>
             <div class="list-item-actions">
-                <button class="list-action-btn" onclick="toggleFavorite(${doc.id}, event)" title="Favoritar">
-                    <i class="bi bi-star${isFavorite ? '-fill' : ''}" style="color: ${isFavorite ? 'gold' : 'inherit'}"></i>
+                <button class="list-action-btn" onclick="window.location.href='/documento/${doc.id}'; event.stopPropagation();" title="Ver Detalhes">
+                    <i class="bi bi-info-circle-fill"></i>
+                </button>
+                <button class="list-action-btn" onclick="quickView(${doc.id}); event.stopPropagation();" title="Preview">
+                    <i class="bi bi-eye-fill"></i>
                 </button>
                 <button class="list-action-btn" onclick="downloadDoc(${doc.id}, event)" title="Download">
                     <i class="bi bi-download"></i>
                 </button>
-                <button class="list-action-btn" onclick="copyLink(${doc.id}, event)" title="Copiar Link">
-                    <i class="bi bi-link-45deg"></i>
+                <button class="list-action-btn" onclick="toggleFavorite(${doc.id}, event)" title="Favoritar">
+                    <i class="bi bi-star${isFavorite ? '-fill' : ''}" style="color: ${isFavorite ? 'gold' : 'inherit'}"></i>
                 </button>
             </div>
 
