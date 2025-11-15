@@ -828,10 +828,10 @@ class WorkflowUGQ:
 
         # Define nome do arquivo
         filename = f"assinaturas_{documento.codigo_definitivo.replace('.', '_')}.pdf"
-        filepath = os.path.join('uploads', 'assinaturas', filename)
+        filepath = os.path.join(Config.ASSINATURAS_FOLDER, filename)
 
         # Cria diretório se não existir
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        os.makedirs(Config.ASSINATURAS_FOLDER, exist_ok=True)
 
         # Cria documento PDF
         doc = SimpleDocTemplate(filepath, pagesize=A4)
