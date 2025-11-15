@@ -197,18 +197,27 @@ def _make_request(endpoint, method='POST', files=None, json_data=None):
         raise AIClientError(f"Erro ao comunicar com API de IA: {str(e)}")
 
 
-def extract_text(file_path):
+def extract_text(file_path, optimize_large_docs=True, max_pages_threshold=5):
     """
     Extrai texto de um documento (.doc, .docx, .odt, .pdf)
 
+    Para documentos grandes (>5 páginas), extrai apenas páginas selecionadas
+    para economizar tokens na análise de IA:
+    - 2 primeiras páginas
+    - 2 páginas do meio
+    - 1 última página
+
     Args:
         file_path: Caminho do arquivo
+        optimize_large_docs: Se True, otimiza extração para docs grandes
+        max_pages_threshold: Número de páginas a partir do qual otimiza (padrão: 5)
 
     Returns:
         dict: {
             'texto': str,
             'metadados': dict,
-            'num_paginas': int (se aplicável)
+            'num_paginas': int (se aplicável),
+            'paginas_extraidas': list (páginas que foram extraídas)
         }
 
     Example:
@@ -223,23 +232,85 @@ def extract_text(file_path):
     extensao = file_path.lower().split('.')[-1]
     texto = ""
     metadados = {}
+    paginas_extraidas = []
 
     try:
         if extensao == 'pdf':
             # Extrai texto de PDF
             from PyPDF2 import PdfReader
             reader = PdfReader(file_path)
-            metadados['num_paginas'] = len(reader.pages)
-            for page in reader.pages:
-                texto += page.extract_text() + "\n"
+            num_paginas = len(reader.pages)
+            metadados['num_paginas'] = num_paginas
+
+            # Otimização para documentos grandes
+            if optimize_large_docs and num_paginas > max_pages_threshold:
+                logger.info(f"📄 Documento grande detectado ({num_paginas} páginas). Extraindo páginas selecionadas...")
+
+                # Páginas a extrair: 2 primeiras + 2 do meio + 1 última
+                meio = num_paginas // 2
+                paginas_para_extrair = [
+                    0, 1,  # 2 primeiras
+                    meio - 1, meio,  # 2 do meio
+                    num_paginas - 1  # última
+                ]
+
+                # Remove duplicatas e ordena
+                paginas_para_extrair = sorted(set(p for p in paginas_para_extrair if 0 <= p < num_paginas))
+                paginas_extraidas = [p + 1 for p in paginas_para_extrair]  # Converte para 1-indexed
+
+                logger.info(f"📑 Extraindo páginas: {paginas_extraidas} de {num_paginas}")
+
+                for idx in paginas_para_extrair:
+                    texto += f"\n--- PÁGINA {idx + 1} ---\n"
+                    texto += reader.pages[idx].extract_text() + "\n"
+
+                metadados['otimizado'] = True
+                metadados['paginas_extraidas'] = paginas_extraidas
+                metadados['total_paginas'] = num_paginas
+            else:
+                # Extrai todas as páginas (documento pequeno)
+                for idx, page in enumerate(reader.pages):
+                    texto += page.extract_text() + "\n"
+                    paginas_extraidas.append(idx + 1)
+                metadados['otimizado'] = False
 
         elif extensao in ['doc', 'docx']:
             # Extrai texto de Word
             from docx import Document
             doc = Document(file_path)
-            metadados['num_paragrafos'] = len(doc.paragraphs)
-            for para in doc.paragraphs:
-                texto += para.text + "\n"
+            num_paragrafos = len(doc.paragraphs)
+            metadados['num_paragrafos'] = num_paragrafos
+
+            # Estima número de páginas (aproximadamente 30 parágrafos por página)
+            num_paginas_estimado = max(1, num_paragrafos // 30)
+            metadados['num_paginas_estimado'] = num_paginas_estimado
+
+            # Otimização para documentos grandes
+            if optimize_large_docs and num_paginas_estimado > max_pages_threshold:
+                logger.info(f"📄 Documento Word grande detectado (~{num_paginas_estimado} páginas, {num_paragrafos} parágrafos)")
+
+                # Calcula índices de parágrafos para extrair
+                paragrafos_por_secao = num_paragrafos // 30  # Aprox 30 parágrafos = 1 página
+                inicio = min(60, num_paragrafos)  # ~2 primeiras páginas
+                meio_start = max(0, (num_paragrafos // 2) - 30)
+                meio_end = min(num_paragrafos, meio_start + 60)  # ~2 páginas do meio
+                fim = max(0, num_paragrafos - 30)  # ~1 última página
+
+                logger.info(f"📑 Extraindo: início (0-{inicio}), meio ({meio_start}-{meio_end}), fim ({fim}-{num_paragrafos})")
+
+                for i, para in enumerate(doc.paragraphs):
+                    if (i < inicio) or (meio_start <= i < meio_end) or (i >= fim):
+                        texto += para.text + "\n"
+                        paginas_extraidas.append(i)
+
+                metadados['otimizado'] = True
+                metadados['paragrafos_extraidos'] = len(paginas_extraidas)
+            else:
+                # Extrai todos os parágrafos
+                for i, para in enumerate(doc.paragraphs):
+                    texto += para.text + "\n"
+                    paginas_extraidas.append(i)
+                metadados['otimizado'] = False
 
         elif extensao == 'odt':
             # Extrai texto de ODT
@@ -247,18 +318,47 @@ def extract_text(file_path):
             from odf.opendocument import load
             textdoc = load(file_path)
             allparas = textdoc.getElementsByType(text.P)
-            for para in allparas:
-                texto += teletype.extractText(para) + "\n"
+            num_paragrafos = len(allparas)
+            metadados['num_paragrafos'] = num_paragrafos
+
+            # Estima número de páginas
+            num_paginas_estimado = max(1, num_paragrafos // 30)
+            metadados['num_paginas_estimado'] = num_paginas_estimado
+
+            # Otimização para documentos grandes
+            if optimize_large_docs and num_paginas_estimado > max_pages_threshold:
+                logger.info(f"📄 Documento ODT grande detectado (~{num_paginas_estimado} páginas, {num_paragrafos} parágrafos)")
+
+                inicio = min(60, num_paragrafos)
+                meio_start = max(0, (num_paragrafos // 2) - 30)
+                meio_end = min(num_paragrafos, meio_start + 60)
+                fim = max(0, num_paragrafos - 30)
+
+                for i, para in enumerate(allparas):
+                    if (i < inicio) or (meio_start <= i < meio_end) or (i >= fim):
+                        texto += teletype.extractText(para) + "\n"
+                        paginas_extraidas.append(i)
+
+                metadados['otimizado'] = True
+                metadados['paragrafos_extraidos'] = len(paginas_extraidas)
+            else:
+                for i, para in enumerate(allparas):
+                    texto += teletype.extractText(para) + "\n"
+                    paginas_extraidas.append(i)
+                metadados['otimizado'] = False
 
         else:
             raise AIClientError(f"Extensão não suportada: {extensao}")
 
         metadados['tamanho_caracteres'] = len(texto)
         metadados['tamanho_palavras'] = len(texto.split())
+        if paginas_extraidas and metadados.get('otimizado'):
+            metadados['info_otimizacao'] = f"Extraídas páginas selecionadas para economizar tokens"
 
         return {
             'texto': texto.strip(),
-            'metadados': metadados
+            'metadados': metadados,
+            'paginas_extraidas': paginas_extraidas if paginas_extraidas else None
         }
 
     except ImportError as e:

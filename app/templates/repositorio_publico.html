@@ -10,16 +10,49 @@
         <i class="bi bi-info-circle"></i> Documentos publicados e disponíveis para toda a organização
     </div>
 
+    <!-- Estatísticas (se disponível via API) -->
+    <div class="row mb-3" id="stats-container" style="display: none;">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-building"></i> Documentos por Setor
+                </div>
+                <div class="card-body" id="stats-setor"></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-file-text"></i> Documentos por Tipo
+                </div>
+                <div class="card-body" id="stats-tipo"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Filtros -->
     <div class="card mb-4">
         <div class="card-body">
             <form method="GET" class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Buscar</label>
-                    <input type="text" class="form-control" name="q" value="{{ request.args.get('q', '') }}" placeholder="Título ou código">
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="bi bi-search"></i> Buscar
+                    </label>
+                    <input type="text" class="form-control" name="q" value="{{ request.args.get('q', '') }}"
+                           placeholder="Título, código ou conteúdo">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Tipo</label>
+                    <label class="form-label">
+                        <i class="bi bi-tags"></i> Palavras-chave
+                    </label>
+                    <input type="text" class="form-control" name="palavras_chave"
+                           value="{{ request.args.get('palavras_chave', '') }}"
+                           placeholder="Palavras-chave extraídas pela IA">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">
+                        <i class="bi bi-file-text"></i> Tipo
+                    </label>
                     <select class="form-select" name="tipo">
                         <option value="">Todos</option>
                         <option value="POP" {% if request.args.get('tipo') == 'POP' %}selected{% endif %}>POP</option>
@@ -27,15 +60,29 @@
                         <option value="Protocolo" {% if request.args.get('tipo') == 'Protocolo' %}selected{% endif %}>Protocolo</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Setor</label>
+                <div class="col-md-2">
+                    <label class="form-label">
+                        <i class="bi bi-building"></i> Setor
+                    </label>
                     <input type="text" class="form-control" name="setor" value="{{ request.args.get('setor', '') }}">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">&nbsp;</label>
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-search"></i> Filtrar
+                    <label class="form-label">
+                        <i class="bi bi-sort-down"></i> Ordenar por
+                    </label>
+                    <select class="form-select" name="order_by">
+                        <option value="setor_tipo" {% if request.args.get('order_by') == 'setor_tipo' %}selected{% endif %}>Setor > Tipo</option>
+                        <option value="tipo_setor" {% if request.args.get('order_by') == 'tipo_setor' %}selected{% endif %}>Tipo > Setor</option>
+                        <option value="data" {% if request.args.get('order_by') == 'data' %}selected{% endif %}>Data</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Buscar
                     </button>
+                    <a href="{{ url_for('view.repositorio_publico') }}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Limpar Filtros
+                    </a>
                 </div>
             </form>
         </div>
@@ -58,9 +105,29 @@
                     <p class="card-text text-muted small">
                         {{ (doc.descricao or '')[:100] }}{% if doc.descricao and doc.descricao|length > 100 %}...{% endif %}
                     </p>
+
+                    <!-- Resumo da IA (se disponível) -->
+                    {% if doc.get_metadados() and doc.get_metadados().get('resumo') %}
+                    <div class="alert alert-light py-2 mb-2">
+                        <small><i class="bi bi-robot"></i> <strong>IA:</strong> {{ doc.get_metadados().get('resumo')[:120] }}{% if doc.get_metadados().get('resumo')|length > 120 %}...{% endif %}</small>
+                    </div>
+                    {% endif %}
+
+                    <!-- Palavras-chave da IA -->
+                    {% if doc.get_metadados() and doc.get_metadados().get('palavras_chave') %}
+                    <div class="mb-2">
+                        {% for palavra in doc.get_metadados().get('palavras_chave')[:5] %}
+                        <span class="badge bg-info text-dark me-1">{{ palavra }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
                     <hr>
                     <p class="small mb-1">
                         <i class="bi bi-building"></i> <strong>Setor:</strong> {{ doc.setor or '-' }}
+                    </p>
+                    <p class="small mb-1">
+                        <i class="bi bi-file-text"></i> <strong>Tipo:</strong> {{ doc.tipo_documento }}
                     </p>
                     <p class="small mb-1">
                         <i class="bi bi-calendar"></i> <strong>Versão:</strong> {{ doc.versao }}
@@ -124,4 +191,75 @@
     </div>
     {% endif %}
 </div>
+
+{% block extra_js %}
+<script>
+    // Carrega estatísticas do repositório via API
+    fetch('/api/documento/publico?per_page=1')
+        .then(response => response.json())
+        .then(data => {
+            if (data.stats) {
+                // Exibe estatísticas por setor
+                const statsPorSetor = data.stats.por_setor;
+                const statsSetor = document.getElementById('stats-setor');
+                if (Object.keys(statsPorSetor).length > 0) {
+                    let html = '<div class="list-group list-group-flush">';
+                    for (const [setor, count] of Object.entries(statsPorSetor)) {
+                        html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+                            ${setor || 'Sem setor'}
+                            <span class="badge bg-primary rounded-pill">${count}</span>
+                        </div>`;
+                    }
+                    html += '</div>';
+                    statsSetor.innerHTML = html;
+                } else {
+                    statsSetor.innerHTML = '<p class="text-muted">Nenhum dado disponível</p>';
+                }
+
+                // Exibe estatísticas por tipo
+                const statsPorTipo = data.stats.por_tipo;
+                const statsTipo = document.getElementById('stats-tipo');
+                if (Object.keys(statsPorTipo).length > 0) {
+                    let html = '<div class="list-group list-group-flush">';
+                    for (const [tipo, count] of Object.entries(statsPorTipo)) {
+                        html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+                            ${tipo}
+                            <span class="badge bg-success rounded-pill">${count}</span>
+                        </div>`;
+                    }
+                    html += '</div>';
+                    statsTipo.innerHTML = html;
+                } else {
+                    statsTipo.innerHTML = '<p class="text-muted">Nenhum dado disponível</p>';
+                }
+
+                // Mostra container de estatísticas
+                document.getElementById('stats-container').style.display = '';
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar estatísticas:', error);
+        });
+
+    // Busca instantânea (debounced)
+    let searchTimeout;
+    const searchInput = document.querySelector('input[name="q"]');
+    const palavrasChaveInput = document.querySelector('input[name="palavras_chave"]');
+
+    function setupInstantSearch(input) {
+        if (input) {
+            input.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                // Aguarda 500ms após parar de digitar para fazer a busca
+                searchTimeout = setTimeout(() => {
+                    // Auto-submit do formulário
+                    // this.form.submit(); // Descomente se quiser busca automática
+                }, 500);
+            });
+        }
+    }
+
+    setupInstantSearch(searchInput);
+    setupInstantSearch(palavrasChaveInput);
+</script>
 {% endblock %}
