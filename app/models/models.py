@@ -448,23 +448,35 @@ class ItemBlocoAssinatura(db.Model):
     status = db.Column(db.String(50), default='Pendente', index=True)
     parecer = db.Column(db.Text)
     data_assinatura = db.Column(db.DateTime)
+
+    # Assinatura digital profissional
+    assinatura_hash = db.Column(db.String(255))  # SHA-256 hash da assinatura
+    ip_address = db.Column(db.String(45))  # IP de onde foi assinado (IPv4 ou IPv6)
+    user_agent = db.Column(db.String(255))  # Navegador/sistema usado
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relacionamento
     aprovador = db.relationship('Usuario', foreign_keys=[aprovador_id], backref='itens_aprovacao')
 
-    def aprovar(self, parecer):
-        """Marca item como aprovado"""
+    def aprovar(self, parecer, senha_hash=None, ip_address=None, user_agent=None):
+        """Marca item como aprovado com assinatura digital"""
         self.status = 'Aprovado'
         self.parecer = parecer
         self.data_assinatura = datetime.utcnow()
+        self.assinatura_hash = senha_hash
+        self.ip_address = ip_address
+        self.user_agent = user_agent
 
-    def reprovar(self, parecer):
+    def reprovar(self, parecer, senha_hash=None, ip_address=None, user_agent=None):
         """Marca item como reprovado"""
         self.status = 'Reprovado'
         self.parecer = parecer
         self.data_assinatura = datetime.utcnow()
+        self.assinatura_hash = senha_hash
+        self.ip_address = ip_address
+        self.user_agent = user_agent
 
     def __repr__(self):
         return f'<Item #{self.ordem} - {self.aprovador.nome if self.aprovador else "?"} - {self.status}>'

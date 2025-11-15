@@ -194,21 +194,23 @@
                     <!-- WORKFLOW UGQ: CODIFICAÇÃO -->
                     {% elif tarefa.tipo_tarefa == 'Validar e Codificar Documento' %}
                     <h5><i class="bi bi-upc-scan"></i> Codificar Documento</h5>
-                    <form method="POST" action="{{ url_for('view.codificar_documento', tarefa_id=tarefa.id) }}">
+
+                    <!-- Formulário de Codificação -->
+                    <form method="POST" action="{{ url_for('view.codificar_documento', tarefa_id=tarefa.id) }}" id="formCodificar">
                         <div class="alert alert-info">
-                            <strong>Validador UGQ:</strong> Defina o código definitivo e versão do documento.
+                            <strong>Validador UGQ:</strong> Defina o código definitivo e versão do documento, ou devolva para correção.
                         </div>
 
                         <div class="mb-3">
                             <label for="codigo_definitivo" class="form-label">Código Definitivo *</label>
                             <input type="text" class="form-control" id="codigo_definitivo" name="codigo_definitivo"
-                                   value="{{ codigo_sugerido }}" required>
+                                   value="{{ codigo_sugerido }}">
                             <small class="text-muted">Código sugerido pela Lista Mestra: <strong>{{ codigo_sugerido }}</strong></small>
                         </div>
 
                         <div class="mb-3">
                             <label for="versao" class="form-label">Versão *</label>
-                            <input type="text" class="form-control" id="versao" name="versao" value="v1.0" required>
+                            <input type="text" class="form-control" id="versao" name="versao" value="v1.0">
                             <small class="text-muted">Ex: v1.0, v2.0, v2.1</small>
                         </div>
 
@@ -227,12 +229,44 @@
                         </div>
                     </form>
 
+                    <hr>
+
+                    <!-- Opção de Devolução -->
+                    <h6 class="text-warning"><i class="bi bi-arrow-return-left"></i> Devolver Documento</h6>
+                    <form method="POST" action="{{ url_for('view.validador_devolver_documento', tarefa_id=tarefa.id) }}">
+                        <div class="alert alert-warning">
+                            <strong>Atenção:</strong> Use esta opção caso o documento precise de correções antes de prosseguir.
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="destino" class="form-label">Devolver para: *</label>
+                            <select class="form-select" id="destino" name="destino" required>
+                                <option value="">Selecione...</option>
+                                <option value="triador">Triador UGQ (nova triagem)</option>
+                                <option value="autor">Autor (correção direta)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="motivo" class="form-label">Motivo da Devolução *</label>
+                            <textarea class="form-control" id="motivo" name="motivo" rows="3"
+                                      placeholder="Descreva o motivo da devolução..." required></textarea>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-warning">
+                                <i class="bi bi-arrow-return-left"></i> Devolver Documento
+                            </button>
+                        </div>
+                    </form>
+
                     <!-- WORKFLOW UGQ: ASSINATURA -->
                     {% elif 'Assinar Documento' in tarefa.tipo_tarefa %}
-                    <h5><i class="bi bi-pen"></i> Assinatura de Documento</h5>
-                    <form method="POST" action="{{ url_for('view.assinar_documento', tarefa_id=tarefa.id) }}">
+                    <h5><i class="bi bi-pen"></i> Assinatura Digital de Documento</h5>
+                    <form method="POST" action="{{ url_for('view.assinar_documento', tarefa_id=tarefa.id) }}" id="formAssinatura">
                         <div class="alert alert-primary">
-                            <strong>Aprovador:</strong> Revise o documento e decida sobre a aprovação.
+                            <strong><i class="bi bi-shield-check"></i> Assinatura Digital:</strong> Revise o documento e confirme com sua senha.
+                            Sua assinatura será registrada com hash SHA-256 para garantir autenticidade.
                         </div>
 
                         <div class="mb-3">
@@ -241,10 +275,24 @@
                                       placeholder="Justifique sua decisão..." required></textarea>
                         </div>
 
+                        <div class="mb-3">
+                            <label for="senha" class="form-label">
+                                <i class="bi bi-lock-fill"></i> Sua Senha (para confirmar assinatura) *
+                            </label>
+                            <input type="password" class="form-control" id="senha" name="senha"
+                                   placeholder="Digite sua senha para assinar digitalmente" required>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i> Sua senha será verificada e um hash único será gerado para esta assinatura
+                            </small>
+                        </div>
+
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="{{ url_for('view.tarefas') }}" class="btn btn-secondary">
                                 <i class="bi bi-x-circle"></i> Cancelar
                             </a>
+                            <button type="submit" name="acao" value="devolver" class="btn btn-warning">
+                                <i class="bi bi-arrow-return-left"></i> Devolver para Validador
+                            </button>
                             <button type="submit" name="acao" value="reprovar" class="btn btn-danger">
                                 <i class="bi bi-x-circle"></i> Reprovar
                             </button>
@@ -253,6 +301,20 @@
                             </button>
                         </div>
                     </form>
+
+                    <script>
+                        // Se clicar em "Devolver", senha não é obrigatória
+                        document.querySelectorAll('button[name="acao"]').forEach(btn => {
+                            btn.addEventListener('click', function(e) {
+                                const senha = document.getElementById('senha');
+                                if (this.value === 'devolver') {
+                                    senha.required = false;
+                                } else {
+                                    senha.required = true;
+                                }
+                            });
+                        });
+                    </script>
 
                     <!-- WORKFLOW UGQ: PUBLICAÇÃO -->
                     {% elif tarefa.tipo_tarefa == 'Publicar Documento Aprovado' %}
