@@ -521,7 +521,10 @@ Responda APENAS em formato JSON válido, sem markdown:
 
 def search_semantic(query, limit=10, filters=None):
     """
-    Busca semântica de documentos usando IA
+    Busca semântica de documentos (DESABILITADA - usar busca textual normal)
+
+    NOTA: Função desabilitada para evitar custos com API de IA.
+    Use a busca textual em /busca ao invés desta.
 
     Args:
         query: Consulta em linguagem natural
@@ -530,156 +533,18 @@ def search_semantic(query, limit=10, filters=None):
 
     Returns:
         dict: {
-            'resultados': [
-                {
-                    'documento_id': int,
-                    'titulo': str,
-                    'relevancia': float,
-                    'trecho_relevante': str,
-                    'motivo': str
-                },
-                ...
-            ],
-            'total': int
-        }
-
-    Example:
-        >>> result = search_semantic("procedimentos de segurança")
-        >>> for doc in result['resultados']:
-        ...     print(f"{doc['titulo']}: {doc['relevancia']}")
-    """
-    logger.info(f"Realizando busca semântica: '{query}'")
-
-    # Importa modelos aqui para evitar importação circular
-    from app.models import Documento
-    from sqlalchemy import or_
-
-    # Busca documentos com texto extraído
-    query_db = Documento.query.filter(Documento.texto_extraido.isnot(None))
-
-    # Aplica filtros
-    if filters:
-        if filters.get('tipo'):
-            query_db = query_db.filter_by(tipo_documento=filters['tipo'])
-        if filters.get('setor'):
-            query_db = query_db.filter_by(setor=filters['setor'])
-        if filters.get('status'):
-            query_db = query_db.filter_by(status=filters['status'])
-
-    # Busca todos os documentos com texto
-    documentos = query_db.limit(100).all()  # Limita a 100 para não sobrecarregar
-
-    if not documentos:
-        return {
             'resultados': [],
-            'total': 0
+            'total': 0,
+            'mensagem': 'Busca semântica desabilitada'
         }
+    """
+    logger.warning(f"Busca semântica desabilitada (evitar custos). Query: '{query}'")
 
-    # Prepara textos para análise
-    textos_docs = []
-    for doc in documentos:
-        texto = doc.texto_extraido[:1500] if doc.texto_extraido else ""
-        textos_docs.append({
-            'id': doc.id,
-            'titulo': doc.titulo,
-            'codigo': doc.codigo,
-            'tipo': doc.tipo_documento,
-            'setor': doc.setor,
-            'texto': texto
-        })
-
-    # Usa IA para ranquear documentos por relevância
-    system_prompt = """Você é um assistente especializado em análise de documentos técnicos hospitalares.
-Analise a consulta do usuário e ranqueie os documentos por relevância semântica.
-
-Para cada documento, atribua uma pontuação de 0 a 100 baseada em:
-- Relevância do conteúdo para a consulta
-- Contexto semântico (sinônimos, termos relacionados)
-- Importância das palavras-chave encontradas
-
-Responda APENAS em formato JSON válido, sem markdown:
-{
-    "resultados": [
-        {
-            "documento_id": int,
-            "relevancia": float (0-100),
-            "motivo": "explicação breve de por que é relevante",
-            "trecho_relevante": "trecho mais relevante do documento (máx 200 caracteres)"
-        },
-        ...
-    ]
-}
-
-Retorne apenas os documentos com relevância >= 30, ordenados por relevância (maior primeiro).
-"""
-
-    # Limita número de documentos para enviar para IA (máx 20)
-    docs_para_ia = textos_docs[:20]
-
-    user_prompt = f"""Consulta: "{query}"
-
-Documentos para análise:
-"""
-    for i, doc in enumerate(docs_para_ia, 1):
-        user_prompt += f"\n{i}. ID:{doc['id']} | {doc['codigo']} | {doc['titulo']} | {doc['tipo']} | {doc['setor']}\n"
-        user_prompt += f"   Texto: {doc['texto'][:500]}...\n"
-
-    try:
-        result_text = _call_deepseek(system_prompt, user_prompt, temperature=0.3)
-
-        # Limpa resposta e parse JSON
-        import json
-        json_limpo = _clean_json_response(result_text)
-        result = json.loads(json_limpo)
-
-        # Processa resultados
-        resultados_processados = []
-        for item in result.get('resultados', []):
-            doc_id = item.get('documento_id')
-            # Busca documento original
-            doc_original = next((d for d in docs_para_ia if d['id'] == doc_id), None)
-            if doc_original:
-                resultados_processados.append({
-                    'documento_id': doc_id,
-                    'titulo': doc_original['titulo'],
-                    'codigo': doc_original['codigo'],
-                    'tipo': doc_original['tipo'],
-                    'setor': doc_original['setor'],
-                    'relevancia': item.get('relevancia', 0),
-                    'motivo': item.get('motivo', ''),
-                    'trecho_relevante': item.get('trecho_relevante', '')
-                })
-
-        # Ordena por relevância e limita
-        resultados_processados.sort(key=lambda x: x['relevancia'], reverse=True)
-        resultados_final = resultados_processados[:limit]
-
-        return {
-            'resultados': resultados_final,
-            'total': len(resultados_final)
-        }
-
-    except (json.JSONDecodeError, Exception) as e:
-        logger.error(f"Erro ao fazer busca semântica: {str(e)}")
-        # Fallback: busca textual simples
-        resultados_fallback = []
-        for doc in docs_para_ia[:limit]:
-            if query.lower() in doc['texto'].lower() or query.lower() in doc['titulo'].lower():
-                resultados_fallback.append({
-                    'documento_id': doc['id'],
-                    'titulo': doc['titulo'],
-                    'codigo': doc['codigo'],
-                    'tipo': doc['tipo'],
-                    'setor': doc['setor'],
-                    'relevancia': 50,
-                    'motivo': 'Busca textual (IA indisponível)',
-                    'trecho_relevante': doc['texto'][:200]
-                })
-
-        return {
-            'resultados': resultados_fallback,
-            'total': len(resultados_fallback)
-        }
+    return {
+        'resultados': [],
+        'total': 0,
+        'mensagem': 'Busca semântica com IA está desabilitada. Use a busca textual normal.'
+    }
 
 
 def suggest_responsavel(tipo_documento, setor, descricao=None):

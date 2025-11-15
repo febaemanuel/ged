@@ -1344,17 +1344,3 @@ def documento_restaurar_versao(id):
         db.session.rollback()
         flash(f'Erro ao restaurar versão: {str(e)}', 'danger')
         return redirect(url_for('view.documento_detalhe', id=id))
-
-
-@view_bp.route('/busca-semantica')
-@login_required
-def busca_semantica_page():
-    """
-    Página de busca semântica com IA
-    Apenas gerentes e administradores podem acessar
-    """
-    if not current_user.pode_usar_ia():
-        flash('Apenas gerentes e administradores podem usar busca semântica com IA', 'danger')
-        return redirect(url_for('view.dashboard'))
-
-    return render_template('busca_semantica.html')
