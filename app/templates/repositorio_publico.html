@@ -103,21 +103,23 @@
                 <div class="card-body">
                     <h5 class="card-title">{{ doc.titulo }}</h5>
                     <p class="card-text text-muted small">
-                        {{ (doc.descricao or '')[:100] }}{% if doc.descricao and doc.descricao|length > 100 %}...{% endif %}
+                        {{ (doc.descricao or '')|truncate(100) }}
                     </p>
 
                     <!-- Resumo da IA (se disponível) -->
                     {% if doc.get_metadados() and doc.get_metadados().get('resumo') %}
                     <div class="alert alert-light py-2 mb-2">
-                        <small><i class="bi bi-robot"></i> <strong>IA:</strong> {{ doc.get_metadados().get('resumo')[:120] }}{% if doc.get_metadados().get('resumo')|length > 120 %}...{% endif %}</small>
+                        <small><i class="bi bi-robot"></i> <strong>IA:</strong> {{ (doc.get_metadados().get('resumo') or '')|truncate(120) }}</small>
                     </div>
                     {% endif %}
 
                     <!-- Palavras-chave da IA -->
                     {% if doc.get_metadados() and doc.get_metadados().get('palavras_chave') %}
                     <div class="mb-2">
-                        {% for palavra in doc.get_metadados().get('palavras_chave')[:5] %}
-                        <span class="badge bg-info text-dark me-1">{{ palavra }}</span>
+                        {% for palavra in doc.get_metadados().get('palavras_chave', []) %}
+                            {% if loop.index <= 5 %}
+                            <span class="badge bg-info text-dark me-1">{{ palavra }}</span>
+                            {% endif %}
                         {% endfor %}
                     </div>
                     {% endif %}
