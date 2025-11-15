@@ -904,7 +904,7 @@ def repositorio_publico():
     per_page = 12
 
     # Filtros
-    query = Documento.query.filter_by(status='Aprovado e Publicado')
+    query = Documento.query.filter_by(status='Publicado')
     busca = request.args.get('q')
     tipo = request.args.get('tipo')
     setor = request.args.get('setor')
