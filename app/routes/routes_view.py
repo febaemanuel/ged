@@ -203,12 +203,22 @@ def documento_detalhe(id):
         LogAI.data_chamada.desc()
     ).limit(10).all()
 
+    # Histórico de versões (apenas para triador/validador UGQ)
+    historico_versoes = []
+    pode_ver_historico = False
+    if current_user.is_authenticated:
+        pode_ver_historico = current_user.is_triador_ugq() or current_user.is_validador_ugq()
+        if pode_ver_historico:
+            historico_versoes = documento.obter_historico_versoes()
+
     return render_template(
         'documento_detalhe.html',
         documento=documento,
         tarefas=tarefas,
         logs_ia=logs_ia,
-        usuario_participou=usuario_participou
+        usuario_participou=usuario_participou,
+        historico_versoes=historico_versoes,
+        pode_ver_historico=pode_ver_historico
     )
 
 
@@ -1299,3 +1309,52 @@ def publicar_documento(tarefa_id):
         logger.error(f"Erro ao publicar: {str(e)}")
         flash(f'Erro: {str(e)}', 'danger')
         return redirect(url_for('view.tarefa_detalhe', id=tarefa_id))
+
+
+@view_bp.route('/documento/<int:id>/restaurar', methods=['POST'])
+@login_required
+def documento_restaurar_versao(id):
+    """
+    Restaura uma versão anterior do documento
+    Apenas triadores e validadores UGQ podem restaurar versões
+    """
+    # Verifica permissão
+    if not (current_user.is_triador_ugq() or current_user.is_validador_ugq()):
+        flash('Apenas triadores e validadores UGQ podem restaurar versões', 'danger')
+        return redirect(url_for('view.documento_detalhe', id=id))
+
+    versao_antiga = Documento.query.get_or_404(id)
+    motivo = request.form.get('motivo', 'Restauração de versão anterior')
+
+    try:
+        # Restaura a versão (cria nova versão baseada na antiga)
+        nova_versao = versao_antiga.restaurar_versao(
+            usuario_id=current_user.id,
+            motivo=motivo
+        )
+
+        flash(f'✅ Versão {versao_antiga.versao or "antiga"} restaurada com sucesso!', 'success')
+        flash(f'📝 Nova versão {nova_versao.versao} criada e enviada para análise', 'info')
+
+        # Redireciona para a nova versão
+        return redirect(url_for('view.documento_detalhe', id=nova_versao.id))
+
+    except Exception as e:
+        logger.error(f"Erro ao restaurar versão: {str(e)}")
+        db.session.rollback()
+        flash(f'Erro ao restaurar versão: {str(e)}', 'danger')
+        return redirect(url_for('view.documento_detalhe', id=id))
+
+
+@view_bp.route('/busca-semantica')
+@login_required
+def busca_semantica_page():
+    """
+    Página de busca semântica com IA
+    Apenas gerentes e administradores podem acessar
+    """
+    if not current_user.pode_usar_ia():
+        flash('Apenas gerentes e administradores podem usar busca semântica com IA', 'danger')
+        return redirect(url_for('view.dashboard'))
+
+    return render_template('busca_semantica.html')

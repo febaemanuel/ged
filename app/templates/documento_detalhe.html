@@ -459,19 +459,96 @@
             </script>
             {% endif %}
 
-            <!-- Texto Extraído -->
-            {% if documento.texto_extraido %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0"><i class="bi bi-file-text"></i> Texto Extraído</h5>
+            <!-- Histórico de Versões (apenas para Triador/Validador UGQ) -->
+            {% if pode_ver_historico and historico_versoes and historico_versoes|length > 1 %}
+            <div class="card shadow-sm mb-4 slide-in-up">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Histórico de Versões</h5>
+                    <small class="d-block mt-1 opacity-75">{{ historico_versoes|length }} versão(ões) registrada(s)</small>
                 </div>
                 <div class="card-body">
-                    <div style="max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; font-size: 0.9rem;">{{ documento.texto_extraido[:2000] }}{% if documento.texto_extraido|length > 2000 %}...{% endif %}</div>
-                    {% if documento.texto_extraido|length > 2000 %}
-                    <small class="text-muted">Mostrando primeiros 2000 caracteres de {{ documento.texto_extraido|length }} no total</small>
-                    {% endif %}
+                    <div class="timeline">
+                        {% for versao in historico_versoes|reverse %}
+                        <div class="timeline-item">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="mb-1">
+                                        {% if versao.id == documento.id %}
+                                        <span class="badge bg-success me-2">ATUAL</span>
+                                        {% elif versao.eh_versao_atual() %}
+                                        <span class="badge bg-success me-2">VIGENTE</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary me-2">ANTIGO</span>
+                                        {% endif %}
+                                        {{ versao.versao or 'v1.0' }}
+                                    </h6>
+                                    <p class="mb-1"><strong>{{ versao.titulo }}</strong></p>
+                                </div>
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> {{ versao.data_criacao.strftime('%d/%m/%Y') }}
+                                </small>
+                            </div>
+
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-person"></i> {{ versao.criador.nome }}<br>
+                                    <i class="bi bi-tag"></i> {{ versao.codigo_definitivo or versao.codigo }}<br>
+                                    <i class="bi bi-circle-fill" style="color: {% if versao.status == 'VIGENTE' %}green{% elif versao.status == 'ANTIGO' %}gray{% elif versao.status == 'Em Análise' %}orange{% else %}blue{% endif %}; font-size: 0.5rem;"></i> {{ versao.status }}
+                                </small>
+                            </div>
+
+                            {% if versao.descricao and '[RESTAURADO EM' in versao.descricao %}
+                            <div class="alert alert-info py-2 mb-2">
+                                <small><i class="bi bi-arrow-clockwise"></i> {{ versao.descricao.split('[RESTAURADO EM')[1].split(']')[0] }}]</small>
+                            </div>
+                            {% endif %}
+
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('view.documento_detalhe', id=versao.id) }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-eye"></i> Visualizar
+                                </a>
+                                {% if versao.arquivo_original %}
+                                <a href="{{ url_for('view.documento_download', id=versao.id) }}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-download"></i> Download
+                                </a>
+                                {% endif %}
+                                {% if not versao.eh_versao_atual() %}
+                                <button class="btn btn-outline-success btn-sm" onclick="confirmarRestauracao({{ versao.id }}, '{{ versao.versao }}')">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Restaurar
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <small>
+                            <i class="bi bi-info-circle"></i> <strong>Restaurar uma versão:</strong> Cria uma nova versão baseada na versão selecionada. A versão atual será marcada como "ANTIGO".
+                        </small>
+                    </div>
                 </div>
             </div>
+
+            <script>
+            function confirmarRestauracao(versaoId, nomeVersao) {
+                const motivo = prompt(`Deseja restaurar a ${nomeVersao}?\n\nDigite o motivo da restauração:`);
+                if (motivo) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = `/documento/${versaoId}/restaurar`;
+
+                    const inputMotivo = document.createElement('input');
+                    inputMotivo.type = 'hidden';
+                    inputMotivo.name = 'motivo';
+                    inputMotivo.value = motivo;
+
+                    form.appendChild(inputMotivo);
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            }
+            </script>
             {% endif %}
         </div>
 

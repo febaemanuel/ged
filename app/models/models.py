@@ -249,6 +249,145 @@ class Documento(db.Model):
         import os
         return os.path.join(current_app.config['PUBLISHED_FOLDER'], self.arquivo_publicado_pdf)
 
+    def obter_historico_versoes(self):
+        """
+        Retorna todas as versões do documento em ordem cronológica (mais antiga → mais nova)
+
+        Returns:
+            list: Lista de documentos ordenados por data_criacao
+        """
+        versoes = []
+
+        # Busca versão anterior recursivamente
+        versao_atual = self
+        while versao_atual.versao_anterior_id:
+            versao_anterior = Documento.query.get(versao_atual.versao_anterior_id)
+            if versao_anterior:
+                versoes.insert(0, versao_anterior)
+                versao_atual = versao_anterior
+            else:
+                break
+
+        # Adiciona versão atual
+        versoes.append(self)
+
+        # Busca versões posteriores (que substituíram esta)
+        versoes_posteriores = self.obter_versoes_posteriores()
+        versoes.extend(versoes_posteriores)
+
+        return versoes
+
+    def obter_versao_anterior(self):
+        """Retorna o documento que esta versão substituiu"""
+        if self.versao_anterior_id:
+            return Documento.query.get(self.versao_anterior_id)
+        return None
+
+    def obter_versoes_posteriores(self):
+        """
+        Retorna todas as versões que substituíram este documento (recursivamente)
+
+        Returns:
+            list: Lista de documentos que são versões posteriores
+        """
+        versoes = []
+
+        # Busca documentos que apontam para este como versao_anterior_id
+        proxima_versao = Documento.query.filter_by(versao_anterior_id=self.id).first()
+
+        while proxima_versao:
+            versoes.append(proxima_versao)
+            # Busca próxima versão recursivamente
+            proxima_versao = Documento.query.filter_by(versao_anterior_id=proxima_versao.id).first()
+
+        return versoes
+
+    def obter_versao_atual(self):
+        """Retorna a versão mais recente deste documento"""
+        versoes_posteriores = self.obter_versoes_posteriores()
+        if versoes_posteriores:
+            return versoes_posteriores[-1]  # Última versão
+        return self  # Esta já é a versão atual
+
+    def eh_versao_atual(self):
+        """Verifica se este documento é a versão mais recente"""
+        # Se não existe versão posterior, é a atual
+        versao_posterior = Documento.query.filter_by(versao_anterior_id=self.id).first()
+        return versao_posterior is None
+
+    def restaurar_versao(self, usuario_id, motivo="Restauração de versão anterior"):
+        """
+        Restaura uma versão anterior criando uma nova versão baseada nesta
+
+        Args:
+            usuario_id: ID do usuário que está restaurando
+            motivo: Motivo da restauração
+
+        Returns:
+            Documento: Nova versão criada
+        """
+        import shutil
+        import os
+        from flask import current_app
+
+        # Obtém a versão atual (mais recente)
+        versao_atual = self.obter_versao_atual()
+
+        # Calcula número da próxima versão
+        if versao_atual.versao:
+            try:
+                # Extrai número da versão (ex: "v2.0" -> 2.0)
+                numero_versao = float(versao_atual.versao.replace('v', ''))
+                proxima_versao = f"v{numero_versao + 1:.1f}"
+            except:
+                proxima_versao = "v2.0"
+        else:
+            proxima_versao = "v2.0"
+
+        # Cria nova versão baseada nesta versão antiga
+        nova_versao = Documento(
+            titulo=self.titulo,
+            tipo_documento=self.tipo_documento,
+            descricao=f"{self.descricao}\n\n[RESTAURADO EM {datetime.utcnow().strftime('%d/%m/%Y %H:%M')}] {motivo}",
+            setor=self.setor,
+            versao=proxima_versao,
+            versao_anterior_id=versao_atual.id,  # Aponta para a versão atual
+            criador_id=usuario_id,
+            status='Em Análise',  # Volta para análise
+            validade_anos=self.validade_anos,
+            codigo_definitivo=versao_atual.codigo_definitivo,  # Mantém mesmo código definitivo
+            texto_extraido=self.texto_extraido,
+            metadados_json=self.metadados_json
+        )
+
+        # Copia arquivos se existirem
+        if self.arquivo_original and os.path.exists(self.get_caminho_arquivo()):
+            # Gera novo nome de arquivo
+            ext = os.path.splitext(self.arquivo_original)[1]
+            novo_nome = f"restaurado_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}{ext}"
+            novo_caminho = os.path.join(current_app.config['UPLOAD_FOLDER'], novo_nome)
+
+            # Copia arquivo
+            shutil.copy2(self.get_caminho_arquivo(), novo_caminho)
+            nova_versao.arquivo_original = novo_nome
+
+        if self.arquivo_publicado_pdf and os.path.exists(self.get_caminho_publicado()):
+            # Gera novo nome de arquivo
+            novo_nome_pdf = f"restaurado_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+            novo_caminho_pdf = os.path.join(current_app.config['PUBLISHED_FOLDER'], novo_nome_pdf)
+
+            # Copia arquivo
+            shutil.copy2(self.get_caminho_publicado(), novo_caminho_pdf)
+            nova_versao.arquivo_publicado_pdf = novo_nome_pdf
+
+        # Atualiza status da versão atual para ANTIGO
+        versao_atual.status = 'ANTIGO'
+
+        db.session.add(nova_versao)
+        db.session.commit()
+
+        return nova_versao
+
     def __repr__(self):
         return f'<Documento {self.codigo}>'
 
