@@ -80,10 +80,14 @@ def _call_deepseek(system_prompt, user_prompt, temperature=0.7, retries=3):
             url = f"{config['base_url']}/v1/chat/completions"
 
             # Headers da requisição
+            # FIX: Não loga API key diretamente
             headers = {
                 "Authorization": f"Bearer {config['api_key']}",
                 "Content-Type": "application/json",
             }
+
+            # Para logs, sanitiza headers
+            safe_headers = {'Content-Type': 'application/json', 'Authorization': '***REDACTED***'}
 
             # Corpo da requisição
             data = {

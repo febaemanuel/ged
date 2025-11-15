@@ -51,7 +51,8 @@ try:
     from config import Config
     print('  ✓ SECRET_KEY:', 'Configurado' if Config.SECRET_KEY else 'FALTANDO')
     print('  ✓ DATABASE_URL:', Config.SQLALCHEMY_DATABASE_URI[:30] + '...')
-    print('  ✓ AI_API_KEY:', Config.AI_API_KEY[:20] + '...' if Config.AI_API_KEY else 'FALTANDO')
+    # FIX: Não expõe API Key completa nos logs
+    print('  ✓ AI_API_KEY:', '***REDACTED***' if Config.AI_API_KEY else 'FALTANDO')
     print('  ✓ AI_API_MODEL:', Config.AI_API_MODEL)
 except Exception as e:
     print(f'  ✗ ERRO na configuracao: {e}')

@@ -8,6 +8,7 @@ from sqlalchemy import or_, and_
 from datetime import datetime, timedelta
 
 from app.models import db, Documento, Tarefa, Usuario
+from app.utils.security import sanitize_like_pattern
 
 bp = Blueprint('busca', __name__, url_prefix='/busca')
 
@@ -61,13 +62,15 @@ def buscar():
 
     # Busca textual
     if query_text:
+        # FIX: SQL Injection - sanitiza input antes de usar em ILIKE
+        query_text_safe = sanitize_like_pattern(query_text)
         query = query.filter(
             or_(
-                Documento.titulo.ilike(f'%{query_text}%'),
-                Documento.descricao.ilike(f'%{query_text}%'),
-                Documento.codigo_provisorio.ilike(f'%{query_text}%'),
-                Documento.codigo_definitivo.ilike(f'%{query_text}%'),
-                Documento.texto_extraido.ilike(f'%{query_text}%')
+                Documento.titulo.ilike(f'%{query_text_safe}%'),
+                Documento.descricao.ilike(f'%{query_text_safe}%'),
+                Documento.codigo_provisorio.ilike(f'%{query_text_safe}%'),
+                Documento.codigo_definitivo.ilike(f'%{query_text_safe}%'),
+                Documento.texto_extraido.ilike(f'%{query_text_safe}%')
             )
         )
 
@@ -185,12 +188,13 @@ def sugestoes_busca():
     if not query_text or len(query_text) < 2:
         return jsonify({'sugestoes': []})
 
-    # Busca documentos similares
+    # FIX: SQL Injection - sanitiza input antes de usar em ILIKE
+    query_text_safe = sanitize_like_pattern(query_text)
     query = Documento.query.filter(
         or_(
-            Documento.titulo.ilike(f'%{query_text}%'),
-            Documento.codigo_provisorio.ilike(f'%{query_text}%'),
-            Documento.codigo_definitivo.ilike(f'%{query_text}%')
+            Documento.titulo.ilike(f'%{query_text_safe}%'),
+            Documento.codigo_provisorio.ilike(f'%{query_text_safe}%'),
+            Documento.codigo_definitivo.ilike(f'%{query_text_safe}%')
         )
     )
 

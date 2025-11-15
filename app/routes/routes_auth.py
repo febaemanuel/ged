@@ -14,11 +14,15 @@ from flask_login import login_user, logout_user, login_required, current_user
 from datetime import datetime
 
 from app.models import db, Usuario
+from app.utils.security import validate_password_strength
+from app.utils.rate_limiter import rate_limit
+from app.constants import *
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
 @bp.route('/login', methods=['POST'])
+@rate_limit(max_attempts=RATE_LIMIT_LOGIN_ATTEMPTS, window_seconds=RATE_LIMIT_LOGIN_WINDOW)
 def login():
     """
     Login do usuário
@@ -172,8 +176,10 @@ def change_password():
     if not current_user.check_password(senha_atual):
         return jsonify({'erro': 'Senha atual incorreta'}), 401
 
-    if len(senha_nova) < 6:
-        return jsonify({'erro': 'Nova senha deve ter no mínimo 6 caracteres'}), 400
+    # FIX: Política de senha fraca - valida força da senha
+    is_valid, error_msg = validate_password_strength(senha_nova)
+    if not is_valid:
+        return jsonify({'erro': error_msg}), 400
 
     current_user.set_password(senha_nova)
     db.session.commit()

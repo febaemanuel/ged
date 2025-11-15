@@ -17,9 +17,14 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import or_
 from datetime import datetime
 import os
+import logging
 
 from app.models import db, Documento, Tarefa, Usuario
 from app.services import extract_text
+from app.utils.security import sanitize_like_pattern, get_safe_file_path
+from app.constants import *
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('documento', __name__, url_prefix='/api/documento')
 
@@ -340,19 +345,24 @@ def download_arquivo(id, tipo):
 
     if tipo == 'original':
         if not documento.arquivo_original:
-            return jsonify({'erro': 'Arquivo original não encontrado'}), 404
-        caminho = os.path.join(current_app.config['UPLOAD_FOLDER'], documento.arquivo_original)
-        nome_download = documento.arquivo_original
+            return jsonify({'erro': MSG_ARQUIVO_NAO_ENCONTRADO}), 404
+
+        # FIX: Path Traversal - valida caminho do arquivo
+        caminho = get_safe_file_path(documento.arquivo_original, current_app.config['UPLOAD_FOLDER'])
+        nome_download = os.path.basename(documento.arquivo_original)
     elif tipo == 'publicado':
         if not documento.arquivo_publicado_pdf:
-            return jsonify({'erro': 'Arquivo publicado não encontrado'}), 404
-        caminho = os.path.join(current_app.config['PUBLISHED_FOLDER'], documento.arquivo_publicado_pdf)
-        nome_download = documento.arquivo_publicado_pdf
+            return jsonify({'erro': MSG_ARQUIVO_NAO_ENCONTRADO}), 404
+
+        # FIX: Path Traversal - valida caminho do arquivo
+        caminho = get_safe_file_path(documento.arquivo_publicado_pdf, current_app.config['PUBLISHED_FOLDER'])
+        nome_download = os.path.basename(documento.arquivo_publicado_pdf)
     else:
         return jsonify({'erro': 'Tipo de arquivo inválido'}), 400
 
-    if not os.path.exists(caminho):
-        return jsonify({'erro': 'Arquivo não encontrado no servidor'}), 404
+    if not caminho or not os.path.exists(caminho):
+        logger.error(f"Arquivo não encontrado ou path inválido: tipo={tipo}, doc_id={id}")
+        return jsonify({'erro': MSG_ARQUIVO_NAO_ENCONTRADO}), 404
 
     return send_file(caminho, as_attachment=True, download_name=nome_download)
 
@@ -564,20 +574,23 @@ def repositorio_publico():
     # Filtros
     q = request.args.get('q')
     if q:
-        # Busca expandida: título, código ou texto extraído
+        # FIX: SQL Injection - sanitiza input antes de usar em ILIKE
+        q_safe = sanitize_like_pattern(q)
         query = query.filter(
             db.or_(
-                Documento.titulo.ilike(f'%{q}%'),
-                Documento.codigo_definitivo.ilike(f'%{q}%'),
-                Documento.codigo_provisorio.ilike(f'%{q}%'),
-                Documento.texto_extraido.ilike(f'%{q}%')
+                Documento.titulo.ilike(f'%{q_safe}%'),
+                Documento.codigo_definitivo.ilike(f'%{q_safe}%'),
+                Documento.codigo_provisorio.ilike(f'%{q_safe}%'),
+                Documento.texto_extraido.ilike(f'%{q_safe}%')
             )
         )
 
     # Busca por palavras-chave extraídas pela IA
     palavras_chave = request.args.get('palavras_chave')
     if palavras_chave:
-        query = query.filter(Documento.metadados_json.ilike(f'%{palavras_chave}%'))
+        # FIX: SQL Injection - sanitiza input
+        palavras_chave_safe = sanitize_like_pattern(palavras_chave)
+        query = query.filter(Documento.metadados_json.ilike(f'%{palavras_chave_safe}%'))
 
     tipo = request.args.get('tipo')
     if tipo:
@@ -873,13 +886,14 @@ def buscar_documentos():
     # Query base
     query = Documento.query
 
-    # Busca por título ou código
+    # FIX: SQL Injection - sanitiza input antes de usar em ILIKE
+    termo_safe = sanitize_like_pattern(termo)
     query = query.filter(
         or_(
-            Documento.titulo.ilike(f'%{termo}%'),
-            Documento.codigo_provisorio.ilike(f'%{termo}%'),
-            Documento.codigo_definitivo.ilike(f'%{termo}%'),
-            Documento.codigo_unico.ilike(f'%{termo}%')
+            Documento.titulo.ilike(f'%{termo_safe}%'),
+            Documento.codigo_provisorio.ilike(f'%{termo_safe}%'),
+            Documento.codigo_definitivo.ilike(f'%{termo_safe}%'),
+            Documento.codigo_unico.ilike(f'%{termo_safe}%')
         )
     )
 

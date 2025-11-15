@@ -403,12 +403,13 @@ def buscar():
         elif current_user.setor:
             query = query.filter_by(setor=current_user.setor)
 
-    # Busca por título ou código
+    # FIX: SQL Injection - sanitiza input antes de usar em ILIKE
+    q_safe = sanitize_like_pattern(q)
     query = query.filter(
-        (Documento.titulo.ilike(f'%{q}%')) |
-        (Documento.codigo_provisorio.ilike(f'%{q}%')) |
-        (Documento.codigo_definitivo.ilike(f'%{q}%')) |
-        (Documento.descricao.ilike(f'%{q}%'))
+        (Documento.titulo.ilike(f'%{q_safe}%')) |
+        (Documento.codigo_provisorio.ilike(f'%{q_safe}%')) |
+        (Documento.codigo_definitivo.ilike(f'%{q_safe}%')) |
+        (Documento.descricao.ilike(f'%{q_safe}%'))
     )
 
     # Filtros adicionais

@@ -2,7 +2,7 @@
 Routes VIEW - Rotas para renderizar templates HTML
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -12,6 +12,9 @@ import logging
 
 from app import db
 from app.models.models import Usuario, Documento, Tarefa, LogAI
+from app.utils.security import sanitize_like_pattern, get_safe_file_path, validate_password_strength
+from app.utils.rate_limiter import rate_limit
+from app.constants import *
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -31,6 +34,7 @@ def index():
 
 
 @view_bp.route('/login', methods=['GET', 'POST'])
+@rate_limit(max_attempts=RATE_LIMIT_LOGIN_ATTEMPTS, window_seconds=RATE_LIMIT_LOGIN_WINDOW)
 def login():
     """Página de login"""
     if current_user.is_authenticated:
@@ -48,11 +52,11 @@ def login():
             usuario.ultimo_acesso = datetime.utcnow()
             db.session.commit()
 
-            flash('Login realizado com sucesso!', 'success')
+            flash(MSG_LOGIN_SUCESSO, 'success')
             next_page = request.args.get('next')
             return redirect(next_page or url_for('view.dashboard'))
         else:
-            flash('Email ou senha inválidos', 'danger')
+            flash(MSG_LOGIN_ERRO, 'danger')
 
     return render_template('login.html')
 
@@ -62,7 +66,7 @@ def login():
 def logout():
     """Logout"""
     logout_user()
-    flash('Logout realizado com sucesso', 'info')
+    flash(MSG_LOGOUT_SUCESSO, 'info')
     return redirect(url_for('view.login'))
 
 
@@ -121,11 +125,13 @@ def documentos():
     setor = request.args.get('setor')
 
     if busca:
+        # FIX: SQL Injection - sanitiza input antes de usar em ILIKE
+        busca_safe = sanitize_like_pattern(busca)
         query = query.filter(
-            (Documento.titulo.ilike(f'%{busca}%')) |
-            (Documento.codigo_provisorio.ilike(f'%{busca}%')) |
-            (Documento.codigo_definitivo.ilike(f'%{busca}%')) |
-            (Documento.codigo_unico.ilike(f'%{busca}%'))
+            (Documento.titulo.ilike(f'%{busca_safe}%')) |
+            (Documento.codigo_provisorio.ilike(f'%{busca_safe}%')) |
+            (Documento.codigo_definitivo.ilike(f'%{busca_safe}%')) |
+            (Documento.codigo_unico.ilike(f'%{busca_safe}%'))
         )
     if status:
         query = query.filter_by(status=status)
@@ -451,15 +457,15 @@ def documento_download_assinaturas(id):
     documento = Documento.query.get_or_404(id)
 
     if not documento.arquivo_final:
-        flash('PDF de assinaturas não encontrado', 'danger')
+        flash(MSG_ARQUIVO_NAO_ENCONTRADO, 'danger')
         return redirect(url_for('view.documento_detalhe', id=id))
 
-    # Caminho absoluto para o PDF de assinaturas
-    caminho_pdf = os.path.join(Config.ASSINATURAS_FOLDER, documento.arquivo_final)
+    # FIX: Path Traversal - valida caminho do arquivo
+    caminho_pdf = get_safe_file_path(documento.arquivo_final, Config.ASSINATURAS_FOLDER)
 
-    if not os.path.exists(caminho_pdf):
-        flash(f'Arquivo PDF de assinaturas não encontrado no caminho: {caminho_pdf}', 'danger')
-        logger.error(f"PDF não encontrado: {caminho_pdf}")
+    if not caminho_pdf or not os.path.exists(caminho_pdf):
+        flash(MSG_ARQUIVO_NAO_ENCONTRADO, 'danger')
+        logger.error(f"PDF não encontrado ou path inválido: {documento.arquivo_final}")
         return redirect(url_for('view.documento_detalhe', id=id))
 
     return send_file(
@@ -909,8 +915,10 @@ def alterar_senha():
         flash('As senhas não coincidem', 'danger')
         return redirect(url_for('view.perfil'))
 
-    if len(senha_nova) < 6:
-        flash('A nova senha deve ter pelo menos 6 caracteres', 'danger')
+    # FIX: Política de senha fraca - valida força da senha
+    is_valid, error_msg = validate_password_strength(senha_nova)
+    if not is_valid:
+        flash(error_msg, 'danger')
         return redirect(url_for('view.perfil'))
 
     # Atualizar senha
@@ -941,21 +949,24 @@ def repositorio_publico():
     order_by = request.args.get('order_by', 'data')
 
     if busca:
+        # FIX: SQL Injection - sanitiza input antes de usar em ILIKE
+        busca_safe = sanitize_like_pattern(busca)
         query = query.filter(
-            (Documento.titulo.ilike(f'%{busca}%')) |
-            (Documento.codigo_provisorio.ilike(f'%{busca}%')) |
-            (Documento.codigo_definitivo.ilike(f'%{busca}%')) |
-            (Documento.codigo_unico.ilike(f'%{busca}%')) |
-            (Documento.descricao.ilike(f'%{busca}%')) |
-            (Documento.texto_extraido.ilike(f'%{busca}%'))
+            (Documento.titulo.ilike(f'%{busca_safe}%')) |
+            (Documento.codigo_provisorio.ilike(f'%{busca_safe}%')) |
+            (Documento.codigo_definitivo.ilike(f'%{busca_safe}%')) |
+            (Documento.codigo_unico.ilike(f'%{busca_safe}%')) |
+            (Documento.descricao.ilike(f'%{busca_safe}%')) |
+            (Documento.texto_extraido.ilike(f'%{busca_safe}%'))
         )
     if tipo:
         query = query.filter_by(tipo_documento=tipo)
     if setor:
         query = query.filter_by(setor=setor)
     if palavras_chave:
-        # Busca em palavras-chave extraídas pela IA (armazenadas em metadados_json)
-        query = query.filter(Documento.metadados_json.ilike(f'%{palavras_chave}%'))
+        # FIX: SQL Injection - sanitiza input antes de usar em ILIKE
+        palavras_chave_safe = sanitize_like_pattern(palavras_chave)
+        query = query.filter(Documento.metadados_json.ilike(f'%{palavras_chave_safe}%'))
 
     # Ordenação
     if order_by == 'setor_tipo':
