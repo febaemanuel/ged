@@ -104,6 +104,34 @@
                             <strong>Instruções:</strong> Verifique os 3 checkpoints obrigatórios antes de aprovar o documento.
                         </div>
 
+                        <!-- Ações do Triador no Documento -->
+                        <div class="card mb-3 border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <i class="bi bi-tools"></i> <strong>Ações no Documento</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex gap-2 flex-wrap">
+                                    {% if tarefa.documento.arquivo_original %}
+                                    <a href="{{ url_for('view.documento_download', id=tarefa.documento_id) }}" class="btn btn-outline-primary" target="_blank">
+                                        <i class="bi bi-download"></i> Baixar Arquivo
+                                    </a>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalSubstituirArquivoTarefa">
+                                        <i class="bi bi-arrow-repeat"></i> Substituir Arquivo
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalVerificarDuplicatasTarefa">
+                                        <i class="bi bi-search"></i> Verificar Duplicatas
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#modalMarcarVersaoTarefa">
+                                        <i class="bi bi-arrow-up-circle"></i> Marcar como Nova Versão
+                                    </button>
+                                </div>
+                                <small class="text-muted d-block mt-2">
+                                    <i class="bi bi-info-circle"></i> Use estas ações para preparar o documento antes de prosseguir com os checkpoints
+                                </small>
+                            </div>
+                        </div>
+
                         <!-- Checkpoint 1: Duplicata -->
                         <div class="card mb-3">
                             <div class="card-header bg-light">
@@ -199,6 +227,34 @@
                     <form method="POST" action="{{ url_for('view.codificar_documento', tarefa_id=tarefa.id) }}" id="formCodificar">
                         <div class="alert alert-info">
                             <strong>Validador UGQ:</strong> Defina o código definitivo e versão do documento, ou devolva para correção.
+                        </div>
+
+                        <!-- Ações do Validador no Documento -->
+                        <div class="card mb-3 border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <i class="bi bi-tools"></i> <strong>Ações no Documento</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex gap-2 flex-wrap">
+                                    {% if tarefa.documento.arquivo_original %}
+                                    <a href="{{ url_for('view.documento_download', id=tarefa.documento_id) }}" class="btn btn-outline-primary" target="_blank">
+                                        <i class="bi bi-download"></i> Baixar Arquivo
+                                    </a>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalSubstituirArquivoTarefa">
+                                        <i class="bi bi-arrow-repeat"></i> Substituir Arquivo
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalVerificarDuplicatasTarefa">
+                                        <i class="bi bi-search"></i> Verificar Duplicatas
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#modalMarcarVersaoTarefa">
+                                        <i class="bi bi-arrow-up-circle"></i> Marcar como Nova Versão
+                                    </button>
+                                </div>
+                                <small class="text-muted d-block mt-2">
+                                    <i class="bi bi-info-circle"></i> Use estas ações para preparar o documento antes de codificar
+                                </small>
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -432,4 +488,336 @@
         </div>
     </div>
 </div>
+
+<!-- Modal: Substituir Arquivo -->
+<div class="modal fade" id="modalSubstituirArquivoTarefa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-arrow-repeat"></i> Substituir Arquivo do Documento</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> <strong>Atenção:</strong> Esta ação substituirá o arquivo original enviado pelo autor.
+                    Use apenas quando necessário corrigir formatação ou problemas técnicos do arquivo.
+                </div>
+                <form id="formSubstituirArquivoTarefa" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="arquivoTarefa" class="form-label">Novo Arquivo *</label>
+                        <input type="file" class="form-control" id="arquivoTarefa" name="arquivo"
+                               accept=".doc,.docx,.odt,.pdf" required>
+                        <small class="text-muted">Formatos aceitos: .doc, .docx, .odt, .pdf</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="motivoSubstituicaoTarefa" class="form-label">Motivo da Substituição</label>
+                        <textarea class="form-control" id="motivoSubstituicaoTarefa" name="motivo" rows="3"
+                                  placeholder="Ex: Correção de formatação, remoção de metadados sensíveis, etc.">Arquivo substituído pelo triador durante processo de triagem</textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="substituirArquivoTarefa()">
+                    <i class="bi bi-arrow-repeat"></i> Substituir Arquivo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Verificar Duplicatas -->
+<div class="modal fade" id="modalVerificarDuplicatasTarefa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="bi bi-search"></i> Verificar Duplicatas e Versões</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> <strong>Checkpoint de Triagem:</strong> Busque documentos similares para verificar se este documento já existe no sistema.
+                    Se encontrar, você pode marcar como duplicata ou como nova versão.
+                </div>
+
+                <div class="mb-3">
+                    <label for="buscaDuplicatasTarefa" class="form-label">Buscar por título ou código</label>
+                    <input type="text" class="form-control" id="buscaDuplicatasTarefa"
+                           placeholder="Digite parte do título ou código do documento..."
+                           value="{{ tarefa.documento.titulo[:30] }}">
+                </div>
+
+                <div id="resultadosDuplicatasTarefa">
+                    <p class="text-muted text-center">Digite acima para buscar documentos similares</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Marcar como Nova Versão -->
+<div class="modal fade" id="modalMarcarVersaoTarefa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-arrow-up-circle"></i> Marcar como Nova Versão de Documento Existente</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-primary">
+                    <i class="bi bi-info-circle"></i> Use esta opção quando o documento é uma versão atualizada de um documento já publicado.
+                    A versão será incrementada automaticamente.
+                </div>
+
+                <div class="mb-3">
+                    <label for="buscaDocOriginalTarefa" class="form-label">Buscar Documento Original</label>
+                    <input type="text" class="form-control" id="buscaDocOriginalTarefa"
+                           placeholder="Digite o título ou código do documento original..."
+                           value="{{ tarefa.documento.titulo[:30] }}">
+                </div>
+
+                <div id="resultadosDocOriginalTarefa">
+                    <p class="text-muted text-center">Digite acima para buscar o documento original</p>
+                </div>
+
+                <div id="confirmacaoVersaoTarefa" style="display: none;">
+                    <hr>
+                    <div class="alert alert-success">
+                        <h6><i class="bi bi-check-circle"></i> Documento Original Selecionado:</h6>
+                        <p class="mb-1"><strong>Título:</strong> <span id="tituloOriginalTarefa"></span></p>
+                        <p class="mb-1"><strong>Código:</strong> <span id="codigoOriginalTarefa"></span></p>
+                        <p class="mb-0"><strong>Versão Atual:</strong> <span id="versaoOriginalTarefa"></span></p>
+                    </div>
+                    <button type="button" class="btn btn-success w-100" onclick="marcarComoNovaVersaoTarefa()">
+                        <i class="bi bi-arrow-up-circle"></i> Confirmar e Marcar como Nova Versão
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variável global para armazenar o ID do documento original selecionado
+let documentoOriginalIdTarefa = null;
+
+// Função para substituir arquivo do documento
+function substituirArquivoTarefa() {
+    const form = document.getElementById('formSubstituirArquivoTarefa');
+    const formData = new FormData(form);
+
+    // Mostra loading
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Substituindo...';
+
+    fetch('/api/documento/{{ tarefa.documento_id }}/substituir_arquivo', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.erro) {
+            alert('Erro: ' + data.erro);
+        } else {
+            alert('Arquivo substituído com sucesso!');
+            // Fecha modal e recarrega página
+            bootstrap.Modal.getInstance(document.getElementById('modalSubstituirArquivoTarefa')).hide();
+            location.reload();
+        }
+    })
+    .catch(error => {
+        alert('Erro ao substituir arquivo: ' + error);
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+
+// Função de busca de duplicatas com debounce
+let timeoutDuplicatasTarefa;
+document.getElementById('buscaDuplicatasTarefa')?.addEventListener('input', function(e) {
+    clearTimeout(timeoutDuplicatasTarefa);
+    const termo = e.target.value.trim();
+
+    if (termo.length < 3) {
+        document.getElementById('resultadosDuplicatasTarefa').innerHTML =
+            '<p class="text-muted text-center">Digite pelo menos 3 caracteres para buscar</p>';
+        return;
+    }
+
+    timeoutDuplicatasTarefa = setTimeout(() => {
+        buscarDuplicatasTarefa(termo);
+    }, 500);
+});
+
+function buscarDuplicatasTarefa(termo) {
+    const container = document.getElementById('resultadosDuplicatasTarefa');
+    container.innerHTML = '<p class="text-center"><i class="bi bi-hourglass-split"></i> Buscando...</p>';
+
+    fetch(`/api/documentos/buscar?q=${encodeURIComponent(termo)}&limit=10`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length === 0) {
+                container.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle"></i> Nenhum documento similar encontrado. Este parece ser um documento novo.</div>';
+                return;
+            }
+
+            let html = '<div class="list-group">';
+            data.forEach(doc => {
+                // Não mostrar o próprio documento atual
+                if (doc.id === {{ tarefa.documento_id }}) return;
+
+                const badge = doc.status === 'Publicado' ? 'bg-success' :
+                             doc.status === 'Obsoleto' ? 'bg-secondary' : 'bg-warning';
+
+                html += `
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">${doc.titulo}</h6>
+                                <p class="mb-1 text-muted small">
+                                    <strong>Código:</strong> ${doc.codigo_definitivo || doc.codigo_provisorio || 'Sem código'} |
+                                    <strong>Versão:</strong> ${doc.versao || 'N/A'} |
+                                    <strong>Tipo:</strong> ${doc.tipo_documento}
+                                </p>
+                                <span class="badge ${badge}">${doc.status}</span>
+                            </div>
+                            <div class="ms-3">
+                                <a href="/documento/${doc.id}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                    <i class="bi bi-eye"></i> Ver
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            html += '<div class="alert alert-warning mt-3"><i class="bi bi-exclamation-triangle"></i> <strong>Documentos similares encontrados!</strong> Verifique se algum deles é igual ao documento atual.</div>';
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            container.innerHTML = '<div class="alert alert-danger">Erro ao buscar: ' + error + '</div>';
+        });
+}
+
+// Função de busca de documento original
+let timeoutDocOriginalTarefa;
+document.getElementById('buscaDocOriginalTarefa')?.addEventListener('input', function(e) {
+    clearTimeout(timeoutDocOriginalTarefa);
+    const termo = e.target.value.trim();
+
+    if (termo.length < 3) {
+        document.getElementById('resultadosDocOriginalTarefa').innerHTML =
+            '<p class="text-muted text-center">Digite pelo menos 3 caracteres para buscar</p>';
+        document.getElementById('confirmacaoVersaoTarefa').style.display = 'none';
+        return;
+    }
+
+    timeoutDocOriginalTarefa = setTimeout(() => {
+        buscarDocumentoOriginalTarefa(termo);
+    }, 500);
+});
+
+function buscarDocumentoOriginalTarefa(termo) {
+    const container = document.getElementById('resultadosDocOriginalTarefa');
+    container.innerHTML = '<p class="text-center"><i class="bi bi-hourglass-split"></i> Buscando...</p>';
+
+    fetch(`/api/documentos/buscar?q=${encodeURIComponent(termo)}&limit=10&status=Publicado,Obsoleto`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">Nenhum documento publicado encontrado com esse termo.</div>';
+                return;
+            }
+
+            let html = '<div class="list-group">';
+            data.forEach(doc => {
+                // Não mostrar o próprio documento atual
+                if (doc.id === {{ tarefa.documento_id }}) return;
+
+                const badge = doc.status === 'Publicado' ? 'bg-success' : 'bg-secondary';
+
+                html += `
+                    <div class="list-group-item list-group-item-action" style="cursor: pointer;"
+                         onclick="selecionarDocumentoOriginalTarefa(${doc.id}, '${doc.titulo.replace(/'/g, "\\'")}', '${doc.codigo_definitivo || 'N/A'}', '${doc.versao || 'N/A'}')">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">${doc.titulo}</h6>
+                                <p class="mb-1 text-muted small">
+                                    <strong>Código:</strong> ${doc.codigo_definitivo || 'N/A'} |
+                                    <strong>Versão:</strong> ${doc.versao || 'N/A'}
+                                </p>
+                                <span class="badge ${badge}">${doc.status}</span>
+                            </div>
+                            <i class="bi bi-chevron-right"></i>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            container.innerHTML = '<div class="alert alert-danger">Erro ao buscar: ' + error + '</div>';
+        });
+}
+
+function selecionarDocumentoOriginalTarefa(id, titulo, codigo, versao) {
+    documentoOriginalIdTarefa = id;
+    document.getElementById('tituloOriginalTarefa').textContent = titulo;
+    document.getElementById('codigoOriginalTarefa').textContent = codigo;
+    document.getElementById('versaoOriginalTarefa').textContent = versao;
+    document.getElementById('confirmacaoVersaoTarefa').style.display = 'block';
+}
+
+function marcarComoNovaVersaoTarefa() {
+    if (!documentoOriginalIdTarefa) {
+        alert('Erro: Nenhum documento original selecionado');
+        return;
+    }
+
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processando...';
+
+    fetch('/api/documento/{{ tarefa.documento_id }}', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            versao_anterior_id: documentoOriginalIdTarefa
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.erro) {
+            alert('Erro: ' + data.erro);
+        } else {
+            alert('Documento marcado como nova versão com sucesso!\nVersão: ' + (data.versao || 'N/A'));
+            // Fecha modal e recarrega página
+            bootstrap.Modal.getInstance(document.getElementById('modalMarcarVersaoTarefa')).hide();
+            location.reload();
+        }
+    })
+    .catch(error => {
+        alert('Erro ao marcar versão: ' + error);
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+</script>
+
 {% endblock %}
