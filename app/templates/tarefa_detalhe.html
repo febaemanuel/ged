@@ -566,16 +566,28 @@
 <script>
 // Função para mostrar alerta quando marca "Sim" no checkpoint 1
 function abrirBuscaDuplicata() {
-    document.getElementById('alertaBuscaObrigatoria').style.display = 'block';
+    const alerta = document.getElementById('alertaBuscaObrigatoria');
+    const modal = document.getElementById('modalCheckpointDuplicata');
+
+    // Verifica se os elementos existem antes de acessar
+    if (alerta) {
+        alerta.style.display = 'block';
+    }
+
     // Auto-abre o modal
-    setTimeout(() => {
-        new bootstrap.Modal(document.getElementById('modalCheckpointDuplicata')).show();
-    }, 300);
+    if (modal) {
+        setTimeout(() => {
+            new bootstrap.Modal(modal).show();
+        }, 300);
+    }
 }
 
 // Esconde alerta quando marca "Não"
 document.getElementById('cp1_nao')?.addEventListener('change', function() {
-    document.getElementById('alertaBuscaObrigatoria').style.display = 'none';
+    const alerta = document.getElementById('alertaBuscaObrigatoria');
+    if (alerta) {
+        alerta.style.display = 'none';
+    }
 });
 
 // Função para substituir arquivo do documento
