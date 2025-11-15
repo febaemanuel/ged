@@ -142,10 +142,25 @@ def documentos():
 
 
 @view_bp.route('/documento/<int:id>')
-@login_required
 def documento_detalhe(id):
-    """Detalhes do documento"""
+    """Detalhes do documento - acesso público para documentos publicados"""
     documento = Documento.query.get_or_404(id)
+
+    # Se documento está publicado, permite acesso público
+    # Se não está publicado, requer autenticação
+    if documento.status != 'Publicado':
+        if not current_user.is_authenticated:
+            flash('Este documento requer autenticação', 'warning')
+            return redirect(url_for('view.login', next=request.url))
+
+    # Verifica se usuário participou do processo
+    usuario_participou = False
+    if current_user.is_authenticated:
+        # Verifica se é criador, triador, validador ou assinante
+        usuario_participou = (
+            documento.criador_id == current_user.id or
+            any(t.responsavel_id == current_user.id for t in documento.tarefas)
+        )
 
     # Timeline de tarefas
     tarefas_raw = Tarefa.query.filter_by(documento_id=id).order_by(
@@ -192,7 +207,8 @@ def documento_detalhe(id):
         'documento_detalhe.html',
         documento=documento,
         tarefas=tarefas,
-        logs_ia=logs_ia
+        logs_ia=logs_ia,
+        usuario_participou=usuario_participou
     )
 
 
@@ -398,20 +414,33 @@ def documento_editar(id):
 
 
 @view_bp.route('/documento/<int:id>/download')
-@login_required
 def documento_download(id):
-    """Download do arquivo do documento"""
+    """Download do arquivo do documento - acesso público para documentos publicados"""
     documento = Documento.query.get_or_404(id)
+
+    # Se documento NÃO está publicado, requer autenticação
+    if documento.status != 'Publicado':
+        if not current_user.is_authenticated:
+            flash('Este documento requer autenticação', 'warning')
+            return redirect(url_for('view.login'))
+        # Verifica permissões para documentos não publicados
+        if not current_user.is_admin() and documento.criador_id != current_user.id:
+            flash('Sem permissão para acessar este documento', 'danger')
+            return redirect(url_for('view.dashboard'))
 
     caminho_arquivo = documento.get_caminho_arquivo()
     if not caminho_arquivo or not os.path.exists(caminho_arquivo):
-        flash('Arquivo não encontrado', 'danger')
-        return redirect(url_for('view.documento_detalhe', id=id))
+        if current_user.is_authenticated:
+            flash('Arquivo não encontrado', 'danger')
+            return redirect(url_for('view.documento_detalhe', id=id))
+        return "Arquivo não encontrado", 404
 
+    # Para documentos publicados, usa o PDF publicado
+    codigo = documento.codigo_definitivo or documento.codigo_provisorio or documento.codigo_unico
     return send_file(
         caminho_arquivo,
-        as_attachment=True,
-        download_name=f"{documento.codigo}_{documento.arquivo_original}"
+        as_attachment=False,  # Permite visualização no navegador
+        download_name=f"{codigo}.pdf"
     )
 
 
