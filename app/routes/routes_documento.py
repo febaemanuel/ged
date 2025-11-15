@@ -322,6 +322,57 @@ def download_arquivo(id, tipo):
     return send_file(caminho, as_attachment=True, download_name=nome_download)
 
 
+@bp.route('/hierarquia', methods=['GET'])
+def get_hierarquia():
+    """
+    Retorna estrutura hierárquica de setores e tipos com contadores
+    Usado para popular a sidebar de navegação
+
+    Returns:
+        JSON com estrutura: {setor: {total: X, tipos: {tipo: count}}}
+    """
+    # Consulta otimizada com GROUP BY
+    query_result = db.session.query(
+        Documento.setor,
+        Documento.tipo_documento,
+        db.func.count(Documento.id).label('count')
+    ).filter(
+        Documento.status == 'Publicado'
+    ).group_by(
+        Documento.setor,
+        Documento.tipo_documento
+    ).all()
+
+    # Organiza em estrutura hierárquica
+    hierarquia = {}
+    total_geral = 0
+
+    for setor, tipo, count in query_result:
+        setor_nome = setor or 'Sem Setor'
+
+        if setor_nome not in hierarquia:
+            hierarquia[setor_nome] = {
+                'total': 0,
+                'tipos': {}
+            }
+
+        hierarquia[setor_nome]['tipos'][tipo] = count
+        hierarquia[setor_nome]['total'] += count
+        total_geral += count
+
+    # Ordena setores por quantidade (maior primeiro)
+    hierarquia_ordenada = dict(sorted(
+        hierarquia.items(),
+        key=lambda x: x[1]['total'],
+        reverse=True
+    ))
+
+    return jsonify({
+        'hierarquia': hierarquia_ordenada,
+        'total_geral': total_geral
+    })
+
+
 @bp.route('/publico', methods=['GET'])
 def repositorio_publico():
     """
@@ -336,7 +387,7 @@ def repositorio_publico():
         - page: Página
     """
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    per_page = request.args.get('per_page', 30, type=int)  # Aumentado para 30 (lazy loading)
 
     # FIX: Corrigido status para 'Publicado' (Config.STATUS_PUBLICADO)
     query = Documento.query.filter_by(status='Publicado')
