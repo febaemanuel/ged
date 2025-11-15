@@ -423,9 +423,12 @@ def documento_download_assinaturas(id):
         flash('PDF de assinaturas não encontrado', 'danger')
         return redirect(url_for('view.documento_detalhe', id=id))
 
-    caminho_pdf = os.path.join('uploads', 'assinaturas', documento.arquivo_final)
+    # Caminho absoluto para o PDF de assinaturas
+    caminho_pdf = os.path.join(Config.ASSINATURAS_FOLDER, documento.arquivo_final)
+
     if not os.path.exists(caminho_pdf):
-        flash('Arquivo PDF de assinaturas não encontrado', 'danger')
+        flash(f'Arquivo PDF de assinaturas não encontrado no caminho: {caminho_pdf}', 'danger')
+        logger.error(f"PDF não encontrado: {caminho_pdf}")
         return redirect(url_for('view.documento_detalhe', id=id))
 
     return send_file(
