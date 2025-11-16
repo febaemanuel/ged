@@ -7,12 +7,14 @@ Sistema de assinatura de documentos via WhatsApp integrado ao GED EBSERH.
 ## 📋 ÍNDICE
 
 1. [Visão Geral](#visão-geral)
-2. [Configuração Inicial](#configuração-inicial)
-3. [Painel Administrativo](#painel-administrativo)
-4. [Como Funciona](#como-funciona)
-5. [Comandos do Chatbot](#comandos-do-chatbot)
-6. [Segurança](#segurança)
-7. [Troubleshooting](#troubleshooting)
+2. [Instalação e Dependências](#instalação-e-dependências)
+3. [Configuração Inicial](#configuração-inicial)
+4. [Testar em Localhost](#testar-em-localhost)
+5. [Painel Administrativo](#painel-administrativo)
+6. [Como Funciona](#como-funciona)
+7. [Comandos do Chatbot](#comandos-do-chatbot)
+8. [Segurança](#segurança)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -34,12 +36,68 @@ O WhatsApp Chatbot permite que usuários:
 
 ---
 
+## 📦 INSTALAÇÃO E DEPENDÊNCIAS
+
+### ⚠️ IMPORTANTE: twilio vs twilio-cli
+
+**❌ ERRO COMUM:**
+```bash
+pip install twilio-cli  # ❌ ERRO! Não existe como pacote Python
+```
+
+**✅ CORRETO:**
+```bash
+pip install twilio>=8.10.0  # ✅ Python SDK do Twilio
+```
+
+### Por quê?
+
+| Pacote | Tipo | Instalação | Necessário? |
+|--------|------|------------|-------------|
+| `twilio` | Python SDK | `pip install twilio` | ✅ SIM |
+| `twilio-cli` | Node.js CLI | `npm install -g twilio-cli` | ❌ NÃO |
+
+- `twilio-cli` é uma ferramenta **Node.js**, não Python
+- É instalada via npm, não pip
+- **Você NÃO precisa dela para este projeto!**
+
+### Instalação Correta
+
+**Método 1: Instalar todas as dependências (recomendado)**
+```bash
+# Ativar ambiente virtual
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac
+
+# Instalar tudo
+pip install -r requirements.txt
+```
+
+**Método 2: Instalar apenas o Twilio**
+```bash
+pip install twilio>=8.10.0
+```
+
+**Verificar instalação:**
+```bash
+pip show twilio
+```
+
+Deve mostrar:
+```
+Name: twilio
+Version: 8.10.0 (ou superior)
+Summary: Twilio API client and TwiML generator
+```
+
+---
+
 ## 🚀 CONFIGURAÇÃO INICIAL
 
 ### Passo 1: Criar Conta Twilio
 
 1. Acesse: https://www.twilio.com/try-twilio
-2. Cadastre-se (conta trial gratuita)
+2. Cadastre-se (conta trial gratuita com $15)
 3. Copie as credenciais:
    - **Account SID** (ex: ACxxxxxxxxxxxxx)
    - **Auth Token** (ex: 1234567890abcdef)
@@ -54,7 +112,7 @@ O WhatsApp Chatbot permite que usuários:
 ### Passo 3: Executar Migration
 
 ```bash
-cd /home/user/ged
+cd /caminho/do/projeto
 python migrations/add_whatsapp_tables.py
 ```
 
@@ -74,25 +132,106 @@ Isso cria as tabelas:
    - Número WhatsApp
 4. Clique em **Salvar Configurações**
 
-### Passo 5: Configurar Webhook no Twilio
+---
+
+## 🏠 TESTAR EM LOCALHOST
+
+### ✅ Sim, funciona no localhost! Mas precisa de um túnel
+
+**O Problema:**
+- Seu Flask roda em `http://localhost:5000` (só você vê)
+- O Twilio (servidores externos) precisa enviar mensagens para seu webhook
+- **O Twilio não consegue acessar `localhost:5000` do seu computador!**
+
+**A Solução: Túnel para Internet**
+
+### Método Simples: localhost.run
+
+**Terminal 1: Rodar Flask**
+```bash
+python app.py
+```
+
+Deve mostrar:
+```
+* Running on http://127.0.0.1:5000
+```
+
+**Terminal 2: Criar Túnel**
+```bash
+ssh -R 80:localhost:5000 localhost.run
+```
+
+Você verá:
+```
+Connect to your tunnel via HTTPS:
+https://abc-123-xyz.localhost.run
+
+This URL will forward all traffic to localhost:5000
+```
+
+**⚠️ COPIE ESSA URL!** (ex: `https://abc-123-xyz.localhost.run`)
+
+### Configurar Webhook no Twilio
 
 1. Acesse: https://console.twilio.com/us1/develop/sms/settings/whatsapp-sandbox
 2. Em **"When a message comes in"**, cole:
    ```
-   https://SEU_DOMINIO.com/whatsapp/webhook
+   https://abc-123-xyz.localhost.run/whatsapp/webhook
    ```
-   **IMPORTANTE:** Substitua `SEU_DOMINIO.com` pelo domínio real!
-
 3. Método: **POST**
-4. Salve
+4. Clique **Save**
 
-### Passo 6: Testar Envio
+### Testar!
 
-1. No painel `/admin/whatsapp`
-2. No card **"Testar Envio"**
-3. Digite seu número: `+5585999999999`
-4. Clique em **Enviar Teste**
-5. Você receberá mensagem de teste no WhatsApp!
+**No WhatsApp do seu celular:**
+
+1. Adicione o número do Twilio nos contatos
+2. Envie mensagem: `join <codigo>` (código aparece no Twilio Sandbox)
+3. Aguarde confirmação
+4. Envie: `menu`
+
+**O bot deve responder!** 🎉
+
+### Alternativas ao localhost.run
+
+**Opção 2: localtunnel**
+```bash
+npm install -g localtunnel
+lt --port 5000
+```
+
+**Opção 3: ngrok (URLs fixas com plano pago)**
+```bash
+ngrok http 5000
+```
+
+### Fluxo Completo
+
+```
+[Seu PC] Flask :5000
+    ↓
+[Túnel] localhost.run → Internet
+    ↓
+[Twilio] Recebe mensagem WhatsApp
+    ↓
+[Twilio] Envia POST para seu webhook
+    ↓
+[Túnel] Encaminha para localhost:5000
+    ↓
+[Flask] Processa e responde
+    ↓
+[Twilio] Envia resposta para WhatsApp
+    ↓
+[Você] Recebe no celular 🎉
+```
+
+### Dicas para Localhost
+
+- Mantenha 2 terminais abertos (Flask + Túnel)
+- URL muda a cada restart do túnel (atualize no Twilio)
+- Use `localhost.run` (grátis, sem cadastro)
+- Para produção, hospede em servidor real (Heroku, AWS, etc.)
 
 ---
 
@@ -283,6 +422,32 @@ Cada assinatura registra:
 
 ## 🔧 TROUBLESHOOTING
 
+### ❌ Erro: "Could not find a version that satisfies the requirement twilio-cli"
+
+**Causa:** Você tentou `pip install twilio-cli`
+
+**Solução:**
+```bash
+# ❌ Errado
+pip install twilio-cli
+
+# ✅ Correto
+pip install twilio>=8.10.0
+```
+
+---
+
+### ❌ Erro: "No module named 'twilio'"
+
+**Causa:** Pacote `twilio` não instalado
+
+**Solução:**
+```bash
+pip install twilio>=8.10.0
+```
+
+---
+
 ### ❌ Erro: "WhatsApp não configurado"
 
 **Causa:** Credenciais Twilio não preenchidas ou WhatsApp desativado.
@@ -322,29 +487,14 @@ Cada assinatura registra:
 
 ---
 
-### ❌ Erro: "Fora do horário de atendimento"
+### ❌ Erro: "Tunnel URL mudou"
 
-**Causa:** Chatbot configurado para responder apenas em horários específicos.
-
-**Solução:**
-1. Acesse `/admin/whatsapp`
-2. Vá em **"Horários de Funcionamento"**
-3. Ajuste horário de início/término
-4. Marque dias da semana
-5. Salve
-
----
-
-### ❌ Erro: "Sessão expirada"
-
-**Causa:** Usuário ficou mais de 15 minutos sem enviar mensagem.
+**Causa:** Toda vez que reiniciar o SSH (localhost.run), a URL muda
 
 **Solução:**
-- Digite `menu` para recomeçar
-- Para aumentar timeout:
-  1. `/admin/whatsapp`
-  2. **"Timeout de Sessão"**
-  3. Aumente para 30 ou 60 minutos
+1. Copie a nova URL do terminal
+2. Atualize no Twilio Webhook
+3. Salve
 
 ---
 
@@ -358,6 +508,50 @@ Cada assinatura registra:
 3. **Créditos Twilio esgotados**
    - Conta trial tem $15 grátis
    - Verifique em: https://console.twilio.com/
+
+---
+
+### ❌ Erro: "ssh: connect to host localhost.run port 22: Connection refused"
+
+**Solução:** Use alternativa:
+
+```bash
+# Opção 1: localtunnel
+npm install -g localtunnel
+lt --port 5000
+
+# Opção 2: ngrok
+ngrok http 5000
+```
+
+---
+
+## 🧪 TESTAR INSTALAÇÃO
+
+### Teste 1: Verificar Twilio instalado
+```bash
+pip show twilio
+```
+
+### Teste 2: Testar importação
+```python
+from twilio.rest import Client
+print("✅ Twilio instalado corretamente!")
+```
+
+### Teste 3: Testar webhook localmente
+```bash
+curl -X POST http://localhost:5000/whatsapp/webhook \
+  -d "From=whatsapp:+5585999999999" \
+  -d "Body=menu"
+```
+
+### Teste 4: Verificar túnel
+```bash
+curl https://SUA-URL.localhost.run/whatsapp/webhook
+```
+
+Deve retornar: `Webhook WhatsApp OK`
 
 ---
 
@@ -375,11 +569,15 @@ Cada assinatura registra:
 - Data/hora
 - Documento/Tarefa relacionada
 
-### Filtros Disponíveis
-- Por direção
-- Por status
-- Por data
-- Por usuário
+### Ver logs em tempo real
+
+```bash
+# Logs Flask
+tail -f logs/app.log
+
+# Logs Twilio (online)
+# https://console.twilio.com/us1/monitor/logs/debugger
+```
 
 ---
 
@@ -399,15 +597,9 @@ Cada assinatura registra:
    - Verifique falhas de envio
    - Identifique problemas cedo
 
-4. ✅ **Personalize templates**
-   - Linguagem profissional
-   - Clara e objetiva
-   - Tom amigável
-
-5. ✅ **Teste regularmente**
+4. ✅ **Teste regularmente**
    - Envie mensagens de teste
    - Valide webhook funcionando
-   - Teste assinatura completa
 
 ### Para Usuários
 
@@ -419,13 +611,23 @@ Cada assinatura registra:
    - Mínimo 8 caracteres
    - Não compartilhe
 
-3. ✅ **Não compartilhe conversas**
-   - Contém dados sensíveis
-   - Validade jurídica
-
-4. ✅ **Responda prontamente**
+3. ✅ **Responda prontamente**
    - Sessão expira em 15 minutos
    - Verificar pendências regularmente
+
+---
+
+## ✅ CHECKLIST DE INSTALAÇÃO
+
+- [ ] Ambiente virtual criado e ativado
+- [ ] `pip install -r requirements.txt` executado com sucesso
+- [ ] `pip show twilio` mostra versão >= 8.10.0
+- [ ] Migration executada (`python migrations/add_whatsapp_tables.py`)
+- [ ] Conta Twilio criada
+- [ ] WhatsApp Sandbox ativado
+- [ ] Credenciais configuradas em `/admin/whatsapp`
+- [ ] Webhook configurado no Twilio (produção) ou túnel (localhost)
+- [ ] Teste de envio realizado com sucesso
 
 ---
 
@@ -435,22 +637,38 @@ Cada assinatura registra:
 - https://www.twilio.com/docs/whatsapp
 - https://support.twilio.com/
 
-### Sistema GED
-- Email: suporte@ged.hospital.br
-- Issues: https://github.com/seu-repo/ged/issues
+### Logs de Debug
+```bash
+# Ver logs Flask
+tail -f logs/app.log
+
+# Ver logs Twilio
+# Acesse: https://console.twilio.com/us1/monitor/logs/debugger
+
+# Testar webhook
+curl -X POST http://localhost:5000/whatsapp/webhook \
+  -d "From=whatsapp:+5585999999999" \
+  -d "Body=menu"
+```
 
 ---
 
-## 📝 CHANGELOG
+## 🎯 RESUMO: 3 Passos para Começar
 
-### v1.0.0 (16/11/2025)
-- ✨ Implementação inicial do chatbot
-- ✅ Assinatura direto no WhatsApp
-- ✅ Painel administrativo completo
-- ✅ Integração com workflow UGQ
-- ✅ Auditoria e logs
-- ✅ Templates personalizáveis
-- ✅ Segurança com hash SHA-256
+```bash
+# 1. Instalar dependências
+pip install -r requirements.txt
+
+# 2. Rodar migration
+python migrations/add_whatsapp_tables.py
+
+# 3. Configurar em /admin/whatsapp
+# - Credenciais Twilio
+# - Ativar WhatsApp
+# - Configurar webhook
+```
+
+**Pronto! Seu bot está funcionando!** 🚀
 
 ---
 
