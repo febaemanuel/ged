@@ -269,8 +269,8 @@ class WhatsAppChatbot:
         elif estado == 'aguardando_acao_documento':
             return self._processar_acao_documento(usuario, conversa, body, response)
 
-        elif estado == 'aguardando_senha':
-            return self._processar_senha(usuario, conversa, body, response)
+        elif estado == 'aguardando_email':
+            return self._processar_confirmacao_email(usuario, conversa, body, response)
 
         elif estado == 'aguardando_justificativa':
             return self._processar_justificativa(usuario, conversa, body, response)
@@ -396,13 +396,15 @@ class WhatsAppChatbot:
 
         if opcao == '1':  # APROVAR E ASSINAR
             msg = "🔒 *Confirmação de Assinatura Digital*\n\n"
-            msg += "Para confirmar sua assinatura, digite sua *senha do sistema GED*:\n\n"
-            msg += "⚠️ _Sua senha será validada e apagada automaticamente._\n"
-            msg += "⚠️ _Após 3 tentativas incorretas, você será bloqueado por 30 minutos._"
+            msg += f"📄 *Documento:* {doc.codigo_definitivo or doc.codigo_provisorio}\n"
+            msg += f"📝 *Título:* {doc.titulo}\n\n"
+            msg += "Para confirmar sua assinatura, digite seu *endereço de email*:\n\n"
+            msg += "⚠️ _Digite exatamente o email cadastrado no sistema_\n"
+            msg += "⚠️ _Após 3 tentativas incorretas, você será bloqueado por 30 minutos_"
 
             response.message(msg)
 
-            conversa.atualizar_estado('aguardando_senha', {'tarefa_id': tarefa_id})
+            conversa.atualizar_estado('aguardando_email', {'tarefa_id': tarefa_id})
             db.session.commit()
 
         elif opcao == '2':  # REPROVAR
@@ -444,8 +446,8 @@ class WhatsAppChatbot:
 
         return str(response)
 
-    def _processar_senha(self, usuario, conversa, senha, response):
-        """Valida senha e processa assinatura"""
+    def _processar_confirmacao_email(self, usuario, conversa, email_digitado, response):
+        """Valida email digitado e processa assinatura"""
         contexto = conversa.get_contexto()
         tarefa_id = contexto.get('tarefa_id')
         tarefa = Tarefa.query.get(tarefa_id)
@@ -456,17 +458,21 @@ class WhatsAppChatbot:
             db.session.commit()
             return str(response)
 
-        # Valida senha
-        if not usuario.check_password(senha):
+        # Valida email (case-insensitive e remove espaços)
+        email_digitado = email_digitado.strip().lower()
+        email_cadastrado = usuario.email.strip().lower()
+
+        if email_digitado != email_cadastrado:
             conversa.incrementar_tentativa_senha()
             db.session.commit()
 
             tentativas_restantes = 3 - conversa.tentativas_senha
 
             if tentativas_restantes > 0:
-                msg = f"❌ *Senha incorreta!*\n\n"
+                msg = f"❌ *Email incorreto!*\n\n"
+                msg += f"O email digitado não corresponde ao cadastrado no sistema.\n\n"
                 msg += f"Você tem *{tentativas_restantes} tentativa(s)* restante(s).\n\n"
-                msg += "Digite sua senha novamente ou *cancelar* para sair."
+                msg += "Digite seu email novamente ou *cancelar* para sair."
                 response.message(msg)
             else:
                 msg = f"🚫 *Bloqueado!*\n\n"
@@ -476,12 +482,12 @@ class WhatsAppChatbot:
 
             return str(response)
 
-        # SENHA CORRETA - Processa assinatura
+        # EMAIL CORRETO - Processa assinatura
         doc = tarefa.documento
         timestamp = datetime.utcnow()
 
-        # Gera hash da assinatura
-        assinatura_string = f"{usuario.id}:{tarefa.id}:{timestamp.isoformat()}:{senha}"
+        # Gera hash da assinatura (usando email como confirmação)
+        assinatura_string = f"{usuario.id}:{tarefa.id}:{timestamp.isoformat()}:{usuario.email}"
         assinatura_hash = hashlib.sha256(assinatura_string.encode()).hexdigest()
 
         # IP e User-Agent (do webhook do Twilio)
