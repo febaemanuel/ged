@@ -13,7 +13,10 @@ from .models import (
     ValidacaoUGQ,
     Notificacao,
     TemplateDocumento,
-    Comentario
+    Comentario,
+    ConfiguracaoWhatsApp,
+    ConversacaoWhatsApp,
+    LogWhatsApp
 )
 
 __all__ = [
@@ -28,5 +31,8 @@ __all__ = [
     'ValidacaoUGQ',
     'Notificacao',
     'TemplateDocumento',
-    'Comentario'
+    'Comentario',
+    'ConfiguracaoWhatsApp',
+    'ConversacaoWhatsApp',
+    'LogWhatsApp'
 ]
