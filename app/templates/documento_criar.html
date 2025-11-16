@@ -57,34 +57,64 @@
                             <small class="form-text text-muted">Prazo de validade do documento após publicação</small>
                         </div>
 
-                        <!-- Seletor de Template -->
-                        <div class="mb-3">
-                            <label class="form-label">
-                                <i class="bi bi-file-earmark-code"></i> Usar Template (opcional)
+                        <!-- Escolha: Já tem documento ou precisa criar -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-question-circle"></i> Você já tem o documento pronto?
                             </label>
-                            <select class="form-select" id="template-select" onchange="selecionarTemplate()">
-                                <option value="">Nenhum - criar do zero</option>
-                            </select>
-                            <small class="form-text text-muted">
-                                Selecione um template pré-aprovado EBSERH para usar como base
-                            </small>
-                            <!-- Badge do template selecionado -->
-                            <div id="template-badge" class="mt-2" style="display: none;">
-                                <span class="badge bg-success">
-                                    <i class="bi bi-check-circle"></i> Template selecionado
-                                </span>
-                                <small class="text-muted ms-2">O template será usado automaticamente</small>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="opcao-documento" id="opcao-tenho" value="tenho" checked autocomplete="off">
+                                <label class="btn btn-outline-success" for="opcao-tenho">
+                                    <i class="bi bi-file-earmark-check"></i> Sim, já tenho o documento
+                                </label>
+
+                                <input type="radio" class="btn-check" name="opcao-documento" id="opcao-criar" value="criar" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="opcao-criar">
+                                    <i class="bi bi-file-earmark-plus"></i> Não, vou criar usando template
+                                </label>
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label for="arquivo" class="form-label">
-                                <span id="arquivo-label">Arquivo do Documento *</span>
+                        <!-- Seção: Fazer Upload (visível quando "Já tenho") -->
+                        <div id="secao-upload" class="mb-4">
+                            <label for="arquivo" class="form-label fw-bold">
+                                <i class="bi bi-upload"></i> Arquivo do Documento *
                             </label>
-                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".doc,.docx,.odt,.pdf" required>
-                            <small class="form-text text-muted" id="arquivo-help">
+                            <input type="file" class="form-control form-control-lg" id="arquivo" name="arquivo" accept=".doc,.docx,.odt,.pdf" required>
+                            <small class="form-text text-muted">
                                 Formatos aceitos: .doc, .docx, .odt, .pdf (máx. 16MB)
                             </small>
+                        </div>
+
+                        <!-- Seção: Baixar Template (visível quando "Vou criar") -->
+                        <div id="secao-template" class="mb-4" style="display: none;">
+                            <div class="alert alert-primary">
+                                <h6 class="alert-heading">
+                                    <i class="bi bi-lightbulb"></i> Como funciona:
+                                </h6>
+                                <ol class="mb-0">
+                                    <li>Selecione um template EBSERH abaixo</li>
+                                    <li>Clique em "Baixar Template"</li>
+                                    <li>Preencha/edite o documento no Word ou LibreOffice</li>
+                                    <li>Volte aqui e faça upload do documento preenchido</li>
+                                </ol>
+                            </div>
+
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-file-earmark-code"></i> Selecione um Template EBSERH
+                            </label>
+                            <select class="form-select mb-3" id="template-select">
+                                <option value="">Escolha um template...</option>
+                            </select>
+
+                            <button type="button" class="btn btn-primary btn-lg w-100" id="btn-baixar-template" disabled>
+                                <i class="bi bi-download"></i> Baixar Template Selecionado
+                            </button>
+
+                            <div class="alert alert-warning mt-3">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <strong>Atenção:</strong> Após baixar e preencher o template, volte aqui e selecione "Sim, já tenho o documento" para fazer o upload.
+                            </div>
                         </div>
 
                         <div class="alert alert-info">
@@ -118,17 +148,69 @@
 {% block extra_js %}
 <script>
 let templatesDisponiveis = [];
-let templateSelecionado = null;
 
 // Carrega templates ao carregar a página
 document.addEventListener('DOMContentLoaded', function() {
     carregarTemplates();
+    configurarEventos();
 });
 
-// Ao mudar tipo de documento, filtra templates
-document.getElementById('tipo_documento').addEventListener('change', function() {
-    filtrarTemplatesPorTipo(this.value);
-});
+function configurarEventos() {
+    // Alternar entre seções ao escolher opção
+    document.querySelectorAll('input[name="opcao-documento"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const secaoUpload = document.getElementById('secao-upload');
+            const secaoTemplate = document.getElementById('secao-template');
+            const arquivoInput = document.getElementById('arquivo');
+
+            if (this.value === 'tenho') {
+                // Mostrar seção de upload
+                secaoUpload.style.display = 'block';
+                secaoTemplate.style.display = 'none';
+                arquivoInput.required = true;
+            } else {
+                // Mostrar seção de template
+                secaoUpload.style.display = 'none';
+                secaoTemplate.style.display = 'block';
+                arquivoInput.required = false;
+            }
+        });
+    });
+
+    // Ao mudar tipo de documento, filtra templates
+    document.getElementById('tipo_documento').addEventListener('change', function() {
+        filtrarTemplatesPorTipo(this.value);
+    });
+
+    // Ao selecionar template, habilita botão de download
+    document.getElementById('template-select').addEventListener('change', function() {
+        const btnBaixar = document.getElementById('btn-baixar-template');
+        btnBaixar.disabled = !this.value;
+    });
+
+    // Botão de baixar template
+    document.getElementById('btn-baixar-template').addEventListener('click', function() {
+        const templateId = document.getElementById('template-select').value;
+        if (!templateId) return;
+
+        // Marca uso do template
+        fetch(`/template/${templateId}/usar`, { method: 'POST' }).catch(console.error);
+
+        // Faz download
+        window.location.href = `/template/download/${templateId}`;
+
+        // Mostra mensagem
+        setTimeout(() => {
+            alert('✅ Download iniciado!\n\n' +
+                  '📝 Próximos passos:\n' +
+                  '1. Abra o arquivo baixado no Word ou LibreOffice\n' +
+                  '2. Preencha/edite o documento\n' +
+                  '3. Salve o arquivo\n' +
+                  '4. Volte aqui e selecione "Sim, já tenho o documento"\n' +
+                  '5. Faça upload do arquivo preenchido');
+        }, 500);
+    });
+}
 
 async function carregarTemplates() {
     try {
@@ -143,7 +225,7 @@ async function carregarTemplates() {
 
 function filtrarTemplatesPorTipo(tipo) {
     const select = document.getElementById('template-select');
-    select.innerHTML = '<option value="">Nenhum - criar do zero</option>';
+    select.innerHTML = '<option value="">Escolha um template...</option>';
 
     if (!tipo) {
         return;
@@ -158,82 +240,10 @@ function filtrarTemplatesPorTipo(tipo) {
         select.appendChild(option);
     });
 
-    if (templatesFiltrados.length > 0) {
-        select.parentElement.style.display = 'block';
+    // Desabilita botão se não tiver templates
+    if (templatesFiltrados.length === 0) {
+        select.innerHTML = '<option value="">Nenhum template disponível para este tipo</option>';
     }
 }
-
-async function selecionarTemplate() {
-    const templateId = document.getElementById('template-select').value;
-    const arquivoInput = document.getElementById('arquivo');
-    const arquivoLabel = document.getElementById('arquivo-label');
-    const arquivoHelp = document.getElementById('arquivo-help');
-    const templateBadge = document.getElementById('template-badge');
-
-    if (!templateId) {
-        // Nenhum template selecionado - arquivo obrigatório
-        templateSelecionado = null;
-        arquivoInput.required = true;
-        arquivoLabel.innerHTML = 'Arquivo do Documento *';
-        arquivoHelp.textContent = 'Formatos aceitos: .doc, .docx, .odt, .pdf (máx. 16MB)';
-        templateBadge.style.display = 'none';
-        return;
-    }
-
-    // Template selecionado - arquivo fica opcional
-    templateSelecionado = templateId;
-    arquivoInput.required = false;
-    arquivoLabel.innerHTML = 'Arquivo do Documento <small class="text-muted">(opcional)</small>';
-    arquivoHelp.innerHTML = '<strong class="text-success">Template será usado automaticamente.</strong> Faça upload apenas se quiser substituir o template por um arquivo próprio.';
-    templateBadge.style.display = 'block';
-
-    // Marca uso do template
-    try {
-        await fetch(`/template/${templateId}/usar`, { method: 'POST' });
-    } catch (error) {
-        console.error('Erro ao marcar uso do template:', error);
-    }
-}
-
-document.getElementById('formDocumento').addEventListener('submit', async function(e) {
-    e.preventDefault();
-
-    const btnSalvar = document.getElementById('btnSalvar');
-    btnSalvar.disabled = true;
-    btnSalvar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Criando...';
-
-    const formData = new FormData(this);
-
-    // Se template selecionado e nenhum arquivo enviado, baixa o template
-    if (templateSelecionado && !formData.get('arquivo').name) {
-        try {
-            // Baixa o template
-            const response = await fetch(`/template/download/${templateSelecionado}`);
-            const blob = await response.blob();
-
-            // Cria um arquivo a partir do blob
-            const template = templatesDisponiveis.find(t => t.id == templateSelecionado);
-            const arquivo = new File([blob], `template_${template.nome}.docx`, { type: blob.type });
-
-            formData.set('arquivo', arquivo);
-        } catch (error) {
-            alert('❌ Erro ao carregar template: ' + error.message);
-            btnSalvar.disabled = false;
-            btnSalvar.innerHTML = '<i class="bi bi-save"></i> Criar Documento';
-            return;
-        }
-    }
-
-    // Valida se tem arquivo (próprio ou do template)
-    if (!formData.get('arquivo').name) {
-        alert('❌ Selecione um arquivo ou um template!');
-        btnSalvar.disabled = false;
-        btnSalvar.innerHTML = '<i class="bi bi-save"></i> Criar Documento';
-        return;
-    }
-
-    // Submete o formulário
-    this.submit();
-});
 </script>
 {% endblock %}
