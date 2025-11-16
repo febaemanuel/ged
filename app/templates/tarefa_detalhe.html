@@ -404,6 +404,21 @@
                     <!-- WORKFLOW ANTIGO (DEPRECATED) -->
                     {% else %}
                     <h5>Concluir Tarefa</h5>
+
+                    <!-- CORREÇÃO/AJUSTES: Botão para editar documento -->
+                    {% if tarefa.tipo_tarefa in ['Realizar Correção', 'Realizar Ajustes'] %}
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle"></i> <strong>Tarefa de Correção:</strong><br>
+                        Edite o documento para fazer as correções solicitadas antes de concluir a tarefa.
+                    </div>
+                    <div class="d-grid mb-3">
+                        <a href="{{ url_for('view.documento_editar', id=tarefa.documento_id) }}" class="btn btn-primary btn-lg">
+                            <i class="bi bi-pencil-square"></i> Editar Documento
+                        </a>
+                    </div>
+                    <hr>
+                    {% endif %}
+
                     <form method="POST" action="{{ url_for('view.tarefa_concluir', id=tarefa.id) }}" enctype="multipart/form-data">
                         <div class="mb-3">
                             <label for="parecer" class="form-label">Parecer *</label>
