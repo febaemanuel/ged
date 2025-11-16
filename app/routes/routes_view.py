@@ -601,9 +601,13 @@ def tarefas():
                 'eh_meu_documento': documento.criador_id == current_user.id
             })
 
+        # Ordena por data de criação (ordem cronológica do fluxo)
+        # Tarefas mais antigas primeiro para mostrar o histórico correto
+        tarefas_ordenadas = sorted(tarefas_com_flag, key=lambda t: t['tarefa'].data_criacao)
+
         grupos_documentos.append({
             'documento': documento,
-            'tarefas': sorted(tarefas_com_flag, key=lambda t: (t['tarefa'].concluida, t['tarefa'].prazo)),
+            'tarefas': tarefas_ordenadas,
             'total': len(tarefas_doc),
             'pendentes': pendentes,
             'concluidas': concluidas,
