@@ -12,11 +12,31 @@ Endpoints:
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime
+import logging
 
 from app.models import db, Comentario, Documento, Notificacao
-from app.services.email_service import enviar_email_notificacao
 
 bp = Blueprint('comentario', __name__, url_prefix='/comentario')
+logger = logging.getLogger(__name__)
+
+
+def enviar_email_comentario(destinatario_email, destinatario_nome, assunto, mensagem, documento=None):
+    """
+    Wrapper para envio de email de comentários
+    Falha silenciosamente se houver erro (email é opcional)
+    """
+    try:
+        from app.services.email_service import EmailService
+
+        corpo_html = EmailService._gerar_template_base(
+            titulo=assunto,
+            mensagem=f"<p>Olá <strong>{destinatario_nome}</strong>,</p><p>{mensagem}</p>"
+        )
+
+        EmailService._enviar_email(destinatario_email, assunto, corpo_html)
+    except Exception as e:
+        logger.warning(f'Erro ao enviar email de comentário: {e}')
+        pass
 
 
 @bp.route('/documento/<int:documento_id>', methods=['GET'])
@@ -128,16 +148,13 @@ def criar_comentario():
         db.session.add(notif)
 
         # Envia email (se configurado)
-        try:
-            enviar_email_notificacao(
-                destinatario_email=usuario.email,
-                destinatario_nome=usuario.nome,
-                assunto=f'Você foi mencionado em: {documento.titulo}',
-                mensagem=f'{current_user.nome} mencionou você em um comentário:\n\n"{texto}"',
-                documento=documento
-            )
-        except:
-            pass  # Email é opcional
+        enviar_email_comentario(
+            destinatario_email=usuario.email,
+            destinatario_nome=usuario.nome,
+            assunto=f'Você foi mencionado em: {documento.titulo}',
+            mensagem=f'{current_user.nome} mencionou você em um comentário:<br><br>"{texto}"',
+            documento=documento
+        )
 
     db.session.commit()
 
@@ -268,16 +285,13 @@ def responder_comentario(comentario_id):
         db.session.add(notif)
 
         # Email
-        try:
-            enviar_email_notificacao(
-                destinatario_email=comentario_pai.usuario.email,
-                destinatario_nome=comentario_pai.usuario.nome,
-                assunto=f'Nova resposta ao seu comentário - {documento.titulo}',
-                mensagem=f'{current_user.nome} respondeu:\n\n"{texto}"',
-                documento=documento
-            )
-        except:
-            pass
+        enviar_email_comentario(
+            destinatario_email=comentario_pai.usuario.email,
+            destinatario_nome=comentario_pai.usuario.nome,
+            assunto=f'Nova resposta ao seu comentário - {documento.titulo}',
+            mensagem=f'{current_user.nome} respondeu:<br><br>"{texto}"',
+            documento=documento
+        )
 
     # Notifica mencionados
     for usuario in usuarios_mencionados:
