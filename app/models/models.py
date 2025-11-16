@@ -29,6 +29,11 @@ class Usuario(UserMixin, db.Model):
     perfil = db.Column(db.String(30), nullable=False, default='comum')
     ativo = db.Column(db.Boolean, default=True)
     setor = db.Column(db.String(100))
+
+    # WhatsApp
+    telefone = db.Column(db.String(20))  # Formato: +5585999999999
+    whatsapp_ativo = db.Column(db.Boolean, default=True)  # Aceita notificações WhatsApp
+
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
     ultimo_acesso = db.Column(db.DateTime)
 
