@@ -225,13 +225,40 @@ class Documento(db.Model):
         if usuario.id == self.criador_id:
             return self.status in ['Novo', 'Em Análise', 'Em Triagem', 'Em Correção']
 
-        # Triador UGQ pode editar durante triagem
-        if usuario.is_triador_ugq() and self.status == 'Em Triagem':
-            return True
+        # Triador UGQ pode editar SOMENTE se tem tarefa de correção/ajuste pra ele
+        if usuario.is_triador_ugq():
+            from app.models.models import Tarefa
+            from config import Config
+            # Verifica se tem tarefa de correção ou ajuste pendente para este triador
+            tem_tarefa_correcao = Tarefa.query.filter_by(
+                documento_id=self.id,
+                responsavel_id=usuario.id,
+                concluida=False
+            ).filter(
+                Tarefa.tipo_tarefa.in_([Config.TAREFA_REALIZAR_CORRECAO, Config.TAREFA_REALIZAR_AJUSTES])
+            ).first()
+
+            if tem_tarefa_correcao:
+                return True
 
         # Validador UGQ pode editar durante validação ou ajustes
-        if usuario.is_validador_ugq() and self.status in ['Em Validação', 'Em Ajustes', 'Validado']:
-            return True
+        if usuario.is_validador_ugq():
+            # Pode editar em status específicos OU se tem tarefa de correção/ajuste
+            if self.status in ['Em Validação', 'Em Ajustes', 'Validado']:
+                return True
+
+            from app.models.models import Tarefa
+            from config import Config
+            tem_tarefa_correcao = Tarefa.query.filter_by(
+                documento_id=self.id,
+                responsavel_id=usuario.id,
+                concluida=False
+            ).filter(
+                Tarefa.tipo_tarefa.in_([Config.TAREFA_REALIZAR_CORRECAO, Config.TAREFA_REALIZAR_AJUSTES])
+            ).first()
+
+            if tem_tarefa_correcao:
+                return True
 
         # Gerentes e superiores podem editar sempre
         return usuario.is_gerente_ou_superior()
