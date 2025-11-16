@@ -220,8 +220,38 @@ class Documento(db.Model):
         """Verifica se o usuário pode editar o documento"""
         if usuario.is_admin():
             return True
+
+        # Autor pode editar SOMENTE se tem tarefa de correção pendente pra ele
+        # OU se o documento ainda está em status inicial (Novo)
         if usuario.id == self.criador_id:
-            return self.status in ['Novo', 'Em Análise']
+            # Pode editar se está em status inicial
+            if self.status in ['Novo', 'Em Análise']:
+                return True
+
+            # OU se tem tarefa de correção pendente
+            from app.models.models import Tarefa
+            from config import Config
+            tem_tarefa_correcao = Tarefa.query.filter_by(
+                documento_id=self.id,
+                responsavel_id=usuario.id,
+                concluida=False,
+                tipo_tarefa=Config.TAREFA_REALIZAR_CORRECAO
+            ).first()
+
+            if tem_tarefa_correcao:
+                return True
+
+            return False
+
+        # Triador UGQ pode editar durante triagem (workflow normal)
+        if usuario.is_triador_ugq() and self.status == 'Em Triagem':
+            return True
+
+        # Validador UGQ pode editar durante validação ou ajustes
+        if usuario.is_validador_ugq() and self.status in ['Em Validação', 'Em Ajustes', 'Validado']:
+            return True
+
+        # Gerentes e superiores podem editar sempre
         return usuario.is_gerente_ou_superior()
 
     def pode_publicar(self):

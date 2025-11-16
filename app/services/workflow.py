@@ -1308,3 +1308,155 @@ class WorkflowUGQ:
         log_debug(f"📄 PDF de assinaturas salvo em: {filepath}")
 
         return filename
+
+    # ========================================================================
+    # RETOMADA DE FLUXO APÓS CORREÇÕES
+    # ========================================================================
+
+    @classmethod
+    def autor_reenvia_apos_correcao(cls, tarefa_correcao):
+        """
+        Autor concluiu correção (após devolução do Triador/Validador)
+        Retorna documento para triagem na UGQ
+
+        Args:
+            tarefa_correcao: Tarefa "Realizar Correção" que foi concluída
+
+        Returns:
+            Nova tarefa criada para Triador UGQ
+        """
+        log_debug("=" * 80)
+        log_debug(f"RETOMADA DE FLUXO: Autor concluiu correção")
+        log_debug(f"Tarefa #{tarefa_correcao.id}")
+        log_debug("=" * 80)
+
+        documento = tarefa_correcao.documento
+
+        # Marca tarefa de correção como concluída
+        tarefa_correcao.aprovado = True
+        tarefa_correcao.concluida = True
+        tarefa_correcao.data_conclusao = datetime.utcnow()
+        tarefa_correcao.parecer = tarefa_correcao.parecer or 'Correção realizada'
+
+        # Busca Triador UGQ disponível
+        triador = Usuario.query.filter_by(
+            perfil=Config.PERFIL_QUALIDADE_TRIADOR,
+            ativo=True
+        ).first()
+
+        if not triador:
+            log_debug("❌ ERRO: Nenhum Triador UGQ disponível")
+            raise ValueError("Nenhum Triador UGQ disponível no sistema")
+
+        log_debug(f"✅ Triador UGQ encontrado: {triador.nome} ({triador.email})")
+
+        # Cria nova tarefa de triagem
+        nova_tarefa = Tarefa(
+            documento_id=documento.id,
+            criador_id=documento.criador_id,
+            responsavel_id=triador.id,
+            tipo_tarefa=Config.TAREFA_DOCUMENTO_RECEBIDO,
+            descricao=f'Retriagem após correção: {documento.titulo}',
+            prazo=datetime.utcnow() + timedelta(days=5),
+            concluida=False
+        )
+
+        db.session.add(nova_tarefa)
+
+        # Atualiza status do documento
+        documento.status = Config.STATUS_EM_TRIAGEM
+
+        db.session.flush()  # Gera nova_tarefa.id
+
+        log_debug(f"✅ Nova tarefa #{nova_tarefa.id} criada para Triador UGQ")
+        log_debug(f"📊 Documento status: {documento.status}")
+
+        # Envia e-mail para o Triador UGQ
+        if EMAIL_ENABLED:
+            EmailService.enviar_notificacao_tarefa(
+                usuario_id=triador.id,
+                tipo_tarefa=Config.TAREFA_DOCUMENTO_RECEBIDO,
+                documento_titulo=documento.titulo,
+                documento_codigo=documento.codigo_provisorio or documento.codigo_unico
+            )
+            log_debug(f"📧 E-mail enviado para Triador UGQ: {triador.email}")
+
+        log_debug("=" * 80)
+
+        return nova_tarefa
+
+    @classmethod
+    def validador_reenvia_apos_ajustes(cls, tarefa_ajuste):
+        """
+        Validador concluiu ajustes (após reprovação de aprovador no bloco de assinatura)
+        Retorna para o próprio Validador fazer nova codificação/validação
+
+        Args:
+            tarefa_ajuste: Tarefa "Realizar Ajustes" que foi concluída
+
+        Returns:
+            Nova tarefa criada para Validador UGQ
+        """
+        log_debug("=" * 80)
+        log_debug(f"RETOMADA DE FLUXO: Validador concluiu ajustes")
+        log_debug(f"Tarefa #{tarefa_ajuste.id}")
+        log_debug("=" * 80)
+
+        documento = tarefa_ajuste.documento
+
+        # Marca tarefa de ajustes como concluída
+        tarefa_ajuste.aprovado = True
+        tarefa_ajuste.concluida = True
+        tarefa_ajuste.data_conclusao = datetime.utcnow()
+        tarefa_ajuste.parecer = tarefa_ajuste.parecer or 'Ajustes realizados'
+
+        # Busca Validador UGQ disponível (preferencialmente o mesmo que fez os ajustes)
+        validador = Usuario.query.get(tarefa_ajuste.responsavel_id)
+
+        if not validador or not validador.is_validador_ugq():
+            # Busca qualquer Validador UGQ ativo
+            validador = Usuario.query.filter_by(
+                perfil=Config.PERFIL_QUALIDADE_VALIDADOR,
+                ativo=True
+            ).first()
+
+        if not validador:
+            log_debug("❌ ERRO: Nenhum Validador UGQ disponível")
+            raise ValueError("Nenhum Validador UGQ disponível no sistema")
+
+        log_debug(f"✅ Validador UGQ encontrado: {validador.nome} ({validador.email})")
+
+        # Cria nova tarefa de validação e codificação
+        nova_tarefa = Tarefa(
+            documento_id=documento.id,
+            criador_id=tarefa_ajuste.responsavel_id,
+            responsavel_id=validador.id,
+            tipo_tarefa=Config.TAREFA_VALIDAR_CODIFICAR,
+            descricao=f'Revalidar após ajustes: {documento.titulo}',
+            prazo=datetime.utcnow() + timedelta(days=7),
+            concluida=False
+        )
+
+        db.session.add(nova_tarefa)
+
+        # Atualiza status do documento
+        documento.status = Config.STATUS_EM_VALIDACAO
+
+        db.session.flush()  # Gera nova_tarefa.id
+
+        log_debug(f"✅ Nova tarefa #{nova_tarefa.id} criada para Validador UGQ")
+        log_debug(f"📊 Documento status: {documento.status}")
+
+        # Envia e-mail para o Validador UGQ
+        if EMAIL_ENABLED:
+            EmailService.enviar_notificacao_tarefa(
+                usuario_id=validador.id,
+                tipo_tarefa=Config.TAREFA_VALIDAR_CODIFICAR,
+                documento_titulo=documento.titulo,
+                documento_codigo=documento.codigo_provisorio or documento.codigo_unico
+            )
+            log_debug(f"📧 E-mail enviado para Validador UGQ: {validador.email}")
+
+        log_debug("=" * 80)
+
+        return nova_tarefa
