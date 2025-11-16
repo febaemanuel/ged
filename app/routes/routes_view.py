@@ -748,6 +748,43 @@ def tarefa_concluir(id):
     elif acao == 'rejeitar':
         tarefa.aprovado = False
 
+    # ============================================================================
+    # WORKFLOW UGQ: Retomar fluxo após correções
+    # ============================================================================
+    from app.services.workflow import WorkflowUGQ
+
+    # Caso 1: AUTOR concluiu correção (após devolução do Triador/Validador)
+    if tarefa.tipo_tarefa == Config.TAREFA_REALIZAR_CORRECAO:
+        try:
+            # Reenvia documento para Triador UGQ fazer nova triagem
+            nova_tarefa = WorkflowUGQ.autor_reenvia_apos_correcao(tarefa)
+            db.session.commit()
+            flash(f'✅ Correção concluída! Documento reenviado para triagem pela UGQ', 'success')
+            return redirect(url_for('view.tarefas'))
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Erro ao retomar workflow após correção: {str(e)}")
+            flash(f'❌ Erro ao retomar workflow: {str(e)}', 'danger')
+            return redirect(url_for('view.tarefa_detalhe', id=id))
+
+    # Caso 2: VALIDADOR concluiu ajustes (após reprovação de aprovador)
+    elif tarefa.tipo_tarefa == Config.TAREFA_REALIZAR_AJUSTES:
+        try:
+            # Retorna para o Validador fazer nova codificação/validação
+            nova_tarefa = WorkflowUGQ.validador_reenvia_apos_ajustes(tarefa)
+            db.session.commit()
+            flash(f'✅ Ajustes concluídos! Documento pronto para nova validação', 'success')
+            return redirect(url_for('view.tarefas'))
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Erro ao retomar workflow após ajustes: {str(e)}")
+            flash(f'❌ Erro ao retomar workflow: {str(e)}', 'danger')
+            return redirect(url_for('view.tarefa_detalhe', id=id))
+
+    # ============================================================================
+    # Tarefas genéricas (não-UGQ)
+    # ============================================================================
+
     # Atualizar status do documento baseado no tipo de tarefa e aprovação
     if tarefa.aprovado:
         if tarefa.tipo_tarefa == 'Revisar':
