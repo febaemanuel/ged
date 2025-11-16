@@ -271,10 +271,14 @@ def download_template(template_id):
     if not os.path.exists(filepath):
         return jsonify({'erro': 'Arquivo template não encontrado'}), 404
 
+    # Extrai apenas a extensão original do arquivo
+    _, extensao = os.path.splitext(template.arquivo_template)
+    nome_download = f"{template.nome}{extensao}"
+
     return send_file(
         filepath,
         as_attachment=True,
-        download_name=f"{template.nome}_{template.arquivo_template}"
+        download_name=nome_download
     )
 
 
