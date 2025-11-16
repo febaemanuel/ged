@@ -1,0 +1,9 @@
+# Dependências para WhatsApp Chatbot
+#
+# NOTA: Twilio agora está incluído no requirements.txt principal
+# Este arquivo é mantido apenas para referência
+#
+# Para instalar todas as dependências (incluindo WhatsApp):
+# pip install -r requirements.txt
+
+twilio>=8.10.0  # Cliente oficial Twilio para WhatsApp

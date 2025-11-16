@@ -1,0 +1,416 @@
+{% extends "base.html" %}
+
+{% block title %}Administração de Templates - Sistema GED{% endblock %}
+
+{% block extra_css %}
+<style>
+.template-card {
+    border-left: 4px solid var(--primary-color);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+.template-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+.template-badge {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabeçalho -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="mb-1 gradient-text"><i class="bi bi-file-earmark-code"></i> Administração de Templates</h1>
+            <p class="text-muted">Gerencie templates de documentos para padronização EBSERH</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoTemplate">
+                <i class="bi bi-plus-circle"></i> Novo Template
+            </button>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label small">Tipo</label>
+                    <select class="form-select" id="filtro-tipo" onchange="carregarTemplates()">
+                        <option value="">Todos</option>
+                        <option value="POP">POP</option>
+                        <option value="Manual">Manual</option>
+                        <option value="Protocolo">Protocolo</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Status</label>
+                    <select class="form-select" id="filtro-ativo" onchange="carregarTemplates()">
+                        <option value="true">Ativos</option>
+                        <option value="false">Inativos</option>
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small">Buscar</label>
+                    <input type="text" class="form-control" id="busca-template" placeholder="Nome do template..." onkeyup="filtrarTemplates()">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Templates -->
+    <div id="lista-templates">
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Novo Template -->
+<div class="modal fade" id="modalNovoTemplate" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Criar Novo Template</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formNovoTemplate" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label">Nome do Template <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="nome" required placeholder="Ex: Template POP Padrão EBSERH">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Tipo <span class="text-danger">*</span></label>
+                                <select class="form-select" name="tipo_documento" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="POP">POP</option>
+                                    <option value="Manual">Manual</option>
+                                    <option value="Protocolo">Protocolo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <textarea class="form-control" name="descricao" rows="2" placeholder="Descreva o template e quando usar..."></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Setor <small class="text-muted">(opcional)</small></label>
+                                <input type="text" class="form-control" name="setor" placeholder="Deixe vazio para todos os setores">
+                                <small class="text-muted">Se especificar, apenas usuários desse setor verão o template</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Arquivo Template <span class="text-danger">*</span></label>
+                                <input type="file" class="form-control" name="arquivo" accept=".doc,.docx,.odt,.pdf" required>
+                                <small class="text-muted">Formatos: .doc, .docx, .odt, .pdf (máx. 16MB)</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Dica:</strong> O arquivo template deve estar formatado conforme normas EBSERH (margens, fontes, cabeçalho).
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Criar Template
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Editar Template -->
+<div class="modal fade" id="modalEditarTemplate" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="bi bi-pencil"></i> Editar Template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formEditarTemplate">
+                <input type="hidden" id="edit-template-id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="edit-nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <textarea class="form-control" id="edit-descricao" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" id="edit-tipo" required>
+                            <option value="POP">POP</option>
+                            <option value="Manual">Manual</option>
+                            <option value="Protocolo">Protocolo</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Setor</label>
+                        <input type="text" class="form-control" id="edit-setor" placeholder="Vazio = todos">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="edit-ativo">
+                            <label class="form-check-label" for="edit-ativo">Template Ativo</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check"></i> Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let templatesData = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    carregarTemplates();
+});
+
+// Criar novo template
+document.getElementById('formNovoTemplate').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Criando...';
+
+    try {
+        const response = await fetch('/template/criar', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ Template criado com sucesso!');
+            bootstrap.Modal.getInstance(document.getElementById('modalNovoTemplate')).hide();
+            this.reset();
+            carregarTemplates();
+        } else {
+            alert('❌ Erro: ' + data.erro);
+        }
+    } catch (error) {
+        alert('❌ Erro ao criar template: ' + error.message);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Criar Template';
+    }
+});
+
+// Editar template
+document.getElementById('formEditarTemplate').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const templateId = document.getElementById('edit-template-id').value;
+    const data = {
+        nome: document.getElementById('edit-nome').value,
+        descricao: document.getElementById('edit-descricao').value,
+        tipo_documento: document.getElementById('edit-tipo').value,
+        setor: document.getElementById('edit-setor').value || null,
+        ativo: document.getElementById('edit-ativo').checked
+    };
+
+    try {
+        const response = await fetch(`/template/${templateId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('✅ Template atualizado!');
+            bootstrap.Modal.getInstance(document.getElementById('modalEditarTemplate')).hide();
+            carregarTemplates();
+        } else {
+            alert('❌ Erro: ' + result.erro);
+        }
+    } catch (error) {
+        alert('❌ Erro ao atualizar: ' + error.message);
+    }
+});
+
+async function carregarTemplates() {
+    const tipo = document.getElementById('filtro-tipo').value;
+    const ativo = document.getElementById('filtro-ativo').value;
+
+    let url = '/template/lista?';
+    if (tipo) url += `tipo=${tipo}&`;
+    if (ativo) url += `ativo=${ativo}`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        templatesData = data.templates || [];
+        renderizarTemplates();
+    } catch (error) {
+        document.getElementById('lista-templates').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> Erro ao carregar templates
+            </div>
+        `;
+    }
+}
+
+function renderizarTemplates() {
+    const container = document.getElementById('lista-templates');
+
+    if (templatesData.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-file-earmark-code" style="font-size: 4rem; opacity: 0.3;"></i>
+                <p class="mt-3">Nenhum template encontrado</p>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoTemplate">
+                    <i class="bi bi-plus-circle"></i> Criar Primeiro Template
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="row g-3">
+            ${templatesData.map(t => `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card template-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="mb-0">${t.nome}</h6>
+                                <span class="template-badge ${t.ativo ? 'bg-success' : 'bg-secondary'} text-white">
+                                    ${t.ativo ? 'Ativo' : 'Inativo'}
+                                </span>
+                            </div>
+                            <p class="text-muted small mb-2">${t.descricao || 'Sem descrição'}</p>
+                            <div class="mb-3">
+                                <span class="badge bg-primary">${t.tipo_documento}</span>
+                                ${t.setor ? `<span class="badge bg-info">${t.setor}</span>` : '<span class="badge bg-secondary">Global</span>'}
+                                <span class="badge bg-light text-dark"><i class="bi bi-download"></i> ${t.vezes_utilizado || 0} usos</span>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-primary" onclick="downloadTemplate(${t.id})">
+                                    <i class="bi bi-download"></i> Download
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning" onclick="editarTemplate(${t.id})">
+                                    <i class="bi bi-pencil"></i> Editar
+                                </button>
+                                {% if current_user.is_admin() %}
+                                <button class="btn btn-sm btn-outline-danger" onclick="deletarTemplate(${t.id})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                Criado por ${t.criador} em ${formatarData(t.data_criacao)}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function filtrarTemplates() {
+    const busca = document.getElementById('busca-template').value.toLowerCase();
+    const filtrados = templatesData.filter(t =>
+        t.nome.toLowerCase().includes(busca) ||
+        (t.descricao && t.descricao.toLowerCase().includes(busca))
+    );
+
+    const temp = templatesData;
+    templatesData = filtrados;
+    renderizarTemplates();
+    if (!busca) templatesData = temp;
+}
+
+async function downloadTemplate(id) {
+    window.location.href = `/template/download/${id}`;
+}
+
+async function editarTemplate(id) {
+    try {
+        const response = await fetch(`/template/${id}`);
+        const template = await response.json();
+
+        document.getElementById('edit-template-id').value = template.id;
+        document.getElementById('edit-nome').value = template.nome;
+        document.getElementById('edit-descricao').value = template.descricao || '';
+        document.getElementById('edit-tipo').value = template.tipo_documento;
+        document.getElementById('edit-setor').value = template.setor || '';
+        document.getElementById('edit-ativo').checked = template.ativo;
+
+        new bootstrap.Modal(document.getElementById('modalEditarTemplate')).show();
+    } catch (error) {
+        alert('❌ Erro ao carregar template');
+    }
+}
+
+async function deletarTemplate(id) {
+    if (!confirm('Tem certeza que deseja deletar este template? Esta ação não pode ser desfeita!')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/template/${id}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ Template deletado!');
+            carregarTemplates();
+        } else {
+            alert('❌ Erro: ' + data.erro);
+        }
+    } catch (error) {
+        alert('❌ Erro ao deletar: ' + error.message);
+    }
+}
+
+function formatarData(dataISO) {
+    return new Date(dataISO).toLocaleDateString('pt-BR');
+}
+</script>
+{% endblock %}

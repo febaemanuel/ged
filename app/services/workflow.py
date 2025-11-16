@@ -30,6 +30,14 @@ except ImportError:
     EMAIL_ENABLED = False
     logger.warning("EmailService não disponível")
 
+# Import do serviço de WhatsApp
+try:
+    from app.services.whatsapp_service import WhatsAppService
+    WHATSAPP_ENABLED = True
+except ImportError:
+    WHATSAPP_ENABLED = False
+    logger.warning("WhatsAppService não disponível")
+
 
 def log_debug(message):
     """Helper para logar tanto no logger quanto no console"""
@@ -98,8 +106,16 @@ class WorkflowUGQ:
         log_debug(f"✅ Tarefa #{tarefa.id} criada para Triador UGQ")
         log_debug(f"📊 Documento status: {documento.status}")
 
-        # Envia e-mail para o Triador UGQ
-        if EMAIL_ENABLED:
+        # Verifica método de confirmação configurado
+        metodo = 'ambos'  # Padrão
+        if WHATSAPP_ENABLED:
+            from app.models import ConfiguracaoWhatsApp
+            whatsapp_config = ConfiguracaoWhatsApp.get_config()
+            metodo = whatsapp_config.metodo_confirmacao or 'ambos'
+            log_debug(f"📬 Método de confirmação: {metodo}")
+
+        # Envia e-mail para o Triador UGQ (se configurado)
+        if EMAIL_ENABLED and metodo in ['email', 'ambos']:
             EmailService.enviar_notificacao_tarefa(
                 usuario_id=triador.id,
                 tipo_tarefa=Config.TAREFA_DOCUMENTO_RECEBIDO,
@@ -107,6 +123,16 @@ class WorkflowUGQ:
                 documento_codigo=documento.codigo_provisorio
             )
             log_debug(f"📧 E-mail enviado para Triador UGQ: {triador.email}")
+
+        # Envia WhatsApp para o Triador UGQ (se configurado)
+        if WHATSAPP_ENABLED and metodo in ['whatsapp', 'ambos']:
+            whatsapp_service = WhatsAppService()
+            if whatsapp_service.esta_ativo():
+                sucesso, resultado = whatsapp_service.enviar_notificacao_tarefa(triador, tarefa)
+                if sucesso:
+                    log_debug(f"📱 WhatsApp enviado para Triador UGQ: {triador.telefone}")
+                else:
+                    log_debug(f"⚠️ Falha ao enviar WhatsApp: {resultado}")
 
         log_debug("=" * 80)
 

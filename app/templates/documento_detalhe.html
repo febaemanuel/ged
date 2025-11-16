@@ -754,6 +754,15 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- Seção de Comentários (apenas documentos publicados) -->
+    {% if documento.status in ['Aprovado e Publicado', 'Publicado', 'Vigente'] %}
+    <div class="row mt-4">
+        <div class="col-lg-12">
+            {% include '_comentarios_section.html' %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Modal: Substituir Arquivo -->

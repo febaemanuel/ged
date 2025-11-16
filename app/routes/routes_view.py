@@ -102,6 +102,17 @@ def dashboard():
     return render_template('dashboard.html', stats=stats, tarefas=tarefas)
 
 
+@view_bp.route('/dashboard-executivo')
+@login_required
+def dashboard_executivo():
+    """Dashboard Executivo - Apenas para Admin e Validadores UGQ"""
+    if not (current_user.is_admin() or current_user.is_validador_ugq()):
+        flash('Sem permissão para acessar o Dashboard Executivo', 'error')
+        return redirect(url_for('view.dashboard'))
+
+    return render_template('dashboard_executivo.html')
+
+
 # ============================================================================
 # DOCUMENTOS
 # ============================================================================
@@ -843,6 +854,21 @@ def tarefa_concluir(id):
 
     flash('Tarefa concluída com sucesso!', 'success')
     return redirect(url_for('view.tarefas'))
+
+
+# ============================================================================
+# TEMPLATES
+# ============================================================================
+
+@view_bp.route('/templates-admin')
+@login_required
+def templates_admin():
+    """Administração de Templates - Admin e Validadores UGQ"""
+    if not (current_user.is_admin() or current_user.is_validador_ugq()):
+        flash('Sem permissão para acessar administração de templates', 'error')
+        return redirect(url_for('view.dashboard'))
+
+    return render_template('templates_admin.html')
 
 
 # ============================================================================

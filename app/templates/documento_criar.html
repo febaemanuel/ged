@@ -16,10 +16,41 @@
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Criar Novo Documento</h5>
+                    <h5 class="mb-0">
+                        <i class="bi bi-plus-circle"></i>
+                        <span id="titulo-etapa">Criar Novo Documento</span>
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('view.documento_criar') }}" enctype="multipart/form-data" id="formDocumento">
+
+                    <!-- ETAPA 1: Pergunta inicial -->
+                    <div id="etapa-1" class="etapa">
+                        <div class="text-center py-4">
+                            <i class="bi bi-question-circle-fill text-primary" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3 mb-2">Você já tem o documento pronto?</h5>
+                            <p class="text-muted mb-4" style="font-size: 0.9rem;">Escolha uma das opções abaixo:</p>
+
+                            <div class="d-grid gap-3 col-md-9 mx-auto">
+                                <button type="button" class="btn btn-success btn-lg" onclick="irParaFormulario()">
+                                    <i class="bi bi-file-earmark-check me-2" style="font-size: 1.3rem;"></i>
+                                    <strong>Sim, já tenho o documento</strong>
+                                    <br>
+                                    <small>Fazer upload do arquivo pronto</small>
+                                </button>
+
+                                <button type="button" class="btn btn-primary btn-lg" onclick="irParaBaixarTemplate()">
+                                    <i class="bi bi-file-earmark-plus me-2" style="font-size: 1.3rem;"></i>
+                                    <strong>Não, vou criar usando template</strong>
+                                    <br>
+                                    <small>Baixar template EBSERH para preencher</small>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ETAPA 2: Formulário de upload -->
+                    <div id="etapa-2" class="etapa" style="display: none;">
+                        <form method="POST" action="{{ url_for('view.documento_criar') }}" enctype="multipart/form-data" id="formDocumento">
                         <div class="mb-3">
                             <label for="titulo" class="form-label">Título *</label>
                             <input type="text" class="form-control" id="titulo" name="titulo" required>
@@ -57,10 +88,14 @@
                             <small class="form-text text-muted">Prazo de validade do documento após publicação</small>
                         </div>
 
-                        <div class="mb-4">
-                            <label for="arquivo" class="form-label">Arquivo do Documento *</label>
+                        <div class="mb-3">
+                            <label for="arquivo" class="form-label">
+                                <i class="bi bi-upload"></i> Arquivo do Documento *
+                            </label>
                             <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".doc,.docx,.odt,.pdf" required>
-                            <small class="form-text text-muted">Formatos aceitos: .doc, .docx, .odt, .pdf (máx. 16MB)</small>
+                            <small class="form-text text-muted">
+                                Formatos aceitos: .doc, .docx, .odt, .pdf (máx. 16MB)
+                            </small>
                         </div>
 
                         <div class="alert alert-info">
@@ -76,14 +111,68 @@
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="{{ url_for('view.documentos') }}" class="btn btn-secondary">
-                                <i class="bi bi-x-circle"></i> Cancelar
-                            </a>
-                            <button type="submit" class="btn btn-primary" id="btnSalvar">
+                            <button type="button" class="btn btn-secondary" onclick="voltarParaInicio()">
+                                <i class="bi bi-arrow-left"></i> Voltar
+                            </button>
+                            <button type="submit" class="btn btn-success" id="btnSalvar">
                                 <i class="bi bi-save"></i> Criar Documento
                             </button>
                         </div>
-                    </form>
+                        </form>
+                    </div>
+
+                    <!-- ETAPA 3: Baixar Template -->
+                    <div id="etapa-3" class="etapa" style="display: none;">
+                        <div class="alert alert-primary">
+                            <h6 class="alert-heading">
+                                <i class="bi bi-lightbulb"></i> Como funciona:
+                            </h6>
+                            <ol class="mb-2">
+                                <li>Escolha o tipo de documento (POP, Manual ou Protocolo)</li>
+                                <li>Selecione um template EBSERH da lista</li>
+                                <li>Clique em "Baixar Template"</li>
+                                <li>Preencha/edite o documento no Word ou LibreOffice</li>
+                                <li>Volte ao início e escolha "Sim, já tenho o documento"</li>
+                            </ol>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tipo-doc-template" class="form-label fw-bold">
+                                <i class="bi bi-file-earmark"></i> Tipo de Documento *
+                            </label>
+                            <select class="form-select" id="tipo-doc-template">
+                                <option value="">Selecione o tipo...</option>
+                                <option value="POP">POP - Procedimento Operacional Padrão</option>
+                                <option value="Manual">Manual</option>
+                                <option value="Protocolo">Protocolo</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4" id="area-templates" style="display: none;">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-file-earmark-code"></i> Templates Disponíveis
+                            </label>
+                            <select class="form-select mb-3" id="template-select" size="5">
+                                <option value="">Carregando...</option>
+                            </select>
+
+                            <button type="button" class="btn btn-primary btn-lg w-100" id="btn-baixar-template" disabled>
+                                <i class="bi bi-download"></i> Baixar Template Selecionado
+                            </button>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Importante:</strong> Após baixar e preencher o template, clique em "Voltar ao Início" e selecione "Sim, já tenho o documento" para fazer o upload.
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-secondary" onclick="voltarParaInicio()">
+                                <i class="bi bi-arrow-left"></i> Voltar ao Início
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -93,9 +182,117 @@
 
 {% block extra_js %}
 <script>
-document.getElementById('formDocumento').addEventListener('submit', function() {
-    document.getElementById('btnSalvar').disabled = true;
-    document.getElementById('btnSalvar').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Criando...';
+let templatesDisponiveis = [];
+
+// Carrega templates ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    carregarTemplates();
+    configurarEventos();
 });
+
+function configurarEventos() {
+    // Na etapa 3, ao selecionar tipo, mostra templates
+    document.getElementById('tipo-doc-template').addEventListener('change', function() {
+        const areaTemplates = document.getElementById('area-templates');
+        if (this.value) {
+            areaTemplates.style.display = 'block';
+            filtrarTemplatesPorTipo(this.value);
+        } else {
+            areaTemplates.style.display = 'none';
+        }
+    });
+
+    // Ao selecionar template, habilita botão
+    document.getElementById('template-select').addEventListener('change', function() {
+        const btnBaixar = document.getElementById('btn-baixar-template');
+        btnBaixar.disabled = !this.value;
+    });
+
+    // Botão de baixar template
+    document.getElementById('btn-baixar-template').addEventListener('click', function() {
+        const templateId = document.getElementById('template-select').value;
+        if (!templateId) return;
+
+        // Marca uso do template
+        fetch(`/template/${templateId}/usar`, { method: 'POST' }).catch(console.error);
+
+        // Faz download
+        window.location.href = `/template/download/${templateId}`;
+
+        // Mostra mensagem
+        setTimeout(() => {
+            alert('✅ Download iniciado!\n\n' +
+                  '📝 Próximos passos:\n' +
+                  '1. Abra o arquivo baixado no Word ou LibreOffice\n' +
+                  '2. Preencha/edite o documento\n' +
+                  '3. Salve o arquivo\n' +
+                  '4. Clique em "Voltar ao Início"\n' +
+                  '5. Selecione "Sim, já tenho o documento"\n' +
+                  '6. Faça upload do arquivo preenchido');
+        }, 500);
+    });
+}
+
+async function carregarTemplates() {
+    try {
+        const response = await fetch('/template/lista?ativo=true');
+        const data = await response.json();
+        templatesDisponiveis = data.templates || [];
+    } catch (error) {
+        console.error('Erro ao carregar templates:', error);
+    }
+}
+
+function filtrarTemplatesPorTipo(tipo) {
+    const select = document.getElementById('template-select');
+    select.innerHTML = '';
+
+    if (!tipo) {
+        return;
+    }
+
+    const templatesFiltrados = templatesDisponiveis.filter(t => t.tipo_documento === tipo);
+
+    if (templatesFiltrados.length === 0) {
+        select.innerHTML = '<option value="">Nenhum template disponível para este tipo</option>';
+        select.disabled = true;
+        return;
+    }
+
+    select.disabled = false;
+    templatesFiltrados.forEach(template => {
+        const option = document.createElement('option');
+        option.value = template.id;
+        option.textContent = `${template.nome} ${template.setor ? '(' + template.setor + ')' : '(Global)'}`;
+        select.appendChild(option);
+    });
+}
+
+// Navegação entre etapas
+function irParaFormulario() {
+    mostrarEtapa(2);
+    document.getElementById('titulo-etapa').textContent = 'Preencher Dados e Fazer Upload';
+}
+
+function irParaBaixarTemplate() {
+    mostrarEtapa(3);
+    document.getElementById('titulo-etapa').textContent = 'Baixar Template EBSERH';
+}
+
+function voltarParaInicio() {
+    mostrarEtapa(1);
+    document.getElementById('titulo-etapa').textContent = 'Criar Novo Documento';
+
+    // Limpa seleções da etapa 3
+    document.getElementById('tipo-doc-template').value = '';
+    document.getElementById('area-templates').style.display = 'none';
+}
+
+function mostrarEtapa(numero) {
+    document.querySelectorAll('.etapa').forEach(etapa => {
+        etapa.style.display = 'none';
+    });
+    document.getElementById(`etapa-${numero}`).style.display = 'block';
+}
 </script>
 {% endblock %}
