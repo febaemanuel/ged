@@ -1,9 +1,23 @@
+# ============================================
+# GED EBSERH - Dependências Python
+# ============================================
+#
+# Para instalar:
+#   pip install -r requirements.txt
+#
+# NOTAS:
+# - Windows: Use este arquivo (psycopg2-binary 2.9.9 funciona)
+# - Python 3.13: Use psycopg[binary]==3.1.18 ao invés de psycopg2-binary
+# - Todas as plataformas: Este arquivo funciona para Linux, macOS e Windows
+# ============================================
+
 # Framework Web
 Flask==3.0.0
 Flask-SQLAlchemy==3.1.1
 Flask-Login==0.6.3
 
 # Banco de Dados
+# Para Python 3.13, substitua por: psycopg[binary]==3.1.18
 psycopg2-binary==2.9.9
 SQLAlchemy==2.0.23
 
@@ -34,7 +48,8 @@ Flask-CORS==4.0.0
 # E-mail
 Flask-Mail==0.10.0
 
-# WhatsApp
+# WhatsApp (Twilio)
+# IMPORTANTE: Use 'twilio' (Python SDK), NÃO 'twilio-cli' (Node.js)
 twilio>=8.10.0
 
 # Migração de banco (opcional)
@@ -47,3 +62,21 @@ colorlog==6.8.0
 python-docx==1.1.0
 odfpy==1.4.1
 PyPDF2==3.0.1
+
+# ============================================
+# TROUBLESHOOTING
+# ============================================
+#
+# Se tiver erro com psycopg2-binary no Windows:
+#   pip install psycopg2-binary==2.9.7
+#
+# Se usar Python 3.13:
+#   pip uninstall psycopg2-binary
+#   pip install psycopg[binary]==3.1.18
+#
+# Se tiver erro "twilio-cli not found":
+#   - NÃO use: pip install twilio-cli (não existe!)
+#   - Use: pip install twilio (já está neste arquivo)
+#   - twilio-cli é Node.js, não Python
+#
+# ============================================
