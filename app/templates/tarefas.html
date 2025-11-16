@@ -128,6 +128,9 @@
                                 </div>
                                 <div class="d-flex gap-2 flex-wrap justify-content-end" style="max-width: 400px;">
                                     <span class="badge bg-primary">{{ grupo.total }} tarefas</span>
+                                    {% if grupo.minhas_pendentes > 0 %}
+                                    <span class="badge bg-danger"><i class="bi bi-person-fill"></i> {{ grupo.minhas_pendentes }} minhas</span>
+                                    {% endif %}
                                     {% if grupo.pendentes > 0 %}
                                     <span class="badge bg-warning">{{ grupo.pendentes }} pendentes</span>
                                     {% endif %}
@@ -157,14 +160,25 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for tarefa in grupo.tarefas %}
-                                        <tr class="{% if tarefa.esta_atrasada() and not tarefa.concluida %}table-danger{% elif tarefa.concluida %}table-success{% endif %}">
+                                        {% for tarefa_info in grupo.tarefas %}
+                                        {% set tarefa = tarefa_info.tarefa %}
+                                        <tr class="{% if tarefa.esta_atrasada() and not tarefa.concluida %}table-danger{% elif tarefa.concluida %}table-success{% elif tarefa_info.eh_minha %}table-info{% endif %}">
                                             <td>
+                                                {% if tarefa_info.eh_minha %}
+                                                <span class="badge bg-primary"><i class="bi bi-person-fill"></i> {{ tarefa.tipo_tarefa }}</span>
+                                                {% else %}
                                                 <span class="badge bg-secondary">{{ tarefa.tipo_tarefa }}</span>
+                                                {% endif %}
                                             </td>
                                             <td>{{ (tarefa.descricao or '')[:50] }}{% if tarefa.descricao and tarefa.descricao|length > 50 %}...{% endif %}</td>
                                             <td>
-                                                <small>{{ tarefa.responsavel.nome }}</small>
+                                                <small>
+                                                    {% if tarefa_info.eh_minha %}
+                                                    <strong><i class="bi bi-person-fill"></i> {{ tarefa.responsavel.nome }}</strong>
+                                                    {% else %}
+                                                    {{ tarefa.responsavel.nome }}
+                                                    {% endif %}
+                                                </small>
                                             </td>
                                             <td>
                                                 {% if tarefa.prazo %}

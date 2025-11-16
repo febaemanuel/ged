@@ -517,19 +517,35 @@ def tarefas():
     per_page = 20
 
     # Filtros
-    query = Tarefa.query
     tipo = request.args.get('tipo')
     status = request.args.get('status')
     prioridade = request.args.get('prioridade')
     atrasadas = request.args.get('atrasadas')
 
-    # Se não for admin, mostrar apenas tarefas do usuário
-    if not current_user.is_admin():
-        query = query.filter(
-            (Tarefa.responsavel_id == current_user.id) |
-            (Tarefa.documento.has(criador_id=current_user.id))
-        )
+    # NOVO: Primeiro, buscar documentos onde o usuário está envolvido
+    # (como criador, responsável de tarefa, ou participante do fluxo)
+    if current_user.is_admin():
+        # Admin vê todos os documentos
+        documentos_ids = [d.id for d in Documento.query.all()]
+    else:
+        # Busca documentos onde o usuário está envolvido
+        documentos_ids_set = set()
 
+        # 1. Documentos criados pelo usuário
+        docs_criados = Documento.query.filter_by(criador_id=current_user.id).all()
+        documentos_ids_set.update([d.id for d in docs_criados])
+
+        # 2. Documentos onde o usuário tem/teve tarefas
+        tarefas_usuario = Tarefa.query.filter_by(responsavel_id=current_user.id).all()
+        documentos_ids_set.update([t.documento_id for t in tarefas_usuario])
+
+        documentos_ids = list(documentos_ids_set)
+
+    # NOVO: Busca TODAS as tarefas desses documentos (não só as do usuário)
+    # Isso permite ver o fluxo completo
+    query = Tarefa.query.filter(Tarefa.documento_id.in_(documentos_ids))
+
+    # Aplicar filtros
     if tipo:
         query = query.filter_by(tipo_tarefa=tipo)
     if status:
@@ -576,21 +592,32 @@ def tarefas():
             if tarefas_concluidas:
                 tarefa_atual = max(tarefas_concluidas, key=lambda t: t.data_conclusao or t.data_criacao)
 
+        # Marca quais tarefas são do usuário atual
+        tarefas_com_flag = []
+        for t in tarefas_doc:
+            tarefas_com_flag.append({
+                'tarefa': t,
+                'eh_minha': t.responsavel_id == current_user.id,
+                'eh_meu_documento': documento.criador_id == current_user.id
+            })
+
         grupos_documentos.append({
             'documento': documento,
-            'tarefas': sorted(tarefas_doc, key=lambda t: (t.concluida, t.prazo)),
+            'tarefas': sorted(tarefas_com_flag, key=lambda t: (t['tarefa'].concluida, t['tarefa'].prazo)),
             'total': len(tarefas_doc),
             'pendentes': pendentes,
             'concluidas': concluidas,
             'tem_pendente': pendentes > 0,
             'tarefa_atual': tarefa_atual,
-            'status_atual': tarefa_atual.tipo_tarefa if tarefa_atual else 'Sem tarefas'
+            'status_atual': tarefa_atual.tipo_tarefa if tarefa_atual else 'Sem tarefas',
+            'minhas_pendentes': sum(1 for t in tarefas_doc if not t.concluida and t.responsavel_id == current_user.id)
         })
 
     # Ordena: documentos com pendentes primeiro, depois por número de pendentes
     grupos_documentos.sort(key=lambda g: (not g['tem_pendente'], -g['pendentes']))
 
-    # Estatísticas
+    # Estatísticas - conta apenas tarefas onde o usuário é RESPONSÁVEL DIRETO
+    # (não todas as tarefas dos documentos)
     stats = {
         'pendentes': Tarefa.query.filter_by(
             responsavel_id=current_user.id,
@@ -606,7 +633,8 @@ def tarefas():
             Tarefa.concluida == True,
             Tarefa.data_conclusao >= datetime.utcnow() - timedelta(days=30)
         ).count(),
-        'total': Tarefa.query.filter_by(responsavel_id=current_user.id).count()
+        'total': Tarefa.query.filter_by(responsavel_id=current_user.id).count(),
+        'documentos_envolvidos': len(documentos_ids)  # NOVO: mostra quantos documentos está acompanhando
     }
 
     return render_template('tarefas.html', grupos_documentos=grupos_documentos, stats=stats)
