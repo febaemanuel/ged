@@ -42,19 +42,47 @@ class WhatsAppService:
 
     def __init__(self):
         """Inicializa serviço com configurações do banco"""
+        # Sempre recarrega configuração do banco para pegar valores atualizados
+        self._reload_config()
+
+    def _reload_config(self):
+        """Recarrega configuração do banco de dados"""
         self.config = ConfiguracaoWhatsApp.get_config()
 
+        logger.info(f"[WhatsApp] Configuração carregada: ativo={self.config.ativo}, "
+                   f"twilio_sid={self.config.twilio_account_sid[:10] if self.config.twilio_account_sid else 'None'}..., "
+                   f"numero={self.config.twilio_whatsapp_number}")
+
         if TWILIO_AVAILABLE and self.config.ativo and self.config.twilio_account_sid:
-            self.client = Client(
-                self.config.twilio_account_sid,
-                self.config.twilio_auth_token
-            )
+            try:
+                self.client = Client(
+                    self.config.twilio_account_sid,
+                    self.config.twilio_auth_token
+                )
+                logger.info("[WhatsApp] Cliente Twilio inicializado com sucesso")
+            except Exception as e:
+                logger.error(f"[WhatsApp] Erro ao inicializar cliente Twilio: {e}")
+                self.client = None
         else:
             self.client = None
+            if not TWILIO_AVAILABLE:
+                logger.warning("[WhatsApp] Twilio não está disponível (biblioteca não instalada)")
+            elif not self.config.ativo:
+                logger.info("[WhatsApp] WhatsApp está desativado nas configurações")
+            elif not self.config.twilio_account_sid:
+                logger.warning("[WhatsApp] Account SID não configurado")
 
     def esta_ativo(self):
-        """Verifica se WhatsApp está ativo"""
-        return TWILIO_AVAILABLE and self.config.ativo and self.client is not None
+        """
+        Verifica se WhatsApp está ativo
+        Recarrega configuração antes de verificar para garantir valores atualizados
+        """
+        # Recarrega configuração para garantir que temos os valores mais recentes
+        self._reload_config()
+
+        ativo = TWILIO_AVAILABLE and self.config.ativo and self.client is not None
+        logger.info(f"[WhatsApp] esta_ativo() = {ativo}")
+        return ativo
 
     def enviar_mensagem(self, para_numero, mensagem, documento_id=None, tarefa_id=None):
         """
@@ -69,9 +97,11 @@ class WhatsAppService:
         Returns:
             Tuple (sucesso, message_sid ou erro)
         """
+        logger.info(f"[WhatsApp] Tentando enviar mensagem para: {para_numero}")
+
         if not self.esta_ativo():
-            logger.warning("WhatsApp não está ativo")
-            return False, "WhatsApp não configurado"
+            logger.warning("[WhatsApp] WhatsApp não está ativo - verifique configurações")
+            return False, "WhatsApp não está ativo ou configurado corretamente. Verifique as configurações em /admin/whatsapp"
 
         # Formata número
         if not para_numero.startswith('whatsapp:'):
@@ -79,13 +109,17 @@ class WhatsAppService:
 
         from_numero = f"whatsapp:{self.config.twilio_whatsapp_number}"
 
+        logger.info(f"[WhatsApp] De: {from_numero} | Para: {para_numero}")
+
         try:
             # Envia mensagem
+            logger.info(f"[WhatsApp] Enviando mensagem via Twilio...")
             message = self.client.messages.create(
                 from_=from_numero,
                 to=para_numero,
                 body=mensagem
             )
+            logger.info(f"[WhatsApp] Mensagem enviada com sucesso! SID: {message.sid}")
 
             # Registra log
             telefone_limpo = para_numero.replace('whatsapp:', '')
@@ -108,7 +142,24 @@ class WhatsAppService:
             return True, message.sid
 
         except Exception as e:
-            logger.error(f"Erro ao enviar WhatsApp: {str(e)}")
+            erro_str = str(e)
+            logger.error(f"[WhatsApp] ERRO ao enviar mensagem: {erro_str}", exc_info=True)
+
+            # Trata erros comuns
+            if "63007" in erro_str or "Channel" in erro_str:
+                erro_amigavel = (
+                    "Erro 63007: Número WhatsApp incorreto ou não ativado no Twilio. "
+                    "Verifique se você:\n"
+                    "1. Enviou 'join <código>' no WhatsApp para ativar o Sandbox\n"
+                    "2. Configurou o número correto (ex: +14155238886)\n"
+                    "3. Não incluiu 'whatsapp:' no número (apenas +...)"
+                )
+            elif "20003" in erro_str or "authenticate" in erro_str:
+                erro_amigavel = "Erro de autenticação: Verifique se Account SID e Auth Token estão corretos"
+            elif "21211" in erro_str:
+                erro_amigavel = f"Número de destino inválido: {para_numero}"
+            else:
+                erro_amigavel = erro_str
 
             # Registra erro no log
             log = LogWhatsApp(
@@ -118,12 +169,13 @@ class WhatsAppService:
                 documento_id=documento_id,
                 tarefa_id=tarefa_id,
                 status='falhou',
-                erro=str(e)
+                erro=erro_str
             )
             db.session.add(log)
             db.session.commit()
 
-            return False, str(e)
+            logger.error(f"[WhatsApp] Erro registrado no banco. Retornando: {erro_amigavel}")
+            return False, erro_amigavel
 
     def enviar_notificacao_tarefa(self, usuario, tarefa):
         """

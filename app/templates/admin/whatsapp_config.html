@@ -349,22 +349,37 @@ document.getElementById('formTesteWhatsApp').addEventListener('submit', function
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.sucesso) {
+    .then(response => {
+        // Trata tanto respostas de sucesso (200) quanto de erro (400)
+        return response.json().then(data => {
+            return { ok: response.ok, status: response.status, data: data };
+        });
+    })
+    .then(result => {
+        if (result.ok && result.data.sucesso) {
+            // Sucesso total
             resultadoDiv.innerHTML = `<div class="alert alert-success">
-                <i class="bi bi-check-circle"></i> ${data.mensagem}
+                <i class="bi bi-check-circle"></i> ${result.data.mensagem}
+                <br><small class="text-muted">SID: ${result.data.message_sid || 'N/A'}</small>
             </div>`;
         } else {
+            // Erro (pode ser HTTP 400 ou sucesso:false)
+            const mensagemErro = result.data.erro || result.data.mensagem || 'Erro desconhecido';
             resultadoDiv.innerHTML = `<div class="alert alert-danger">
-                <i class="bi bi-x-circle"></i> ${data.erro}
+                <i class="bi bi-x-circle"></i> <strong>Erro ao enviar:</strong><br>
+                ${mensagemErro}
             </div>`;
+            console.error('Erro detalhado:', result);
         }
     })
     .catch(error => {
+        // Erro de rede ou JSON inválido
         resultadoDiv.innerHTML = `<div class="alert alert-danger">
-            <i class="bi bi-x-circle"></i> Erro: ${error}
+            <i class="bi bi-x-circle"></i> <strong>Erro de conexão:</strong><br>
+            ${error.message}<br>
+            <small>Verifique se o servidor está rodando e o console para mais detalhes.</small>
         </div>`;
+        console.error('Erro catch:', error);
     })
     .finally(() => {
         btnTestar.disabled = false;
