@@ -66,17 +66,25 @@
                                 <option value="">Nenhum - criar do zero</option>
                             </select>
                             <small class="form-text text-muted">
-                                Selecione um template pré-aprovado EBSERH ou faça upload de um arquivo próprio
+                                Selecione um template pré-aprovado EBSERH para usar como base
                             </small>
+                            <!-- Badge do template selecionado -->
+                            <div id="template-badge" class="mt-2" style="display: none;">
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle"></i> Template selecionado
+                                </span>
+                                <small class="text-muted ms-2">O template será usado automaticamente</small>
+                            </div>
                         </div>
 
                         <div class="mb-4">
                             <label for="arquivo" class="form-label">
-                                Arquivo do Documento *
-                                <span id="arquivo-ou-template" class="text-muted small">(ou selecione um template acima)</span>
+                                <span id="arquivo-label">Arquivo do Documento *</span>
                             </label>
-                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".doc,.docx,.odt,.pdf">
-                            <small class="form-text text-muted">Formatos aceitos: .doc, .docx, .odt, .pdf (máx. 16MB)</small>
+                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".doc,.docx,.odt,.pdf" required>
+                            <small class="form-text text-muted" id="arquivo-help">
+                                Formatos aceitos: .doc, .docx, .odt, .pdf (máx. 16MB)
+                            </small>
                         </div>
 
                         <div class="alert alert-info">
@@ -158,13 +166,26 @@ function filtrarTemplatesPorTipo(tipo) {
 async function selecionarTemplate() {
     const templateId = document.getElementById('template-select').value;
     const arquivoInput = document.getElementById('arquivo');
+    const arquivoLabel = document.getElementById('arquivo-label');
+    const arquivoHelp = document.getElementById('arquivo-help');
+    const templateBadge = document.getElementById('template-badge');
 
     if (!templateId) {
+        // Nenhum template selecionado - arquivo obrigatório
         templateSelecionado = null;
         arquivoInput.required = true;
-        document.getElementById('arquivo-ou-template').textContent = '(ou selecione um template acima)';
+        arquivoLabel.innerHTML = 'Arquivo do Documento *';
+        arquivoHelp.textContent = 'Formatos aceitos: .doc, .docx, .odt, .pdf (máx. 16MB)';
+        templateBadge.style.display = 'none';
         return;
     }
+
+    // Template selecionado - arquivo fica opcional
+    templateSelecionado = templateId;
+    arquivoInput.required = false;
+    arquivoLabel.innerHTML = 'Arquivo do Documento <small class="text-muted">(opcional)</small>';
+    arquivoHelp.innerHTML = '<strong class="text-success">Template será usado automaticamente.</strong> Faça upload apenas se quiser substituir o template por um arquivo próprio.';
+    templateBadge.style.display = 'block';
 
     // Marca uso do template
     try {
@@ -172,13 +193,6 @@ async function selecionarTemplate() {
     } catch (error) {
         console.error('Erro ao marcar uso do template:', error);
     }
-
-    templateSelecionado = templateId;
-    arquivoInput.required = false;
-    document.getElementById('arquivo-ou-template').textContent = '(opcional - template será usado)';
-
-    // Mostra mensagem
-    alert('✅ Template selecionado! Ao criar o documento, o template será usado como base. Você pode fazer upload de um arquivo próprio se preferir.');
 }
 
 document.getElementById('formDocumento').addEventListener('submit', async function(e) {
