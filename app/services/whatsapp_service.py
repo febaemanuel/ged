@@ -10,13 +10,21 @@ Features:
 - Auditoria completa
 """
 
-from twilio.rest import Client
-from twilio.twiml.messaging_response import MessagingResponse
 from datetime import datetime, timedelta
 import hashlib
 import random
 import string
 import logging
+
+# Import opcional do Twilio
+try:
+    from twilio.rest import Client
+    from twilio.twiml.messaging_response import MessagingResponse
+    TWILIO_AVAILABLE = True
+except ImportError:
+    TWILIO_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("Twilio não instalado. WhatsApp não estará disponível. Instale com: pip install twilio")
 
 from flask import current_app, request
 from app.models import (
@@ -36,7 +44,7 @@ class WhatsAppService:
         """Inicializa serviço com configurações do banco"""
         self.config = ConfiguracaoWhatsApp.get_config()
 
-        if self.config.ativo and self.config.twilio_account_sid:
+        if TWILIO_AVAILABLE and self.config.ativo and self.config.twilio_account_sid:
             self.client = Client(
                 self.config.twilio_account_sid,
                 self.config.twilio_auth_token
@@ -46,7 +54,7 @@ class WhatsAppService:
 
     def esta_ativo(self):
         """Verifica se WhatsApp está ativo"""
-        return self.config.ativo and self.client is not None
+        return TWILIO_AVAILABLE and self.config.ativo and self.client is not None
 
     def enviar_mensagem(self, para_numero, mensagem, documento_id=None, tarefa_id=None):
         """
@@ -193,6 +201,10 @@ class WhatsAppChatbot:
         Returns:
             TwiML Response
         """
+        if not TWILIO_AVAILABLE:
+            logger.error("Tentativa de processar mensagem WhatsApp sem Twilio instalado")
+            return "Error: Twilio not installed", 500
+
         response = MessagingResponse()
 
         # Remove prefixo whatsapp:
