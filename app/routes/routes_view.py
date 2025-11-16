@@ -857,6 +857,21 @@ def tarefa_concluir(id):
 
 
 # ============================================================================
+# TEMPLATES
+# ============================================================================
+
+@view_bp.route('/templates-admin')
+@login_required
+def templates_admin():
+    """Administração de Templates - Admin e Validadores UGQ"""
+    if not (current_user.is_admin() or current_user.is_validador_ugq()):
+        flash('Sem permissão para acessar administração de templates', 'error')
+        return redirect(url_for('view.dashboard'))
+
+    return render_template('templates_admin.html')
+
+
+# ============================================================================
 # USUÁRIOS
 # ============================================================================
 

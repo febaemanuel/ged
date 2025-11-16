@@ -11,7 +11,9 @@ from .models import (
     BlocoAssinatura,
     ItemBlocoAssinatura,
     ValidacaoUGQ,
-    Notificacao
+    Notificacao,
+    TemplateDocumento,
+    Comentario
 )
 
 __all__ = [
@@ -24,5 +26,7 @@ __all__ = [
     'BlocoAssinatura',
     'ItemBlocoAssinatura',
     'ValidacaoUGQ',
-    'Notificacao'
+    'Notificacao',
+    'TemplateDocumento',
+    'Comentario'
 ]

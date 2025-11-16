@@ -57,9 +57,25 @@
                             <small class="form-text text-muted">Prazo de validade do documento após publicação</small>
                         </div>
 
+                        <!-- Seletor de Template -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-file-earmark-code"></i> Usar Template (opcional)
+                            </label>
+                            <select class="form-select" id="template-select" onchange="selecionarTemplate()">
+                                <option value="">Nenhum - criar do zero</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                Selecione um template pré-aprovado EBSERH ou faça upload de um arquivo próprio
+                            </small>
+                        </div>
+
                         <div class="mb-4">
-                            <label for="arquivo" class="form-label">Arquivo do Documento *</label>
-                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".doc,.docx,.odt,.pdf" required>
+                            <label for="arquivo" class="form-label">
+                                Arquivo do Documento *
+                                <span id="arquivo-ou-template" class="text-muted small">(ou selecione um template acima)</span>
+                            </label>
+                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".doc,.docx,.odt,.pdf">
                             <small class="form-text text-muted">Formatos aceitos: .doc, .docx, .odt, .pdf (máx. 16MB)</small>
                         </div>
 
@@ -93,9 +109,117 @@
 
 {% block extra_js %}
 <script>
-document.getElementById('formDocumento').addEventListener('submit', function() {
-    document.getElementById('btnSalvar').disabled = true;
-    document.getElementById('btnSalvar').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Criando...';
+let templatesDisponiveis = [];
+let templateSelecionado = null;
+
+// Carrega templates ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    carregarTemplates();
+});
+
+// Ao mudar tipo de documento, filtra templates
+document.getElementById('tipo_documento').addEventListener('change', function() {
+    filtrarTemplatesPorTipo(this.value);
+});
+
+async function carregarTemplates() {
+    try {
+        const response = await fetch('/template/lista?ativo=true');
+        const data = await response.json();
+        templatesDisponiveis = data.templates || [];
+        filtrarTemplatesPorTipo(document.getElementById('tipo_documento').value);
+    } catch (error) {
+        console.error('Erro ao carregar templates:', error);
+    }
+}
+
+function filtrarTemplatesPorTipo(tipo) {
+    const select = document.getElementById('template-select');
+    select.innerHTML = '<option value="">Nenhum - criar do zero</option>';
+
+    if (!tipo) {
+        return;
+    }
+
+    const templatesFiltrados = templatesDisponiveis.filter(t => t.tipo_documento === tipo);
+
+    templatesFiltrados.forEach(template => {
+        const option = document.createElement('option');
+        option.value = template.id;
+        option.textContent = `${template.nome} ${template.setor ? '(' + template.setor + ')' : '(Global)'}`;
+        select.appendChild(option);
+    });
+
+    if (templatesFiltrados.length > 0) {
+        select.parentElement.style.display = 'block';
+    }
+}
+
+async function selecionarTemplate() {
+    const templateId = document.getElementById('template-select').value;
+    const arquivoInput = document.getElementById('arquivo');
+
+    if (!templateId) {
+        templateSelecionado = null;
+        arquivoInput.required = true;
+        document.getElementById('arquivo-ou-template').textContent = '(ou selecione um template acima)';
+        return;
+    }
+
+    // Marca uso do template
+    try {
+        await fetch(`/template/${templateId}/usar`, { method: 'POST' });
+    } catch (error) {
+        console.error('Erro ao marcar uso do template:', error);
+    }
+
+    templateSelecionado = templateId;
+    arquivoInput.required = false;
+    document.getElementById('arquivo-ou-template').textContent = '(opcional - template será usado)';
+
+    // Mostra mensagem
+    alert('✅ Template selecionado! Ao criar o documento, o template será usado como base. Você pode fazer upload de um arquivo próprio se preferir.');
+}
+
+document.getElementById('formDocumento').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const btnSalvar = document.getElementById('btnSalvar');
+    btnSalvar.disabled = true;
+    btnSalvar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Criando...';
+
+    const formData = new FormData(this);
+
+    // Se template selecionado e nenhum arquivo enviado, baixa o template
+    if (templateSelecionado && !formData.get('arquivo').name) {
+        try {
+            // Baixa o template
+            const response = await fetch(`/template/download/${templateSelecionado}`);
+            const blob = await response.blob();
+
+            // Cria um arquivo a partir do blob
+            const template = templatesDisponiveis.find(t => t.id == templateSelecionado);
+            const arquivo = new File([blob], `template_${template.nome}.docx`, { type: blob.type });
+
+            formData.set('arquivo', arquivo);
+        } catch (error) {
+            alert('❌ Erro ao carregar template: ' + error.message);
+            btnSalvar.disabled = false;
+            btnSalvar.innerHTML = '<i class="bi bi-save"></i> Criar Documento';
+            return;
+        }
+    }
+
+    // Valida se tem arquivo (próprio ou do template)
+    if (!formData.get('arquivo').name) {
+        alert('❌ Selecione um arquivo ou um template!');
+        btnSalvar.disabled = false;
+        btnSalvar.innerHTML = '<i class="bi bi-save"></i> Criar Documento';
+        return;
+    }
+
+    // Submete o formulário
+    this.submit();
 });
 </script>
 {% endblock %}
