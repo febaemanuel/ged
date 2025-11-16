@@ -1,0 +1,412 @@
+<!-- Seção de Comentários e Discussões -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+            <i class="bi bi-chat-dots"></i> Comentários e Discussões
+            <span class="badge bg-light text-primary ms-2" id="total-comentarios">0</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <!-- Formulário de Novo Comentário -->
+        <div class="mb-4">
+            <form id="formNovoComentario">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Adicionar Comentário</label>
+                    <textarea
+                        class="form-control"
+                        id="texto-comentario"
+                        rows="3"
+                        placeholder="Digite seu comentário... (Use @email para mencionar usuários)"
+                        required></textarea>
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        Dica: Use @email@dominio.com para mencionar outros usuários
+                    </small>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <input
+                            type="text"
+                            class="form-control form-control-sm"
+                            id="secao-comentario"
+                            placeholder="Seção (opcional)">
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i> Enviar Comentário
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <hr>
+
+        <!-- Lista de Comentários -->
+        <div id="lista-comentarios">
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Carregando comentários...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template de Comentário -->
+<template id="template-comentario">
+    <div class="comment-item mb-3" data-comment-id="">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="d-flex align-items-center">
+                        <div class="comment-avatar me-2">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div>
+                            <strong class="comment-author"></strong>
+                            <span class="badge comment-perfil ms-1"></span>
+                            <br>
+                            <small class="text-muted comment-data"></small>
+                        </div>
+                    </div>
+                    <div class="comment-actions">
+                        <!-- Ações de editar/deletar -->
+                    </div>
+                </div>
+
+                <div class="comment-secao mb-2" style="display: none;">
+                    <span class="badge bg-light text-dark">
+                        <i class="bi bi-bookmark"></i> <span class="secao-texto"></span>
+                    </span>
+                </div>
+
+                <div class="comment-texto mb-2"></div>
+
+                <div class="comment-mencoes mb-2" style="display: none;">
+                    <small class="text-muted">
+                        <i class="bi bi-at"></i> Mencionou: <span class="mencoes-lista"></span>
+                    </small>
+                </div>
+
+                <div class="comment-footer">
+                    <button class="btn btn-sm btn-link comment-btn-responder">
+                        <i class="bi bi-reply"></i> Responder
+                    </button>
+                    <span class="comment-total-respostas ms-2 text-muted" style="display: none;">
+                        <i class="bi bi-chat"></i> <span class="numero-respostas"></span> respostas
+                    </span>
+                </div>
+
+                <!-- Formulário de Resposta (oculto inicialmente) -->
+                <div class="comment-form-resposta mt-3" style="display: none;">
+                    <form class="form-responder">
+                        <div class="mb-2">
+                            <textarea
+                                class="form-control form-control-sm"
+                                rows="2"
+                                placeholder="Digite sua resposta..."
+                                required></textarea>
+                        </div>
+                        <div class="text-end">
+                            <button type="button" class="btn btn-sm btn-secondary btn-cancelar-resposta">
+                                Cancelar
+                            </button>
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="bi bi-send"></i> Responder
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Container de Respostas -->
+                <div class="comment-respostas mt-3" style="display: none;">
+                    <div class="respostas-lista"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<style>
+.comment-item {
+    animation: fadeInUp 0.3s ease;
+}
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.comment-avatar {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+}
+.comment-item .card {
+    border-left: 4px solid var(--primary-color);
+}
+.comment-respostas {
+    border-left: 3px solid #dee2e6;
+    padding-left: 20px;
+}
+.comment-respostas .comment-item .card {
+    border-left: 3px solid #6c757d;
+}
+.comment-texto {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.comment-editado {
+    font-style: italic;
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+</style>
+
+<script>
+const documentoId = {{ documento_id }};
+let comentariosData = [];
+
+// Carrega comentários ao iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    carregarComentarios();
+});
+
+// Novo comentário
+document.getElementById('formNovoComentario').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const texto = document.getElementById('texto-comentario').value.trim();
+    const secao = document.getElementById('secao-comentario').value.trim();
+
+    try {
+        const response = await fetch('/comentario/criar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                documento_id: documentoId,
+                texto: texto,
+                secao: secao || null
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // Limpa formulário
+            document.getElementById('texto-comentario').value = '';
+            document.getElementById('secao-comentario').value = '';
+
+            // Recarrega comentários
+            carregarComentarios();
+
+            // Mostra notificação
+            showNotification(`Comentário enviado! ${data.comentario.mencoes_enviadas ? 'Menções notificadas.' : ''}`, 'success');
+        } else {
+            showNotification(data.erro || 'Erro ao enviar comentário', 'error');
+        }
+    } catch (error) {
+        showNotification('Erro ao enviar comentário', 'error');
+        console.error(error);
+    }
+});
+
+async function carregarComentarios() {
+    try {
+        const response = await fetch(`/comentario/documento/${documentoId}`);
+        const data = await response.json();
+
+        comentariosData = data.comentarios || [];
+        document.getElementById('total-comentarios').textContent = data.total_comentarios;
+
+        renderizarComentarios();
+    } catch (error) {
+        document.getElementById('lista-comentarios').innerHTML =
+            '<p class="text-danger text-center">Erro ao carregar comentários</p>';
+        console.error(error);
+    }
+}
+
+function renderizarComentarios() {
+    const container = document.getElementById('lista-comentarios');
+
+    if (comentariosData.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-chat-dots" style="font-size: 3rem; opacity: 0.3;"></i>
+                <p class="mt-2">Nenhum comentário ainda. Seja o primeiro a comentar!</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = '';
+    comentariosData.forEach(comentario => {
+        const elemento = criarElementoComentario(comentario);
+        container.appendChild(elemento);
+    });
+}
+
+function criarElementoComentario(comentario) {
+    const template = document.getElementById('template-comentario');
+    const clone = template.content.cloneNode(true);
+
+    const item = clone.querySelector('.comment-item');
+    item.dataset.commentId = comentario.id;
+
+    // Autor
+    clone.querySelector('.comment-author').textContent = comentario.usuario.nome;
+    clone.querySelector('.comment-perfil').textContent = comentario.usuario.perfil;
+    clone.querySelector('.comment-perfil').className =
+        `badge ${getPerfilBadgeClass(comentario.usuario.perfil)} ms-1`;
+
+    // Data
+    const data = new Date(comentario.data_criacao);
+    let dataTexto = data.toLocaleString('pt-BR');
+    if (comentario.editado) {
+        dataTexto += ` • <span class="comment-editado">editado em ${new Date(comentario.data_edicao).toLocaleString('pt-BR')}</span>`;
+    }
+    clone.querySelector('.comment-data').innerHTML = dataTexto;
+
+    // Seção
+    if (comentario.secao) {
+        const secaoEl = clone.querySelector('.comment-secao');
+        secaoEl.style.display = 'block';
+        secaoEl.querySelector('.secao-texto').textContent = comentario.secao;
+    }
+
+    // Texto
+    clone.querySelector('.comment-texto').textContent = comentario.texto;
+
+    // Ações
+    const actionsContainer = clone.querySelector('.comment-actions');
+    if (comentario.pode_editar) {
+        actionsContainer.innerHTML += `
+            <button class="btn btn-sm btn-link" onclick="editarComentario(${comentario.id})">
+                <i class="bi bi-pencil"></i>
+            </button>
+        `;
+    }
+    if (comentario.pode_deletar) {
+        actionsContainer.innerHTML += `
+            <button class="btn btn-sm btn-link text-danger" onclick="deletarComentario(${comentario.id})">
+                <i class="bi bi-trash"></i>
+            </button>
+        `;
+    }
+
+    // Botão responder
+    const btnResponder = clone.querySelector('.comment-btn-responder');
+    btnResponder.onclick = () => mostrarFormResposta(comentario.id);
+
+    // Formulário de resposta
+    const formResposta = clone.querySelector('.form-responder');
+    formResposta.onsubmit = (e) => enviarResposta(e, comentario.id);
+
+    clone.querySelector('.btn-cancelar-resposta').onclick = () => {
+        item.querySelector('.comment-form-resposta').style.display = 'none';
+    };
+
+    // Respostas
+    if (comentario.total_respostas > 0) {
+        const totalRespostasEl = clone.querySelector('.comment-total-respostas');
+        totalRespostasEl.style.display = 'inline';
+        totalRespostasEl.querySelector('.numero-respostas').textContent = comentario.total_respostas;
+
+        const respostasContainer = clone.querySelector('.comment-respostas');
+        respostasContainer.style.display = 'block';
+
+        const respostasList = respostasContainer.querySelector('.respostas-lista');
+        comentario.respostas.forEach(resposta => {
+            const respostaEl = criarElementoComentario(resposta);
+            respostasList.appendChild(respostaEl);
+        });
+    }
+
+    return clone;
+}
+
+function mostrarFormResposta(comentarioId) {
+    const item = document.querySelector(`[data-comment-id="${comentarioId}"]`);
+    const form = item.querySelector('.comment-form-resposta');
+    form.style.display = 'block';
+    form.querySelector('textarea').focus();
+}
+
+async function enviarResposta(e, comentarioPaiId) {
+    e.preventDefault();
+
+    const form = e.target;
+    const texto = form.querySelector('textarea').value.trim();
+
+    try {
+        const response = await fetch(`/comentario/${comentarioPaiId}/responder`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ texto })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            form.querySelector('textarea').value = '';
+            form.closest('.comment-form-resposta').style.display = 'none';
+            carregarComentarios();
+            showNotification('Resposta enviada!', 'success');
+        } else {
+            showNotification(data.erro || 'Erro ao enviar resposta', 'error');
+        }
+    } catch (error) {
+        showNotification('Erro ao enviar resposta', 'error');
+        console.error(error);
+    }
+}
+
+async function deletarComentario(comentarioId) {
+    if (!confirm('Tem certeza que deseja deletar este comentário?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/comentario/${comentarioId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            carregarComentarios();
+            showNotification('Comentário deletado', 'success');
+        } else {
+            showNotification(data.erro || 'Erro ao deletar comentário', 'error');
+        }
+    } catch (error) {
+        showNotification('Erro ao deletar comentário', 'error');
+        console.error(error);
+    }
+}
+
+function getPerfilBadgeClass(perfil) {
+    const classes = {
+        'comum': 'bg-secondary',
+        'gerente': 'bg-primary',
+        'administrador': 'bg-danger',
+        'qualidade_triador': 'bg-info',
+        'qualidade_validador': 'bg-success'
+    };
+    return classes[perfil] || 'bg-secondary';
+}
+
+function showNotification(message, type) {
+    // Implementação simples de notificação
+    alert(message);
+}
+</script>

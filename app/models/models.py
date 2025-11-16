@@ -720,3 +720,159 @@ class Notificacao(db.Model):
 
     def __repr__(self):
         return f'<Notificacao {self.tipo} para User {self.usuario_id}>'
+
+
+class TemplateDocumento(db.Model):
+    """
+    Templates pré-aprovados para criação de documentos
+    Facilita a padronização EBSERH e reduz erros de formatação
+    """
+    __tablename__ = 'templates_documento'
+
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(200), nullable=False)
+    descricao = db.Column(db.Text)
+    tipo_documento = db.Column(db.String(50), nullable=False)  # POP, Manual, Protocolo
+    setor = db.Column(db.String(100))  # null = disponível para todos
+    arquivo_template = db.Column(db.String(255), nullable=False)  # Arquivo base
+    ativo = db.Column(db.Boolean, default=True, index=True)
+    criador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Campos de preenchimento automático (JSON)
+    # Ex: {"campos": ["nome_procedimento", "setor", "responsavel"]}
+    campos_json = db.Column(db.Text)
+
+    # Contador de uso
+    vezes_utilizado = db.Column(db.Integer, default=0)
+
+    # Relacionamentos
+    criador = db.relationship('Usuario', backref='templates_criados')
+
+    def get_campos(self):
+        """Retorna campos como dicionário"""
+        if self.campos_json:
+            try:
+                return json.loads(self.campos_json)
+            except:
+                return {}
+        return {}
+
+    def set_campos(self, dados):
+        """Define campos a partir de dicionário"""
+        self.campos_json = json.dumps(dados, ensure_ascii=False)
+
+    def incrementar_uso(self):
+        """Incrementa contador de uso"""
+        self.vezes_utilizado += 1
+
+    def pode_usar(self, usuario):
+        """Verifica se usuário pode usar este template"""
+        if not self.ativo:
+            return False
+        # Template sem setor específico = disponível para todos
+        if not self.setor:
+            return True
+        # Template de setor específico = apenas para aquele setor
+        return usuario.setor == self.setor
+
+    def __repr__(self):
+        return f'<TemplateDocumento {self.nome}>'
+
+
+class Comentario(db.Model):
+    """
+    Sistema de comentários e discussões em documentos
+    Suporta @menções e threads de discussão
+    """
+    __tablename__ = 'comentarios'
+
+    id = db.Column(db.Integer, primary_key=True)
+    documento_id = db.Column(db.Integer, db.ForeignKey('documentos.id'), nullable=False, index=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)
+
+    # Conteúdo
+    texto = db.Column(db.Text, nullable=False)
+
+    # Thread (comentário pai para respostas)
+    pai_id = db.Column(db.Integer, db.ForeignKey('comentarios.id'), nullable=True, index=True)
+
+    # Menções (lista de IDs de usuários mencionados)
+    # Ex: "[1, 3, 5]" para usuários com IDs 1, 3 e 5
+    mencoes_json = db.Column(db.Text)
+
+    # Seção do documento (opcional - para comentários contextualizados)
+    secao = db.Column(db.String(200))
+
+    # Controle
+    editado = db.Column(db.Boolean, default=False)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    data_edicao = db.Column(db.DateTime)
+
+    # Relacionamentos
+    documento = db.relationship('Documento', backref='comentarios')
+    usuario = db.relationship('Usuario', backref='comentarios')
+    respostas = db.relationship('Comentario', backref=db.backref('pai', remote_side=[id]),
+                                lazy='dynamic', cascade='all, delete-orphan')
+
+    def get_mencoes(self):
+        """Retorna lista de IDs de usuários mencionados"""
+        if self.mencoes_json:
+            try:
+                return json.loads(self.mencoes_json)
+            except:
+                return []
+        return []
+
+    def set_mencoes(self, usuario_ids):
+        """Define menções a partir de lista de IDs"""
+        self.mencoes_json = json.dumps(usuario_ids)
+
+    def extrair_mencoes_do_texto(self):
+        """
+        Extrai @menções do texto e retorna lista de emails mencionados
+        Ex: "@joao.silva@hospital.com fica responsável" -> ["joao.silva@hospital.com"]
+        """
+        import re
+        # Padrão: @email
+        padrao = r'@([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'
+        emails = re.findall(padrao, self.texto)
+        return emails
+
+    def processar_mencoes(self):
+        """
+        Processa menções no texto e salva IDs dos usuários
+        Retorna lista de usuários mencionados
+        """
+        emails = self.extrair_mencoes_do_texto()
+        if not emails:
+            return []
+
+        # Busca usuários pelos emails
+        usuarios = Usuario.query.filter(Usuario.email.in_(emails)).all()
+        usuario_ids = [u.id for u in usuarios]
+
+        self.set_mencoes(usuario_ids)
+        return usuarios
+
+    def editar_texto(self, novo_texto):
+        """Edita o texto do comentário"""
+        self.texto = novo_texto
+        self.editado = True
+        self.data_edicao = datetime.utcnow()
+
+    def pode_editar(self, usuario):
+        """Verifica se usuário pode editar este comentário"""
+        return usuario.id == self.usuario_id or usuario.is_admin()
+
+    def pode_deletar(self, usuario):
+        """Verifica se usuário pode deletar este comentário"""
+        return usuario.id == self.usuario_id or usuario.is_admin()
+
+    def total_respostas(self):
+        """Retorna total de respostas (recursivo)"""
+        return self.respostas.count()
+
+    def __repr__(self):
+        return f'<Comentario #{self.id} no Doc {self.documento_id}>'
