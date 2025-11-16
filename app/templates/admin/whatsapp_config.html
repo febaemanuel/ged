@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração WhatsApp - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="bi bi-whatsapp"></i> Configuração WhatsApp
+                </h2>
+                <a href="{{ url_for('view.dashboard') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estatísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total de Mensagens</h5>
+                    <h2>{{ stats.total_mensagens }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Mensagens Enviadas</h5>
+                    <h2>{{ stats.mensagens_enviadas }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Mensagens Recebidas</h5>
+                    <h2>{{ stats.mensagens_recebidas }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Usuários com WhatsApp</h5>
+                    <h2>{{ stats.usuarios_whatsapp }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulário de Configuração -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-gear"></i> Configurações Gerais
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('whatsapp_admin.salvar_configuracao') }}">
+
+                        <!-- Status Ativo/Inativo -->
+                        <div class="alert alert-{% if config.ativo %}success{% else %}warning{% endif %}">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="ativo" name="ativo"
+                                       {% if config.ativo %}checked{% endif %}>
+                                <label class="form-check-label fw-bold" for="ativo">
+                                    WhatsApp {% if config.ativo %}ATIVADO{% else %}DESATIVADO{% endif %}
+                                </label>
+                            </div>
+                            <small class="d-block mt-2">
+                                {% if config.ativo %}
+                                    <i class="bi bi-check-circle"></i> WhatsApp está ativo e funcionando
+                                {% else %}
+                                    <i class="bi bi-exclamation-triangle"></i> WhatsApp está desativado. Ative para começar a usar.
+                                {% endif %}
+                            </small>
+                        </div>
+
+                        <!-- Credenciais Twilio -->
+                        <h6 class="border-bottom pb-2 mb-3">🔑 Credenciais Twilio</h6>
+
+                        <div class="mb-3">
+                            <label for="twilio_account_sid" class="form-label">
+                                Account SID *
+                                <i class="bi bi-info-circle" data-bs-toggle="tooltip"
+                                   title="Encontre em: https://console.twilio.com"></i>
+                            </label>
+                            <input type="text" class="form-control font-monospace"
+                                   id="twilio_account_sid" name="twilio_account_sid"
+                                   value="{{ config.twilio_account_sid or '' }}"
+                                   placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="twilio_auth_token" class="form-label">
+                                Auth Token *
+                                <i class="bi bi-info-circle" data-bs-toggle="tooltip"
+                                   title="Mantenha este token seguro!"></i>
+                            </label>
+                            <input type="password" class="form-control font-monospace"
+                                   id="twilio_auth_token" name="twilio_auth_token"
+                                   value="{{ config.twilio_auth_token or '' }}"
+                                   placeholder="••••••••••••••••••••••••••••••••">
+                            <small class="text-muted">Token não é exibido por segurança</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="twilio_whatsapp_number" class="form-label">
+                                Número WhatsApp Business *
+                                <i class="bi bi-info-circle" data-bs-toggle="tooltip"
+                                   title="Número fornecido pelo Twilio"></i>
+                            </label>
+                            <input type="text" class="form-control"
+                                   id="twilio_whatsapp_number" name="twilio_whatsapp_number"
+                                   value="{{ config.twilio_whatsapp_number or '' }}"
+                                   placeholder="+14155238886">
+                            <small class="text-muted">Formato: +código do país + número</small>
+                        </div>
+
+                        <!-- Funcionalidades -->
+                        <h6 class="border-bottom pb-2 mb-3 mt-4">⚙️ Funcionalidades</h6>
+
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="usar_para_notificacoes"
+                                   name="usar_para_notificacoes" {% if config.usar_para_notificacoes %}checked{% endif %}>
+                            <label class="form-check-label" for="usar_para_notificacoes">
+                                📲 Notificações de Tarefas
+                                <small class="d-block text-muted">Envia WhatsApp quando nova tarefa é atribuída</small>
+                            </label>
+                        </div>
+
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="usar_para_assinaturas"
+                                   name="usar_para_assinaturas" {% if config.usar_para_assinaturas %}checked{% endif %}>
+                            <label class="form-check-label" for="usar_para_assinaturas">
+                                ✍️ Assinaturas via WhatsApp
+                                <small class="d-block text-muted">Permite assinar documentos direto no WhatsApp (chatbot)</small>
+                            </label>
+                        </div>
+
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="usar_para_lembretes"
+                                   name="usar_para_lembretes" {% if config.usar_para_lembretes %}checked{% endif %}>
+                            <label class="form-check-label" for="usar_para_lembretes">
+                                ⏰ Lembretes de Prazo
+                                <small class="d-block text-muted">Envia lembretes antes do prazo de tarefas</small>
+                            </label>
+                        </div>
+
+                        <!-- Método de Confirmação -->
+                        <div class="mb-3 mt-4">
+                            <label for="metodo_confirmacao" class="form-label">
+                                Como enviar notificações de tarefas e assinaturas?
+                            </label>
+                            <select class="form-select" id="metodo_confirmacao" name="metodo_confirmacao">
+                                <option value="email" {% if config.metodo_confirmacao == 'email' %}selected{% endif %}>
+                                    📧 Apenas E-mail
+                                </option>
+                                <option value="whatsapp" {% if config.metodo_confirmacao == 'whatsapp' %}selected{% endif %}>
+                                    📱 Apenas WhatsApp
+                                </option>
+                                <option value="ambos" {% if config.metodo_confirmacao == 'ambos' or not config.metodo_confirmacao %}selected{% endif %}>
+                                    📧📱 E-mail + WhatsApp (Ambos)
+                                </option>
+                            </select>
+                            <small class="text-muted">
+                                <strong>E-mail:</strong> Notificações enviadas por e-mail<br>
+                                <strong>WhatsApp:</strong> Notificações enviadas pelo chatbot WhatsApp<br>
+                                <strong>Ambos:</strong> Envia por e-mail E WhatsApp (recomendado)
+                            </small>
+                        </div>
+
+                        <!-- Segurança -->
+                        <h6 class="border-bottom pb-2 mb-3 mt-4">🔒 Segurança</h6>
+
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="exigir_2fa"
+                                   name="exigir_2fa" {% if config.exigir_2fa %}checked{% endif %}>
+                            <label class="form-check-label" for="exigir_2fa">
+                                🔐 Exigir 2FA (Autenticação em Dois Fatores)
+                                <small class="d-block text-muted">Envia código SMS adicional além da senha</small>
+                            </label>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="deletar_mensagens_sensiveis"
+                                   name="deletar_mensagens_sensiveis" {% if config.deletar_mensagens_sensiveis %}checked{% endif %}>
+                            <label class="form-check-label" for="deletar_mensagens_sensiveis">
+                                🗑️ Deletar Mensagens Sensíveis
+                                <small class="d-block text-muted">Apaga automaticamente mensagens com senhas</small>
+                            </label>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="timeout_sessao_minutos" class="form-label">
+                                ⏱️ Timeout de Sessão (minutos)
+                            </label>
+                            <input type="number" class="form-control" id="timeout_sessao_minutos"
+                                   name="timeout_sessao_minutos" value="{{ config.timeout_sessao_minutos }}"
+                                   min="5" max="60">
+                            <small class="text-muted">Tempo máximo de inatividade antes de expirar conversa</small>
+                        </div>
+
+                        <!-- Horários de Funcionamento -->
+                        <h6 class="border-bottom pb-2 mb-3 mt-4">🕐 Horários de Funcionamento</h6>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="horario_inicio" class="form-label">Horário de Início</label>
+                                <input type="time" class="form-control" id="horario_inicio"
+                                       name="horario_inicio" value="{{ config.horario_inicio }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="horario_fim" class="form-label">Horário de Término</label>
+                                <input type="time" class="form-control" id="horario_fim"
+                                       name="horario_fim" value="{{ config.horario_fim }}">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Dias da Semana</label>
+                            <div class="row">
+                                {% set dias_ativos = config.dias_semana.split(',') %}
+                                {% set dias = [('1', 'Segunda'), ('2', 'Terça'), ('3', 'Quarta'), ('4', 'Quinta'), ('5', 'Sexta'), ('6', 'Sábado'), ('7', 'Domingo')] %}
+
+                                {% for valor, nome in dias %}
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="dias_semana"
+                                               value="{{ valor }}" id="dia_{{ valor }}"
+                                               {% if valor in dias_ativos %}checked{% endif %}>
+                                        <label class="form-check-label" for="dia_{{ valor }}">
+                                            {{ nome }}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <small class="text-muted">Chatbot só responde nesses dias e horários</small>
+                        </div>
+
+                        <!-- Botões -->
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-save"></i> Salvar Configurações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Painel Lateral -->
+        <div class="col-md-4">
+
+            <!-- Teste de Envio -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-send"></i> Testar Envio
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form id="formTesteWhatsApp">
+                        <div class="mb-3">
+                            <label for="telefone_teste" class="form-label">Número para Teste</label>
+                            <input type="text" class="form-control" id="telefone_teste"
+                                   name="telefone_teste" placeholder="+5585999999999" required>
+                            <small class="text-muted">Formato: +55 DDD número</small>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100" id="btnTestar">
+                            <i class="bi bi-send"></i> Enviar Teste
+                        </button>
+                    </form>
+                    <div id="resultadoTeste" class="mt-3"></div>
+                </div>
+            </div>
+
+            <!-- Webhook URL -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-link-45deg"></i> Webhook URL
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">Configure esta URL no Twilio Console:</p>
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control font-monospace small"
+                               id="webhookUrl" readonly
+                               value="{{ request.url_root }}whatsapp/webhook">
+                        <button class="btn btn-outline-secondary" type="button"
+                                onclick="copyToClipboard('webhookUrl')">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                    <a href="https://console.twilio.com/us1/develop/sms/services"
+                       target="_blank" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="bi bi-box-arrow-up-right"></i> Abrir Twilio Console
+                    </a>
+                </div>
+            </div>
+
+            <!-- Links Rápidos -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-link"></i> Links Rápidos
+                    </h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('whatsapp_admin.logs') }}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-journal-text"></i> Ver Logs de Mensagens
+                    </a>
+                    <a href="{{ url_for('whatsapp_admin.templates') }}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-chat-square-text"></i> Editar Templates
+                    </a>
+                    <a href="https://www.twilio.com/docs/whatsapp" target="_blank"
+                       class="list-group-item list-group-item-action">
+                        <i class="bi bi-book"></i> Documentação Twilio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Teste de envio via AJAX
+document.getElementById('formTesteWhatsApp').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const btnTestar = document.getElementById('btnTestar');
+    const resultadoDiv = document.getElementById('resultadoTeste');
+
+    btnTestar.disabled = true;
+    btnTestar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
+
+    const formData = new FormData(this);
+
+    fetch('{{ url_for("whatsapp_admin.testar_envio") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.sucesso) {
+            resultadoDiv.innerHTML = `<div class="alert alert-success">
+                <i class="bi bi-check-circle"></i> ${data.mensagem}
+            </div>`;
+        } else {
+            resultadoDiv.innerHTML = `<div class="alert alert-danger">
+                <i class="bi bi-x-circle"></i> ${data.erro}
+            </div>`;
+        }
+    })
+    .catch(error => {
+        resultadoDiv.innerHTML = `<div class="alert alert-danger">
+            <i class="bi bi-x-circle"></i> Erro: ${error}
+        </div>`;
+    })
+    .finally(() => {
+        btnTestar.disabled = false;
+        btnTestar.innerHTML = '<i class="bi bi-send"></i> Enviar Teste';
+    });
+});
+
+// Copiar webhook URL
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    element.select();
+    document.execCommand('copy');
+
+    showToast('URL copiada para área de transferência!', 'success');
+}
+
+// Atualiza label do status ativo/inativo
+document.getElementById('ativo').addEventListener('change', function() {
+    const label = this.nextElementSibling;
+    const alertDiv = this.closest('.alert');
+
+    if (this.checked) {
+        label.textContent = 'WhatsApp ATIVADO';
+        alertDiv.classList.remove('alert-warning');
+        alertDiv.classList.add('alert-success');
+    } else {
+        label.textContent = 'WhatsApp DESATIVADO';
+        alertDiv.classList.remove('alert-success');
+        alertDiv.classList.add('alert-warning');
+    }
+});
+</script>
+{% endblock %}

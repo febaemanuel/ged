@@ -876,3 +876,243 @@ class Comentario(db.Model):
 
     def __repr__(self):
         return f'<Comentario #{self.id} no Doc {self.documento_id}>'
+# MODELOS - WHATSAPP CHATBOT
+# ============================================================================
+
+
+class ConfiguracaoWhatsApp(db.Model):
+    """
+    Configurações globais do WhatsApp para o sistema
+    Gerenciado apenas por administradores
+    """
+    __tablename__ = 'configuracao_whatsapp'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Status
+    ativo = db.Column(db.Boolean, default=False, nullable=False)  # WhatsApp ativado/desativado
+
+    # Credenciais Twilio
+    twilio_account_sid = db.Column(db.String(100))
+    twilio_auth_token = db.Column(db.String(100))
+    twilio_whatsapp_number = db.Column(db.String(20))  # Ex: +14155238886
+
+    # Configurações de uso
+    usar_para_notificacoes = db.Column(db.Boolean, default=True)  # Notificar tarefas novas
+    usar_para_assinaturas = db.Column(db.Boolean, default=True)  # Permitir assinar via WhatsApp
+    usar_para_lembretes = db.Column(db.Boolean, default=True)  # Enviar lembretes de prazo
+
+    # Método de confirmação: 'email', 'whatsapp', 'ambos'
+    metodo_confirmacao = db.Column(db.String(20), default='ambos')  # Como enviar notificações
+
+    # Segurança
+    exigir_2fa = db.Column(db.Boolean, default=False)  # Exigir código 2FA além da senha
+    timeout_sessao_minutos = db.Column(db.Integer, default=15)  # Timeout da conversa
+    deletar_mensagens_sensiveis = db.Column(db.Boolean, default=True)  # Deletar msgs com senha
+
+    # Horários de funcionamento
+    horario_inicio = db.Column(db.String(5), default='08:00')  # HH:MM
+    horario_fim = db.Column(db.String(5), default='18:00')  # HH:MM
+    dias_semana = db.Column(db.String(50), default='1,2,3,4,5')  # 1=Seg, 7=Dom
+
+    # Templates de mensagens (JSON)
+    templates_json = db.Column(db.Text)  # JSON com templates customizáveis
+
+    # Auditoria
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    atualizado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+
+    # Relacionamento
+    atualizado_por = db.relationship('Usuario', foreign_keys=[atualizado_por_id])
+
+    @classmethod
+    def get_config(cls):
+        """Retorna configuração única do sistema (singleton)"""
+        config = cls.query.first()
+        if not config:
+            # Cria configuração padrão
+            config = cls(
+                ativo=False,
+                usar_para_notificacoes=True,
+                usar_para_assinaturas=True,
+                usar_para_lembretes=True,
+                metodo_confirmacao='ambos',
+                exigir_2fa=False,
+                timeout_sessao_minutos=15,
+                deletar_mensagens_sensiveis=True
+            )
+            db.session.add(config)
+            db.session.commit()
+        return config
+
+    def get_templates(self):
+        """Retorna templates como dicionário"""
+        if self.templates_json:
+            try:
+                return json.loads(self.templates_json)
+            except:
+                return self._templates_padrao()
+        return self._templates_padrao()
+
+    def set_templates(self, templates):
+        """Define templates a partir de dicionário"""
+        self.templates_json = json.dumps(templates, ensure_ascii=False)
+
+    def _templates_padrao(self):
+        """Templates padrão de mensagens"""
+        return {
+            'boas_vindas': '👋 Olá {nome}! Bem-vindo ao Sistema GED EBSERH.',
+            'menu_principal': '📋 *Documentos Pendentes ({total})*\n\n{lista}\n\n💬 *Responda o número do documento*',
+            'documento_detalhes': '📄 *{codigo}*\n{titulo}\n\n👤 Autor: {autor}\n⏰ Prazo: {prazo}\n\n💬 *O que deseja fazer?*\n1️⃣ - Aprovar e assinar\n2️⃣ - Reprovar\n3️⃣ - Ver documento completo\n4️⃣ - Voltar',
+            'pedir_senha': '🔒 *Digite sua senha para confirmar:*\n\n⚠️ A senha será apagada após validação.',
+            'assinatura_sucesso': '✅ *Assinatura registrada!*\n\n📋 {codigo}\n⏰ {timestamp}\n🔐 Hash: {hash}\n\n📧 Comprovante enviado para {email}',
+            'senha_incorreta': '❌ Senha incorreta! Tente novamente.',
+            'sessao_expirada': '⏰ Sessão expirada. Digite *menu* para começar novamente.',
+            'fora_horario': '⏰ Atendimento disponível de {inicio} às {fim}, de segunda a sexta.',
+            'numero_nao_cadastrado': '❌ Número não cadastrado no sistema GED.'
+        }
+
+    def esta_em_horario_funcionamento(self):
+        """Verifica se está no horário de funcionamento"""
+        from datetime import datetime
+
+        agora = datetime.now()
+
+        # Verifica dia da semana (1=Seg, 7=Dom)
+        dia_semana = str(agora.isoweekday())
+        if dia_semana not in self.dias_semana.split(','):
+            return False
+
+        # Verifica horário
+        hora_atual = agora.strftime('%H:%M')
+        if hora_atual < self.horario_inicio or hora_atual > self.horario_fim:
+            return False
+
+        return True
+
+    def __repr__(self):
+        return f'<ConfiguracaoWhatsApp ativo={self.ativo}>'
+
+
+class ConversacaoWhatsApp(db.Model):
+    """
+    Armazena estado de conversações ativas do WhatsApp
+    Usado para manter contexto entre mensagens
+    """
+    __tablename__ = 'conversacoes_whatsapp'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Identificação
+    telefone = db.Column(db.String(20), unique=True, nullable=False, index=True)  # whatsapp:+5585999999999
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)
+
+    # Estado da conversa
+    estado_atual = db.Column(db.String(50))  # 'menu', 'aguardando_senha', 'aguardando_justificativa', etc
+    contexto_json = db.Column(db.Text)  # JSON com dados do contexto (tarefa_id, documento_id, etc)
+
+    # Segurança
+    tentativas_senha = db.Column(db.Integer, default=0)  # Contador de tentativas de senha
+    bloqueado_ate = db.Column(db.DateTime)  # Bloqueia após muitas tentativas
+
+    # Auditoria
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    ultima_mensagem_em = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relacionamento
+    usuario = db.relationship('Usuario', backref='conversacoes_whatsapp')
+
+    def get_contexto(self):
+        """Retorna contexto como dicionário"""
+        if self.contexto_json:
+            try:
+                return json.loads(self.contexto_json)
+            except:
+                return {}
+        return {}
+
+    def set_contexto(self, contexto):
+        """Define contexto a partir de dicionário"""
+        self.contexto_json = json.dumps(contexto, ensure_ascii=False)
+
+    def atualizar_estado(self, novo_estado, contexto=None):
+        """Atualiza estado da conversa"""
+        self.estado_atual = novo_estado
+        if contexto:
+            self.set_contexto(contexto)
+        self.ultima_mensagem_em = datetime.utcnow()
+
+    def esta_ativa(self, timeout_minutos=15):
+        """Verifica se conversa ainda está ativa"""
+        if not self.ultima_mensagem_em:
+            return False
+
+        timeout = timedelta(minutes=timeout_minutos)
+        return (datetime.utcnow() - self.ultima_mensagem_em) < timeout
+
+    def esta_bloqueado(self):
+        """Verifica se usuário está temporariamente bloqueado"""
+        if not self.bloqueado_ate:
+            return False
+        return datetime.utcnow() < self.bloqueado_ate
+
+    def incrementar_tentativa_senha(self):
+        """Incrementa contador de tentativas de senha"""
+        self.tentativas_senha += 1
+
+        # Bloqueia por 30 minutos após 3 tentativas
+        if self.tentativas_senha >= 3:
+            self.bloqueado_ate = datetime.utcnow() + timedelta(minutes=30)
+
+    def resetar_tentativas(self):
+        """Reseta contador de tentativas"""
+        self.tentativas_senha = 0
+        self.bloqueado_ate = None
+
+    def expirar(self):
+        """Expira a conversa"""
+        self.estado_atual = 'expirado'
+        self.set_contexto({})
+
+    def __repr__(self):
+        return f'<ConversacaoWhatsApp {self.telefone} - {self.estado_atual}>'
+
+
+class LogWhatsApp(db.Model):
+    """
+    Log de mensagens enviadas/recebidas via WhatsApp
+    Para auditoria e troubleshooting
+    """
+    __tablename__ = 'logs_whatsapp'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Identificação
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), index=True)
+    telefone = db.Column(db.String(20), nullable=False)
+
+    # Mensagem
+    direcao = db.Column(db.String(10), nullable=False)  # 'enviada' ou 'recebida'
+    mensagem = db.Column(db.Text, nullable=False)
+    twilio_sid = db.Column(db.String(100))  # ID da mensagem no Twilio
+
+    # Contexto
+    documento_id = db.Column(db.Integer, db.ForeignKey('documentos.id'), index=True)
+    tarefa_id = db.Column(db.Integer, db.ForeignKey('tarefas.id'), index=True)
+
+    # Status
+    status = db.Column(db.String(20))  # 'enviado', 'entregue', 'lido', 'falhou'
+    erro = db.Column(db.Text)  # Mensagem de erro se falhou
+
+    # Auditoria
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    # Relacionamentos
+    usuario = db.relationship('Usuario', backref='logs_whatsapp')
+    documento = db.relationship('Documento', backref='logs_whatsapp')
+    tarefa = db.relationship('Tarefa', backref='logs_whatsapp')
+
+    def __repr__(self):
+        return f'<LogWhatsApp {self.direcao} - {self.telefone}>'

@@ -70,6 +70,7 @@ def create_app(config_name='default'):
         comentario_bp,
         dashboard_executivo_bp
     )
+    from app.routes.routes_whatsapp import webhook_bp, admin_bp as whatsapp_admin_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(documento_bp)
@@ -82,6 +83,8 @@ def create_app(config_name='default'):
     app.register_blueprint(template_bp)
     app.register_blueprint(comentario_bp)
     app.register_blueprint(dashboard_executivo_bp)
+    app.register_blueprint(webhook_bp)
+    app.register_blueprint(whatsapp_admin_bp)
 
     # Rota inicial
     @app.route('/home')
