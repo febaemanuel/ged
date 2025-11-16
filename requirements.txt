@@ -34,6 +34,9 @@ Flask-CORS==4.0.0
 # E-mail
 Flask-Mail==0.10.0
 
+# WhatsApp
+twilio>=8.10.0
+
 # Migração de banco (opcional)
 Flask-Migrate==4.0.5
 
