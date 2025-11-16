@@ -49,10 +49,12 @@ def listar_comentarios(documento_id):
     """
     documento = Documento.query.get_or_404(documento_id)
 
-    # Verifica se usuário pode ver este documento
-    if not documento.pode_editar(current_user) and documento.criador_id != current_user.id:
-        if not current_user.is_gerente_ou_superior():
-            return jsonify({'erro': 'Sem permissão para ver comentários deste documento'}), 403
+    # Comentários são públicos para documentos publicados
+    # Para outros status, verifica permissão
+    if documento.status not in ['Aprovado e Publicado', 'Publicado', 'Vigente']:
+        if not documento.pode_editar(current_user) and documento.criador_id != current_user.id:
+            if not current_user.is_gerente_ou_superior():
+                return jsonify({'erro': 'Sem permissão para ver comentários deste documento'}), 403
 
     # Busca comentários principais (sem pai)
     comentarios_principais = Comentario.query.filter_by(
@@ -114,10 +116,12 @@ def criar_comentario():
 
     documento = Documento.query.get_or_404(documento_id)
 
-    # Verifica permissão
-    if not documento.pode_editar(current_user) and documento.criador_id != current_user.id:
-        if not current_user.is_gerente_ou_superior():
-            return jsonify({'erro': 'Sem permissão para comentar neste documento'}), 403
+    # Comentários são públicos para documentos publicados
+    # Para outros status, verifica permissão
+    if documento.status not in ['Aprovado e Publicado', 'Publicado', 'Vigente']:
+        if not documento.pode_editar(current_user) and documento.criador_id != current_user.id:
+            if not current_user.is_gerente_ou_superior():
+                return jsonify({'erro': 'Sem permissão para comentar neste documento'}), 403
 
     # Cria comentário
     comentario = Comentario(
