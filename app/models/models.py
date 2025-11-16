@@ -220,8 +220,20 @@ class Documento(db.Model):
         """Verifica se o usuário pode editar o documento"""
         if usuario.is_admin():
             return True
+
+        # Autor pode editar quando: Novo, Em Análise, Em Triagem, Em Correção
         if usuario.id == self.criador_id:
-            return self.status in ['Novo', 'Em Análise']
+            return self.status in ['Novo', 'Em Análise', 'Em Triagem', 'Em Correção']
+
+        # Triador UGQ pode editar durante triagem
+        if usuario.is_triador_ugq() and self.status == 'Em Triagem':
+            return True
+
+        # Validador UGQ pode editar durante validação ou ajustes
+        if usuario.is_validador_ugq() and self.status in ['Em Validação', 'Em Ajustes', 'Validado']:
+            return True
+
+        # Gerentes e superiores podem editar sempre
         return usuario.is_gerente_ou_superior()
 
     def pode_publicar(self):
