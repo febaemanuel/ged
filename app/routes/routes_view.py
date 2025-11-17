@@ -936,8 +936,9 @@ def usuario_editar(id):
 
     usuario = Usuario.query.get_or_404(id)
 
+    # Atualizar campos (email NÃO pode ser alterado - campo disabled no form)
     usuario.nome = request.form.get('nome')
-    usuario.email = request.form.get('email')
+    # usuario.email NÃO é atualizado (disabled no form, não vem no POST)
     usuario.perfil = request.form.get('perfil')
     usuario.setor = request.form.get('setor')
 
