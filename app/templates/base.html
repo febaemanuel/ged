@@ -59,6 +59,12 @@
                             <li><a class="dropdown-item" href="{{ url_for('view.templates_admin') }}">
                                 <i class="bi bi-file-earmark-code"></i> Templates
                             </a></li>
+                            {% if current_user.is_admin() %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('whatsapp_admin.configuracao') }}">
+                                <i class="bi bi-whatsapp text-success"></i> WhatsApp
+                            </a></li>
+                            {% endif %}
                         </ul>
                     </li>
                     {% endif %}
