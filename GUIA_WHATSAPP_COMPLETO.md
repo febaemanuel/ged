@@ -422,6 +422,66 @@ Cada assinatura registra:
 
 ## 🔧 TROUBLESHOOTING
 
+### 🔍 Verificação Rápida do Sistema
+
+Use o script de verificação para diagnosticar problemas:
+
+```bash
+python3 verificar_whatsapp.py
+```
+
+**O script verifica:**
+- ✅ Conexão com PostgreSQL
+- ✅ Existência das tabelas WhatsApp
+- ✅ Estado da configuração (ativo/inativo)
+- ✅ Credenciais Twilio configuradas
+- ✅ Estatísticas de uso (mensagens enviadas/recebidas)
+- ✅ Usuários com WhatsApp ativo
+
+---
+
+### ❌ Botão Ativar/Desativar não funciona
+
+**Sintoma:** Botão parece não mudar o estado ou sempre desativa
+
+**Diagnóstico:**
+1. Abra DevTools do navegador (F12) → Console
+2. Clique no checkbox de ativar/desativar
+3. Você deve ver logs:
+   ```
+   WhatsApp checkbox MARCADO - Será enviado como ativo=on
+   ```
+   ou
+   ```
+   WhatsApp checkbox DESMARCADO - Não será enviado (ativo=False no backend)
+   ```
+
+4. Clique em "Salvar Configurações"
+5. Veja a mensagem flash: "Status: ATIVADO" ou "Status: DESATIVADO"
+
+**Causas Comuns:**
+- PostgreSQL não está rodando
+- Erro no commit do banco de dados
+- JavaScript desabilitado no navegador
+
+**Solução:**
+```bash
+# 1. Verificar PostgreSQL
+sudo service postgresql start
+pg_isready -h localhost -p 5432
+
+# 2. Verificar sistema
+python3 verificar_whatsapp.py
+
+# 3. Ver logs do servidor
+# Ao salvar configuração, deve aparecer:
+# INFO - Estado anterior WhatsApp ativo: False
+# INFO - WhatsApp False -> True
+# INFO - Configuração salva com sucesso por usuário Admin
+```
+
+---
+
 ### ❌ Erro: "Could not find a version that satisfies the requirement twilio-cli"
 
 **Causa:** Você tentou `pip install twilio-cli`
@@ -454,9 +514,10 @@ pip install twilio>=8.10.0
 
 **Solução:**
 1. Acesse `/admin/whatsapp`
-2. Verifique se toggle **"WhatsApp ATIVADO"** está marcado
+2. Verifique se toggle **"WhatsApp ATIVADO"** está marcado (deve ficar verde)
 3. Preencha Account SID, Auth Token, Número
-4. Salve
+4. Clique em "Salvar Configurações"
+5. Veja mensagem: "Configurações do WhatsApp salvas com sucesso! Status: ATIVADO"
 
 ---
 
@@ -528,6 +589,37 @@ ngrok http 5000
 
 ## 🧪 TESTAR INSTALAÇÃO
 
+### Teste 0: Verificação Completa do Sistema
+```bash
+python3 verificar_whatsapp.py
+```
+
+**Saída esperada:**
+```
+[1/6] Importando módulos...
+✓ Módulos importados com sucesso
+
+[2/6] Criando contexto da aplicação...
+✓ Aplicação criada: app
+
+[3/6] Verificando conexão com banco de dados...
+✓ Conexão com PostgreSQL estabelecida
+
+[4/6] Verificando tabelas do WhatsApp...
+✓ Tabela 'configuracao_whatsapp' existe (13 colunas)
+✓ Tabela 'conversacoes_whatsapp' existe (8 colunas)
+✓ Tabela 'logs_whatsapp' existe (9 colunas)
+
+[5/6] Verificando configuração do WhatsApp...
+  Status: 🟢 ATIVADO / 🔴 DESATIVADO
+  Twilio Account SID: ✓ Configurado
+  ...
+
+[6/6] Estatísticas de uso...
+  Total de mensagens: 0
+  Usuários com WhatsApp: 0
+```
+
 ### Teste 1: Verificar Twilio instalado
 ```bash
 pip show twilio
@@ -539,14 +631,23 @@ from twilio.rest import Client
 print("✅ Twilio instalado corretamente!")
 ```
 
-### Teste 3: Testar webhook localmente
+### Teste 3: Testar botão de ativar/desativar
+1. Acesse `/admin/whatsapp`
+2. Desmarque o checkbox → Veja mudar para amarelo "DESATIVADO"
+3. Clique em "Salvar Configurações"
+4. Veja mensagem: "Status: DESATIVADO"
+5. Marque o checkbox → Veja mudar para verde "ATIVADO"
+6. Clique em "Salvar Configurações"
+7. Veja mensagem: "Status: ATIVADO"
+
+### Teste 4: Testar webhook localmente
 ```bash
 curl -X POST http://localhost:5000/whatsapp/webhook \
   -d "From=whatsapp:+5585999999999" \
   -d "Body=menu"
 ```
 
-### Teste 4: Verificar túnel
+### Teste 5: Verificar túnel
 ```bash
 curl https://SUA-URL.localhost.run/whatsapp/webhook
 ```
@@ -619,15 +720,19 @@ tail -f logs/app.log
 
 ## ✅ CHECKLIST DE INSTALAÇÃO
 
+- [ ] PostgreSQL rodando (`sudo service postgresql start`)
 - [ ] Ambiente virtual criado e ativado
 - [ ] `pip install -r requirements.txt` executado com sucesso
 - [ ] `pip show twilio` mostra versão >= 8.10.0
 - [ ] Migration executada (`python migrations/add_whatsapp_tables.py`)
+- [ ] `python3 verificar_whatsapp.py` sem erros
 - [ ] Conta Twilio criada
 - [ ] WhatsApp Sandbox ativado
 - [ ] Credenciais configuradas em `/admin/whatsapp`
+- [ ] Botão "WhatsApp ATIVADO" marcado e verde
 - [ ] Webhook configurado no Twilio (produção) ou túnel (localhost)
 - [ ] Teste de envio realizado com sucesso
+- [ ] Logs do servidor mostram mensagens sem erros
 
 ---
 

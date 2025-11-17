@@ -66,19 +66,20 @@
                     <form method="POST" action="{{ url_for('whatsapp_admin.salvar_configuracao') }}">
 
                         <!-- Status Ativo/Inativo -->
-                        <div class="alert alert-{% if config.ativo %}success{% else %}warning{% endif %}">
+                        <div class="alert alert-{% if config.ativo %}success{% else %}warning{% endif %}" id="alertStatus">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="ativo" name="ativo"
-                                       {% if config.ativo %}checked{% endif %}>
-                                <label class="form-check-label fw-bold" for="ativo">
+                                       {% if config.ativo %}checked{% endif %}
+                                       style="width: 3em; height: 1.5em;">
+                                <label class="form-check-label fw-bold ms-2" for="ativo" id="labelStatus">
                                     WhatsApp {% if config.ativo %}ATIVADO{% else %}DESATIVADO{% endif %}
                                 </label>
                             </div>
-                            <small class="d-block mt-2">
+                            <small class="d-block mt-2" id="descricaoStatus">
                                 {% if config.ativo %}
-                                    <i class="bi bi-check-circle"></i> WhatsApp está ativo e funcionando
+                                    <i class="bi bi-check-circle"></i> WhatsApp está ativo e funcionando. O sistema enviará mensagens via WhatsApp.
                                 {% else %}
-                                    <i class="bi bi-exclamation-triangle"></i> WhatsApp está desativado. Ative para começar a usar.
+                                    <i class="bi bi-exclamation-triangle"></i> WhatsApp está desativado. Nenhuma mensagem será enviada. Ative para começar a usar.
                                 {% endif %}
                             </small>
                         </div>
@@ -381,20 +382,31 @@ function copyToClipboard(elementId) {
     showToast('URL copiada para área de transferência!', 'success');
 }
 
-// Atualiza label do status ativo/inativo
+// Atualiza label do status ativo/inativo em tempo real
 document.getElementById('ativo').addEventListener('change', function() {
-    const label = this.nextElementSibling;
-    const alertDiv = this.closest('.alert');
+    const label = document.getElementById('labelStatus');
+    const alertDiv = document.getElementById('alertStatus');
+    const descricao = document.getElementById('descricaoStatus');
 
     if (this.checked) {
         label.textContent = 'WhatsApp ATIVADO';
         alertDiv.classList.remove('alert-warning');
         alertDiv.classList.add('alert-success');
+        descricao.innerHTML = '<i class="bi bi-check-circle"></i> WhatsApp está ativo e funcionando. O sistema enviará mensagens via WhatsApp.';
+        console.log('WhatsApp checkbox MARCADO - Será enviado como ativo=on');
     } else {
         label.textContent = 'WhatsApp DESATIVADO';
         alertDiv.classList.remove('alert-success');
         alertDiv.classList.add('alert-warning');
+        descricao.innerHTML = '<i class="bi bi-exclamation-triangle"></i> WhatsApp está desativado. Nenhuma mensagem será enviada. Ative para começar a usar.';
+        console.log('WhatsApp checkbox DESMARCADO - Não será enviado (ativo=False no backend)');
     }
+});
+
+// Log do estado inicial ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxAtivo = document.getElementById('ativo');
+    console.log('Estado inicial do WhatsApp:', checkboxAtivo.checked ? 'ATIVADO' : 'DESATIVADO');
 });
 </script>
 {% endblock %}
