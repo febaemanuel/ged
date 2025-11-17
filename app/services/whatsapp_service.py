@@ -73,6 +73,15 @@ class WhatsAppService:
             logger.warning("WhatsApp não está ativo")
             return False, "WhatsApp não configurado"
 
+        # Valida número do remetente (Twilio WhatsApp)
+        if not self.config.twilio_whatsapp_number:
+            logger.error("Número do WhatsApp não configurado")
+            return False, "Número do WhatsApp não configurado. Configure em /admin/whatsapp"
+
+        if len(self.config.twilio_whatsapp_number) < 10 or not self.config.twilio_whatsapp_number.startswith('+'):
+            logger.error(f"Número do WhatsApp inválido: '{self.config.twilio_whatsapp_number}'")
+            return False, f"Número do WhatsApp inválido: '{self.config.twilio_whatsapp_number}'. Deve começar com '+' e ter pelo menos 10 dígitos. Configure em /admin/whatsapp"
+
         # Formata número
         if not para_numero.startswith('whatsapp:'):
             para_numero = f"whatsapp:{para_numero}"

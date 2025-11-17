@@ -136,7 +136,25 @@ def salvar_configuracao():
 
         config.twilio_account_sid = request.form.get('twilio_account_sid', '').strip()
         config.twilio_auth_token = request.form.get('twilio_auth_token', '').strip()
-        config.twilio_whatsapp_number = request.form.get('twilio_whatsapp_number', '').strip()
+
+        # Valida número do WhatsApp
+        whatsapp_number = request.form.get('twilio_whatsapp_number', '').strip()
+        if whatsapp_number:
+            # Valida formato
+            if not whatsapp_number.startswith('+'):
+                flash('Número do WhatsApp deve começar com + (código do país). Exemplo: +14155238886', 'danger')
+                return redirect(url_for('whatsapp_admin.configuracao'))
+
+            if len(whatsapp_number) < 10:
+                flash('Número do WhatsApp muito curto. Exemplo: +14155238886 ou +5585999999999', 'danger')
+                return redirect(url_for('whatsapp_admin.configuracao'))
+
+            # Remove caracteres inválidos (aceita apenas números e +)
+            if not all(c.isdigit() or c == '+' for c in whatsapp_number):
+                flash('Número do WhatsApp deve conter apenas números e + no início. Exemplo: +14155238886', 'danger')
+                return redirect(url_for('whatsapp_admin.configuracao'))
+
+        config.twilio_whatsapp_number = whatsapp_number
 
         # Funcionalidades
         config.usar_para_notificacoes = request.form.get('usar_para_notificacoes') == 'on'
