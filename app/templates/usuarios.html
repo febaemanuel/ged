@@ -27,6 +27,7 @@
                             <th>Email</th>
                             <th>Perfil</th>
                             <th>Setor</th>
+                            <th>WhatsApp</th>
                             <th>Status</th>
                             <th>Último Acesso</th>
                             <th>Ações</th>
@@ -45,6 +46,19 @@
                             </td>
                             <td>{{ usuario.setor or '-' }}</td>
                             <td>
+                                {% if usuario.telefone and usuario.whatsapp_ativo %}
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-whatsapp"></i> {{ usuario.telefone }}
+                                    </span>
+                                {% elif usuario.telefone %}
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-telephone"></i> {{ usuario.telefone }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
                                 {% if usuario.ativo %}
                                     <span class="badge bg-success">Ativo</span>
                                 {% else %}
@@ -60,7 +74,7 @@
                             </td>
                             <td>
                                 {% if usuario.id != current_user.id %}
-                                <button class="btn btn-sm btn-warning" onclick="editarUsuario({{ usuario.id }}, '{{ usuario.nome }}', '{{ usuario.email }}', '{{ usuario.perfil }}', '{{ usuario.setor or '' }}', {{ 'true' if usuario.ativo else 'false' }})">
+                                <button class="btn btn-sm btn-warning" onclick="editarUsuario({{ usuario.id }}, '{{ usuario.nome }}', '{{ usuario.email }}', '{{ usuario.perfil }}', '{{ usuario.setor or '' }}', {{ 'true' if usuario.ativo else 'false' }}, '{{ usuario.telefone or '' }}', {{ 'true' if usuario.whatsapp_ativo else 'false' }})">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 {% endif %}
@@ -117,6 +131,35 @@
                         <label class="form-label">Setor</label>
                         <input type="text" class="form-control" name="setor">
                     </div>
+
+                    <!-- Campos WhatsApp -->
+                    <div class="border-top pt-3 mt-3">
+                        <h6 class="text-muted mb-3">
+                            <i class="bi bi-whatsapp text-success"></i> WhatsApp
+                        </h6>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Telefone WhatsApp
+                                <i class="bi bi-info-circle" data-bs-toggle="tooltip"
+                                   title="Formato: +5585999999999 (código do país + DDD + número)"></i>
+                            </label>
+                            <input type="text" class="form-control" name="telefone"
+                                   placeholder="+5585999999999"
+                                   pattern="\+[0-9]{12,13}"
+                                   title="Formato: +5585999999999">
+                            <small class="text-muted">Formato: +55 (código país) + DDD + número</small>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="whatsapp_ativo"
+                                       id="whatsapp_ativo_criar" value="true" checked>
+                                <label class="form-check-label" for="whatsapp_ativo_criar">
+                                    Aceita notificações via WhatsApp
+                                </label>
+                            </div>
+                            <small class="text-muted">Usuário receberá notificações de tarefas e lembretes via WhatsApp</small>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -162,6 +205,36 @@
                         <label class="form-label">Setor</label>
                         <input type="text" class="form-control" name="setor" id="edit_setor">
                     </div>
+
+                    <!-- Campos WhatsApp -->
+                    <div class="border-top pt-3 mt-3">
+                        <h6 class="text-muted mb-3">
+                            <i class="bi bi-whatsapp text-success"></i> WhatsApp
+                        </h6>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Telefone WhatsApp
+                                <i class="bi bi-info-circle" data-bs-toggle="tooltip"
+                                   title="Formato: +5585999999999 (código do país + DDD + número)"></i>
+                            </label>
+                            <input type="text" class="form-control" name="telefone" id="edit_telefone"
+                                   placeholder="+5585999999999"
+                                   pattern="\+[0-9]{12,13}"
+                                   title="Formato: +5585999999999">
+                            <small class="text-muted">Formato: +55 (código país) + DDD + número</small>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="whatsapp_ativo"
+                                       id="edit_whatsapp_ativo" value="true">
+                                <label class="form-check-label" for="edit_whatsapp_ativo">
+                                    Aceita notificações via WhatsApp
+                                </label>
+                            </div>
+                            <small class="text-muted">Usuário receberá notificações de tarefas e lembretes via WhatsApp</small>
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" name="ativo" id="edit_ativo" value="true">
@@ -181,16 +254,26 @@
 
 {% block extra_js %}
 <script>
-function editarUsuario(id, nome, email, perfil, setor, ativo) {
+function editarUsuario(id, nome, email, perfil, setor, ativo, telefone, whatsapp_ativo) {
     document.getElementById('edit_id').value = id;
     document.getElementById('edit_nome').value = nome;
     document.getElementById('edit_email').value = email;
     document.getElementById('edit_perfil').value = perfil;
     document.getElementById('edit_setor').value = setor;
     document.getElementById('edit_ativo').checked = ativo;
+    document.getElementById('edit_telefone').value = telefone || '';
+    document.getElementById('edit_whatsapp_ativo').checked = whatsapp_ativo;
     document.getElementById('formEditarUsuario').action = '/view/usuario/' + id + '/editar';
 
     new bootstrap.Modal(document.getElementById('modalEditarUsuario')).show();
 }
+
+// Ativar tooltips do Bootstrap
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
 </script>
 {% endblock %}

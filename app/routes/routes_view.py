@@ -900,6 +900,8 @@ def usuario_criar():
     senha = request.form.get('senha')
     perfil = request.form.get('perfil')
     setor = request.form.get('setor')
+    telefone = request.form.get('telefone', '').strip()
+    whatsapp_ativo = request.form.get('whatsapp_ativo') == 'true'
 
     # Validações
     if Usuario.query.filter_by(email=email).first():
@@ -912,7 +914,9 @@ def usuario_criar():
         email=email,
         senha_hash=generate_password_hash(senha),
         perfil=perfil,
-        setor=setor
+        setor=setor,
+        telefone=telefone if telefone else None,
+        whatsapp_ativo=whatsapp_ativo
     )
 
     db.session.add(usuario)
@@ -936,6 +940,14 @@ def usuario_editar(id):
     usuario.email = request.form.get('email')
     usuario.perfil = request.form.get('perfil')
     usuario.setor = request.form.get('setor')
+
+    # Campos WhatsApp
+    telefone = request.form.get('telefone', '').strip()
+    usuario.telefone = telefone if telefone else None
+    usuario.whatsapp_ativo = request.form.get('whatsapp_ativo') == 'true'
+
+    # Campo ativo
+    usuario.ativo = request.form.get('ativo') == 'true'
 
     # Atualizar senha apenas se fornecida
     nova_senha = request.form.get('senha')
