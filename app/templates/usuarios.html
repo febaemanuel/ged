@@ -263,7 +263,7 @@ function editarUsuario(id, nome, email, perfil, setor, ativo, telefone, whatsapp
     document.getElementById('edit_ativo').checked = ativo;
     document.getElementById('edit_telefone').value = telefone || '';
     document.getElementById('edit_whatsapp_ativo').checked = whatsapp_ativo;
-    document.getElementById('formEditarUsuario').action = '/view/usuario/' + id + '/editar';
+    document.getElementById('formEditarUsuario').action = '{{ url_for("view.usuario_editar", id=0) }}'.replace('/0/', '/' + id + '/');
 
     new bootstrap.Modal(document.getElementById('modalEditarUsuario')).show();
 }
