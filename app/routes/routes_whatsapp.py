@@ -122,42 +122,66 @@ def salvar_configuracao():
     if not current_user.is_admin():
         return jsonify({'erro': 'Acesso negado'}), 403
 
-    config = ConfiguracaoWhatsApp.get_config()
+    try:
+        config = ConfiguracaoWhatsApp.get_config()
 
-    # Atualiza configurações
-    config.ativo = request.form.get('ativo') == 'on'
-    config.twilio_account_sid = request.form.get('twilio_account_sid', '').strip()
-    config.twilio_auth_token = request.form.get('twilio_auth_token', '').strip()
-    config.twilio_whatsapp_number = request.form.get('twilio_whatsapp_number', '').strip()
+        # Log estado anterior
+        estado_anterior_ativo = config.ativo
+        logger.info(f"Estado anterior WhatsApp ativo: {estado_anterior_ativo}")
 
-    # Funcionalidades
-    config.usar_para_notificacoes = request.form.get('usar_para_notificacoes') == 'on'
-    config.usar_para_assinaturas = request.form.get('usar_para_assinaturas') == 'on'
-    config.usar_para_lembretes = request.form.get('usar_para_lembretes') == 'on'
+        # Atualiza configurações
+        # IMPORTANTE: Checkbox envia 'on' quando marcado, nada quando desmarcado
+        novo_estado_ativo = request.form.get('ativo') == 'on'
+        config.ativo = novo_estado_ativo
 
-    # Método de confirmação
-    config.metodo_confirmacao = request.form.get('metodo_confirmacao', 'ambos')
+        config.twilio_account_sid = request.form.get('twilio_account_sid', '').strip()
+        config.twilio_auth_token = request.form.get('twilio_auth_token', '').strip()
+        config.twilio_whatsapp_number = request.form.get('twilio_whatsapp_number', '').strip()
 
-    # Segurança
-    config.exigir_2fa = request.form.get('exigir_2fa') == 'on'
-    config.timeout_sessao_minutos = int(request.form.get('timeout_sessao_minutos', 15))
-    config.deletar_mensagens_sensiveis = request.form.get('deletar_mensagens_sensiveis') == 'on'
+        # Funcionalidades
+        config.usar_para_notificacoes = request.form.get('usar_para_notificacoes') == 'on'
+        config.usar_para_assinaturas = request.form.get('usar_para_assinaturas') == 'on'
+        config.usar_para_lembretes = request.form.get('usar_para_lembretes') == 'on'
 
-    # Horários
-    config.horario_inicio = request.form.get('horario_inicio', '08:00')
-    config.horario_fim = request.form.get('horario_fim', '18:00')
+        # Método de confirmação
+        config.metodo_confirmacao = request.form.get('metodo_confirmacao', 'ambos')
 
-    # Dias da semana (checkboxes múltiplos)
-    dias_selecionados = request.form.getlist('dias_semana')
-    config.dias_semana = ','.join(dias_selecionados) if dias_selecionados else '1,2,3,4,5'
+        # Segurança
+        config.exigir_2fa = request.form.get('exigir_2fa') == 'on'
+        config.timeout_sessao_minutos = int(request.form.get('timeout_sessao_minutos', 15))
+        config.deletar_mensagens_sensiveis = request.form.get('deletar_mensagens_sensiveis') == 'on'
 
-    # Auditoria
-    config.atualizado_por_id = current_user.id
+        # Horários
+        config.horario_inicio = request.form.get('horario_inicio', '08:00')
+        config.horario_fim = request.form.get('horario_fim', '18:00')
 
-    db.session.commit()
+        # Dias da semana (checkboxes múltiplos)
+        dias_selecionados = request.form.getlist('dias_semana')
+        config.dias_semana = ','.join(dias_selecionados) if dias_selecionados else '1,2,3,4,5'
 
-    flash('Configurações do WhatsApp salvas com sucesso!', 'success')
-    return redirect(url_for('whatsapp_admin.configuracao'))
+        # Auditoria
+        config.atualizado_por_id = current_user.id
+        from datetime import datetime
+        config.atualizado_em = datetime.utcnow()
+
+        # Commit com validação
+        db.session.commit()
+
+        # Log confirmação
+        logger.info(f"WhatsApp {estado_anterior_ativo} -> {novo_estado_ativo}")
+        logger.info(f"Configuração salva com sucesso por usuário {current_user.nome}")
+
+        # Mensagem flash informativa
+        status_msg = "ATIVADO" if novo_estado_ativo else "DESATIVADO"
+        flash(f'Configurações do WhatsApp salvas com sucesso! Status: {status_msg}', 'success')
+
+        return redirect(url_for('whatsapp_admin.configuracao'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Erro ao salvar configurações WhatsApp: {str(e)}", exc_info=True)
+        flash(f'Erro ao salvar configurações: {str(e)}', 'danger')
+        return redirect(url_for('whatsapp_admin.configuracao'))
 
 
 @admin_bp.route('/testar', methods=['POST'])
