@@ -919,3 +919,161 @@ def buscar_documentos():
         resultados.append(resultado)
 
     return jsonify(resultados)
+
+
+@bp.route('/setor/<setor_nome>/dashboard', methods=['GET'])
+def get_setor_dashboard(setor_nome):
+    """
+    Retorna dashboard completo de um setor com estatísticas e gráficos
+
+    Args:
+        setor_nome: Nome do setor
+
+    Returns:
+        JSON com:
+        - estatisticas_gerais: totais, vencidos, perto de vencer
+        - documentos_por_tipo: contagem por tipo de documento
+        - documentos_por_status: contagem por status
+        - timeline_publicacoes: publicações nos últimos 12 meses
+        - documentos_vencidos: lista de documentos vencidos
+        - documentos_perto_vencer: lista próximos de vencer (90 dias)
+        - documentos_recentes: últimos 10 documentos publicados
+    """
+    from datetime import timedelta
+    import json
+
+    # Decodifica nome do setor (URL encoded)
+    from urllib.parse import unquote
+    setor_nome = unquote(setor_nome)
+
+    # Query base: documentos publicados do setor
+    base_query = Documento.query.filter_by(
+        setor=setor_nome,
+        status='Publicado'
+    )
+
+    # ===== ESTATÍSTICAS GERAIS =====
+    total_documentos = base_query.count()
+
+    # Documentos vencidos
+    documentos_vencidos = base_query.filter(
+        Documento.data_vencimento != None,
+        Documento.data_vencimento < datetime.utcnow()
+    ).all()
+
+    # Documentos perto de vencer (próximos 90 dias)
+    data_limite_90dias = datetime.utcnow() + timedelta(days=90)
+    documentos_perto_vencer = base_query.filter(
+        Documento.data_vencimento != None,
+        Documento.data_vencimento >= datetime.utcnow(),
+        Documento.data_vencimento <= data_limite_90dias
+    ).all()
+
+    # Documentos vigentes (não vencidos)
+    documentos_vigentes = base_query.filter(
+        (Documento.data_vencimento == None) |
+        (Documento.data_vencimento > datetime.utcnow())
+    ).count()
+
+    # ===== DOCUMENTOS POR TIPO =====
+    docs_por_tipo = db.session.query(
+        Documento.tipo_documento,
+        db.func.count(Documento.id).label('count')
+    ).filter(
+        Documento.setor == setor_nome,
+        Documento.status == 'Publicado'
+    ).group_by(Documento.tipo_documento).all()
+
+    # ===== DOCUMENTOS POR STATUS (todos os status do setor) =====
+    docs_por_status = db.session.query(
+        Documento.status,
+        db.func.count(Documento.id).label('count')
+    ).filter(
+        Documento.setor == setor_nome
+    ).group_by(Documento.status).all()
+
+    # ===== TIMELINE DE PUBLICAÇÕES (últimos 12 meses) =====
+    data_12_meses_atras = datetime.utcnow() - timedelta(days=365)
+
+    publicacoes_timeline = db.session.query(
+        db.func.strftime('%Y-%m', Documento.data_publicacao).label('mes'),
+        db.func.count(Documento.id).label('count')
+    ).filter(
+        Documento.setor == setor_nome,
+        Documento.status == 'Publicado',
+        Documento.data_publicacao >= data_12_meses_atras
+    ).group_by('mes').order_by('mes').all()
+
+    # ===== DOCUMENTOS RECENTES =====
+    docs_recentes = base_query.order_by(
+        Documento.data_publicacao.desc()
+    ).limit(10).all()
+
+    # ===== HELPER FUNCTION: Parse Metadados =====
+    def parse_metadados(doc):
+        try:
+            metadados = json.loads(doc.metadados_json) if doc.metadados_json else {}
+            resumo_obj = metadados.get('resumo', {})
+
+            if isinstance(resumo_obj, dict):
+                resumo_texto = resumo_obj.get('resumo', '')
+                palavras_chave = resumo_obj.get('palavras_chave', [])
+            else:
+                resumo_texto = resumo_obj if isinstance(resumo_obj, str) else ''
+                palavras_chave = metadados.get('palavras_chave', [])
+
+            return {
+                'palavras_chave': palavras_chave,
+                'resumo': resumo_texto[:200] + '...' if len(resumo_texto) > 200 else resumo_texto
+            }
+        except:
+            return {'palavras_chave': [], 'resumo': ''}
+
+    # ===== MONTA RESPOSTA =====
+    return jsonify({
+        'setor': setor_nome,
+        'estatisticas_gerais': {
+            'total_documentos': total_documentos,
+            'documentos_vencidos': len(documentos_vencidos),
+            'documentos_perto_vencer': len(documentos_perto_vencer),
+            'documentos_vigentes': documentos_vigentes
+        },
+        'documentos_por_tipo': {
+            tipo: count for tipo, count in docs_por_tipo
+        },
+        'documentos_por_status': {
+            status: count for status, count in docs_por_status
+        },
+        'timeline_publicacoes': [
+            {'mes': mes, 'count': count} for mes, count in publicacoes_timeline
+        ],
+        'documentos_vencidos': [{
+            'id': doc.id,
+            'titulo': doc.titulo,
+            'tipo_documento': doc.tipo_documento,
+            'codigo': doc.codigo_definitivo or doc.codigo_provisorio or doc.codigo_unico,
+            'data_vencimento': doc.data_vencimento.isoformat(),
+            'dias_vencido': (datetime.utcnow() - doc.data_vencimento).days,
+            'versao': doc.versao,
+            'metadados': parse_metadados(doc)
+        } for doc in documentos_vencidos],
+        'documentos_perto_vencer': [{
+            'id': doc.id,
+            'titulo': doc.titulo,
+            'tipo_documento': doc.tipo_documento,
+            'codigo': doc.codigo_definitivo or doc.codigo_provisorio or doc.codigo_unico,
+            'data_vencimento': doc.data_vencimento.isoformat(),
+            'dias_ate_vencimento': doc.dias_ate_vencimento(),
+            'versao': doc.versao,
+            'metadados': parse_metadados(doc)
+        } for doc in documentos_perto_vencer],
+        'documentos_recentes': [{
+            'id': doc.id,
+            'titulo': doc.titulo,
+            'tipo_documento': doc.tipo_documento,
+            'codigo': doc.codigo_definitivo or doc.codigo_provisorio or doc.codigo_unico,
+            'data_publicacao': doc.data_publicacao.isoformat(),
+            'versao': doc.versao,
+            'metadados': parse_metadados(doc)
+        } for doc in docs_recentes]
+    })

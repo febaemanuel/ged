@@ -1,0 +1,1008 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - {{ setor_nome }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #2c5aa0;
+        --secondary-color: #5a7eb5;
+        --success-color: #28a745;
+        --warning-color: #ffc107;
+        --danger-color: #dc3545;
+        --info-color: #17a2b8;
+        --gray-50: #f8f9fa;
+        --gray-100: #e9ecef;
+        --gray-200: #dee2e6;
+        --gray-300: #ced4da;
+        --gray-600: #6c757d;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+        --shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
+    }
+
+    /* Header do Setor */
+    .setor-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .setor-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .setor-header p {
+        font-size: 1rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+
+    /* Cards de Estatísticas */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow);
+        transition: all 0.3s ease;
+        border-left: 4px solid var(--primary-color);
+    }
+
+    .stat-card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
+    }
+
+    .stat-card.success { border-left-color: var(--success-color); }
+    .stat-card.warning { border-left-color: var(--warning-color); }
+    .stat-card.danger { border-left-color: var(--danger-color); }
+    .stat-card.info { border-left-color: var(--info-color); }
+
+    .stat-card .stat-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-card .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        line-height: 1;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-card.success .stat-value { color: var(--success-color); }
+    .stat-card.warning .stat-value { color: var(--warning-color); }
+    .stat-card.danger .stat-value { color: var(--danger-color); }
+
+    .stat-card .stat-label {
+        font-size: 0.9rem;
+        color: var(--gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+
+    /* Gráficos */
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .chart-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow);
+    }
+
+    .chart-card h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--primary-color);
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+
+    .chart-container.large {
+        height: 400px;
+    }
+
+    /* Filtros e Controles */
+    .controls-bar {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow);
+    }
+
+    .filters-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .filter-group label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--gray-600);
+        margin-bottom: 0.25rem;
+    }
+
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid var(--gray-300);
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+
+    .filter-group button {
+        padding: 0.5rem 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    /* Lista de Documentos */
+    .documentos-section {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow);
+        margin-bottom: 2rem;
+    }
+
+    .documentos-section h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--primary-color);
+    }
+
+    .doc-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .doc-table thead {
+        background: var(--gray-50);
+        border-bottom: 2px solid var(--gray-200);
+    }
+
+    .doc-table th {
+        padding: 0.75rem;
+        text-align: left;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--gray-600);
+        text-transform: uppercase;
+    }
+
+    .doc-table td {
+        padding: 1rem 0.75rem;
+        border-bottom: 1px solid var(--gray-100);
+    }
+
+    .doc-table tbody tr {
+        transition: background 0.2s ease;
+    }
+
+    .doc-table tbody tr:hover {
+        background: var(--gray-50);
+    }
+
+    .doc-title {
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: 0.25rem;
+    }
+
+    .doc-code {
+        font-size: 0.8rem;
+        color: var(--gray-600);
+        font-family: 'Courier New', monospace;
+    }
+
+    .doc-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .doc-badge.tipo-pop { background: #e3f2fd; color: #1976d2; }
+    .doc-badge.tipo-manual { background: #f3e5f5; color: #7b1fa2; }
+    .doc-badge.tipo-protocolo { background: #e8f5e9; color: #388e3c; }
+    .doc-badge.status-vigente { background: #e8f5e9; color: #2e7d32; }
+    .doc-badge.status-vencido { background: #ffebee; color: #c62828; }
+    .doc-badge.status-perto-vencer { background: #fff3e0; color: #ef6c00; }
+
+    .doc-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .doc-actions .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.85rem;
+    }
+
+    /* Tabs */
+    .tabs-container {
+        margin-bottom: 2rem;
+    }
+
+    .tabs-nav {
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 2px solid var(--gray-200);
+        margin-bottom: 1.5rem;
+    }
+
+    .tab-btn {
+        padding: 0.75rem 1.5rem;
+        background: transparent;
+        border: none;
+        border-bottom: 3px solid transparent;
+        font-weight: 600;
+        color: var(--gray-600);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+        color: var(--primary-color);
+    }
+
+    .tab-btn.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    /* Alertas */
+    .alert-section {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow);
+        margin-bottom: 2rem;
+    }
+
+    .alert-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        border-left: 4px solid var(--danger-color);
+        background: var(--gray-50);
+        border-radius: 6px;
+        margin-bottom: 0.75rem;
+    }
+
+    .alert-item.warning {
+        border-left-color: var(--warning-color);
+    }
+
+    .alert-icon {
+        font-size: 1.5rem;
+    }
+
+    .alert-content {
+        flex: 1;
+    }
+
+    .alert-title {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .alert-meta {
+        font-size: 0.85rem;
+        color: var(--gray-600);
+    }
+
+    /* Loading */
+    .loading {
+        text-align: center;
+        padding: 3rem;
+        color: var(--gray-600);
+    }
+
+    .loading-spinner {
+        border: 3px solid var(--gray-200);
+        border-top: 3px solid var(--primary-color);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--gray-600);
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.3;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .charts-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .filters-row {
+            flex-direction: column;
+        }
+
+        .filter-group {
+            width: 100%;
+        }
+
+        .doc-table {
+            font-size: 0.85rem;
+        }
+
+        .doc-actions {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header do Setor -->
+<div class="setor-header">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1>📂 {{ setor_nome }}</h1>
+                <p>Dashboard completo com estatísticas, gráficos e documentos</p>
+            </div>
+            <div>
+                <a href="/repositorio-publico" class="btn btn-light">
+                    <i class="fas fa-arrow-left"></i> Voltar ao Repositório
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Cards de Estatísticas -->
+    <div class="stats-grid" id="stats-grid">
+        <div class="stat-card info">
+            <div class="stat-icon">📄</div>
+            <div class="stat-value" id="stat-total">-</div>
+            <div class="stat-label">Total de Documentos</div>
+        </div>
+
+        <div class="stat-card success">
+            <div class="stat-icon">✅</div>
+            <div class="stat-value" id="stat-vigentes">-</div>
+            <div class="stat-label">Documentos Vigentes</div>
+        </div>
+
+        <div class="stat-card warning">
+            <div class="stat-icon">⚠️</div>
+            <div class="stat-value" id="stat-perto-vencer">-</div>
+            <div class="stat-label">Perto de Vencer</div>
+        </div>
+
+        <div class="stat-card danger">
+            <div class="stat-icon">❌</div>
+            <div class="stat-value" id="stat-vencidos">-</div>
+            <div class="stat-label">Documentos Vencidos</div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="charts-grid">
+        <!-- Gráfico de Status -->
+        <div class="chart-card">
+            <h3>📊 Documentos por Status</h3>
+            <div class="chart-container">
+                <canvas id="chartStatus"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico de Tipos -->
+        <div class="chart-card">
+            <h3>📑 Documentos por Tipo</h3>
+            <div class="chart-container">
+                <canvas id="chartTipos"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico de Vencimento -->
+        <div class="chart-card">
+            <h3>⏰ Status de Vencimento</h3>
+            <div class="chart-container">
+                <canvas id="chartVencimento"></canvas>
+            </div>
+        </div>
+
+        <!-- Timeline de Publicações -->
+        <div class="chart-card">
+            <h3>📈 Publicações (Últimos 12 Meses)</h3>
+            <div class="chart-container">
+                <canvas id="chartTimeline"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs de Navegação -->
+    <div class="tabs-container">
+        <div class="tabs-nav">
+            <button class="tab-btn active" data-tab="todos">📋 Todos os Documentos</button>
+            <button class="tab-btn" data-tab="vencidos">❌ Vencidos</button>
+            <button class="tab-btn" data-tab="perto-vencer">⚠️ Perto de Vencer</button>
+            <button class="tab-btn" data-tab="recentes">🆕 Recentes</button>
+        </div>
+
+        <!-- Tab: Todos os Documentos -->
+        <div class="tab-content active" id="tab-todos">
+            <!-- Filtros -->
+            <div class="controls-bar">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label>🔍 Buscar</label>
+                        <input type="text" id="filter-busca" placeholder="Título, código...">
+                    </div>
+
+                    <div class="filter-group">
+                        <label>📑 Tipo</label>
+                        <select id="filter-tipo">
+                            <option value="">Todos os tipos</option>
+                            {% for tipo in tipos_documento %}
+                            <option value="{{ tipo }}">{{ tipo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>📅 Ordenar por</label>
+                        <select id="filter-ordem">
+                            <option value="data_desc">Data (Mais recente)</option>
+                            <option value="data_asc">Data (Mais antigo)</option>
+                            <option value="titulo_asc">Título (A-Z)</option>
+                            <option value="titulo_desc">Título (Z-A)</option>
+                            <option value="tipo_asc">Tipo (A-Z)</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <button class="btn btn-primary" onclick="aplicarFiltros()">
+                            <i class="fas fa-filter"></i> Filtrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lista de Documentos -->
+            <div class="documentos-section">
+                <h3>📄 Documentos do Setor</h3>
+                <div id="lista-documentos">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Carregando documentos...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Vencidos -->
+        <div class="tab-content" id="tab-vencidos">
+            <div class="alert-section">
+                <h3>❌ Documentos Vencidos</h3>
+                <div id="lista-vencidos">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Carregando...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Perto de Vencer -->
+        <div class="tab-content" id="tab-perto-vencer">
+            <div class="alert-section">
+                <h3>⚠️ Documentos Perto de Vencer (90 dias)</h3>
+                <div id="lista-perto-vencer">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Carregando...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Recentes -->
+        <div class="tab-content" id="tab-recentes">
+            <div class="documentos-section">
+                <h3>🆕 Documentos Recentes</h3>
+                <div id="lista-recentes">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Carregando...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+    const setorNome = "{{ setor_nome }}";
+    let dashboardData = null;
+    let todosDocumentos = [];
+
+    // Charts
+    let chartStatus, chartTipos, chartVencimento, chartTimeline;
+
+    // ===== CARREGA DADOS DO DASHBOARD =====
+    async function carregarDashboard() {
+        try {
+            const response = await fetch(`/api/documento/setor/${encodeURIComponent(setorNome)}/dashboard`);
+            if (!response.ok) throw new Error('Erro ao carregar dashboard');
+
+            dashboardData = await response.json();
+
+            // Atualiza estatísticas
+            atualizarEstatisticas();
+
+            // Renderiza gráficos
+            renderizarGraficos();
+
+            // Carrega documentos de todas as tabs
+            await carregarTodosDocumentos();
+            renderizarDocumentosVencidos();
+            renderizarDocumentosPertoVencer();
+            renderizarDocumentosRecentes();
+        } catch (error) {
+            console.error('Erro ao carregar dashboard:', error);
+            alert('Erro ao carregar dados do setor. Tente novamente.');
+        }
+    }
+
+    // ===== ATUALIZA CARDS DE ESTATÍSTICAS =====
+    function atualizarEstatisticas() {
+        const stats = dashboardData.estatisticas_gerais;
+
+        document.getElementById('stat-total').textContent = stats.total_documentos;
+        document.getElementById('stat-vigentes').textContent = stats.documentos_vigentes;
+        document.getElementById('stat-perto-vencer').textContent = stats.documentos_perto_vencer;
+        document.getElementById('stat-vencidos').textContent = stats.documentos_vencidos;
+    }
+
+    // ===== RENDERIZA GRÁFICOS =====
+    function renderizarGraficos() {
+        renderizarGraficoStatus();
+        renderizarGraficoTipos();
+        renderizarGraficoVencimento();
+        renderizarGraficoTimeline();
+    }
+
+    function renderizarGraficoStatus() {
+        const ctx = document.getElementById('chartStatus').getContext('2d');
+        const data = dashboardData.documentos_por_status;
+
+        chartStatus = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(data),
+                datasets: [{
+                    data: Object.values(data),
+                    backgroundColor: [
+                        '#28a745', '#17a2b8', '#ffc107', '#dc3545', '#6c757d'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    function renderizarGraficoTipos() {
+        const ctx = document.getElementById('chartTipos').getContext('2d');
+        const data = dashboardData.documentos_por_tipo;
+
+        chartTipos = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(data),
+                datasets: [{
+                    label: 'Quantidade',
+                    data: Object.values(data),
+                    backgroundColor: '#2c5aa0'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderizarGraficoVencimento() {
+        const ctx = document.getElementById('chartVencimento').getContext('2d');
+        const stats = dashboardData.estatisticas_gerais;
+
+        chartVencimento = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['Vigentes', 'Perto de Vencer', 'Vencidos'],
+                datasets: [{
+                    data: [
+                        stats.documentos_vigentes,
+                        stats.documentos_perto_vencer,
+                        stats.documentos_vencidos
+                    ],
+                    backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    function renderizarGraficoTimeline() {
+        const ctx = document.getElementById('chartTimeline').getContext('2d');
+        const timeline = dashboardData.timeline_publicacoes;
+
+        // Formata labels (YYYY-MM -> MMM/YYYY)
+        const labels = timeline.map(item => {
+            const [ano, mes] = item.mes.split('-');
+            const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            return `${meses[parseInt(mes) - 1]}/${ano}`;
+        });
+
+        chartTimeline = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Publicações',
+                    data: timeline.map(item => item.count),
+                    borderColor: '#2c5aa0',
+                    backgroundColor: 'rgba(44, 90, 160, 0.1)',
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ===== CARREGA TODOS OS DOCUMENTOS =====
+    async function carregarTodosDocumentos() {
+        try {
+            const response = await fetch(`/api/documento/publico?setor=${encodeURIComponent(setorNome)}&per_page=1000`);
+            if (!response.ok) throw new Error('Erro ao carregar documentos');
+
+            const data = await response.json();
+            todosDocumentos = data.documentos;
+
+            renderizarDocumentos(todosDocumentos);
+        } catch (error) {
+            console.error('Erro ao carregar documentos:', error);
+            document.getElementById('lista-documentos').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">❌</div>
+                    <p>Erro ao carregar documentos</p>
+                </div>
+            `;
+        }
+    }
+
+    // ===== RENDERIZA LISTA DE DOCUMENTOS =====
+    function renderizarDocumentos(documentos, containerId = 'lista-documentos') {
+        const container = document.getElementById(containerId);
+
+        if (documentos.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📭</div>
+                    <p>Nenhum documento encontrado</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = `
+            <table class="doc-table">
+                <thead>
+                    <tr>
+                        <th>Documento</th>
+                        <th>Tipo</th>
+                        <th>Versão</th>
+                        <th>Data Publicação</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        documentos.forEach(doc => {
+            const tipoClass = doc.tipo_documento.toLowerCase().replace(/\s+/g, '-');
+            const dataPublicacao = new Date(doc.data_publicacao).toLocaleDateString('pt-BR');
+
+            html += `
+                <tr>
+                    <td>
+                        <div class="doc-title">${doc.titulo}</div>
+                        <div class="doc-code">${doc.codigo}</div>
+                    </td>
+                    <td>
+                        <span class="doc-badge tipo-${tipoClass}">${doc.tipo_documento}</span>
+                    </td>
+                    <td>${doc.versao || 'v1.0'}</td>
+                    <td>${dataPublicacao}</td>
+                    <td>
+                        <div class="doc-actions">
+                            <a href="/documento/${doc.id}" class="btn btn-sm btn-primary" title="Ver detalhes">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <button class="btn btn-sm btn-success" onclick="downloadDocumento(${doc.id})" title="Download">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `
+                </tbody>
+            </table>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    // ===== RENDERIZA DOCUMENTOS VENCIDOS =====
+    function renderizarDocumentosVencidos() {
+        const container = document.getElementById('lista-vencidos');
+        const vencidos = dashboardData.documentos_vencidos;
+
+        if (vencidos.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">✅</div>
+                    <p>Não há documentos vencidos</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        vencidos.forEach(doc => {
+            html += `
+                <div class="alert-item">
+                    <div class="alert-icon">❌</div>
+                    <div class="alert-content">
+                        <div class="alert-title">${doc.titulo}</div>
+                        <div class="alert-meta">
+                            <span class="doc-badge tipo-${doc.tipo_documento.toLowerCase()}">${doc.tipo_documento}</span>
+                            ${doc.codigo} • Vencido há ${doc.dias_vencido} dias
+                        </div>
+                    </div>
+                    <a href="/documento/${doc.id}" class="btn btn-sm btn-danger">Ver Documento</a>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // ===== RENDERIZA DOCUMENTOS PERTO DE VENCER =====
+    function renderizarDocumentosPertoVencer() {
+        const container = document.getElementById('lista-perto-vencer');
+        const pertoVencer = dashboardData.documentos_perto_vencer;
+
+        if (pertoVencer.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">✅</div>
+                    <p>Não há documentos perto de vencer</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        pertoVencer.forEach(doc => {
+            html += `
+                <div class="alert-item warning">
+                    <div class="alert-icon">⚠️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">${doc.titulo}</div>
+                        <div class="alert-meta">
+                            <span class="doc-badge tipo-${doc.tipo_documento.toLowerCase()}">${doc.tipo_documento}</span>
+                            ${doc.codigo} • Vence em ${doc.dias_ate_vencimento} dias
+                        </div>
+                    </div>
+                    <a href="/documento/${doc.id}" class="btn btn-sm btn-warning">Ver Documento</a>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // ===== RENDERIZA DOCUMENTOS RECENTES =====
+    function renderizarDocumentosRecentes() {
+        const recentes = dashboardData.documentos_recentes;
+        renderizarDocumentos(recentes, 'lista-recentes');
+    }
+
+    // ===== FILTROS =====
+    function aplicarFiltros() {
+        const busca = document.getElementById('filter-busca').value.toLowerCase();
+        const tipo = document.getElementById('filter-tipo').value;
+        const ordem = document.getElementById('filter-ordem').value;
+
+        let filtrados = [...todosDocumentos];
+
+        // Filtro de busca
+        if (busca) {
+            filtrados = filtrados.filter(doc =>
+                doc.titulo.toLowerCase().includes(busca) ||
+                doc.codigo.toLowerCase().includes(busca)
+            );
+        }
+
+        // Filtro de tipo
+        if (tipo) {
+            filtrados = filtrados.filter(doc => doc.tipo_documento === tipo);
+        }
+
+        // Ordenação
+        filtrados.sort((a, b) => {
+            switch (ordem) {
+                case 'data_desc':
+                    return new Date(b.data_publicacao) - new Date(a.data_publicacao);
+                case 'data_asc':
+                    return new Date(a.data_publicacao) - new Date(b.data_publicacao);
+                case 'titulo_asc':
+                    return a.titulo.localeCompare(b.titulo);
+                case 'titulo_desc':
+                    return b.titulo.localeCompare(a.titulo);
+                case 'tipo_asc':
+                    return a.tipo_documento.localeCompare(b.tipo_documento);
+                default:
+                    return 0;
+            }
+        });
+
+        renderizarDocumentos(filtrados);
+    }
+
+    // ===== TABS =====
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active de todos
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            // Ativa o clicado
+            btn.classList.add('active');
+            const tabId = btn.getAttribute('data-tab');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        });
+    });
+
+    // ===== DOWNLOAD =====
+    function downloadDocumento(docId) {
+        window.location.href = `/api/documento/${docId}/download/publicado`;
+    }
+
+    // ===== INICIALIZAÇÃO =====
+    document.addEventListener('DOMContentLoaded', () => {
+        carregarDashboard();
+
+        // Filtros em tempo real (debounce)
+        let timeoutBusca;
+        document.getElementById('filter-busca').addEventListener('input', () => {
+            clearTimeout(timeoutBusca);
+            timeoutBusca = setTimeout(aplicarFiltros, 500);
+        });
+
+        document.getElementById('filter-tipo').addEventListener('change', aplicarFiltros);
+        document.getElementById('filter-ordem').addEventListener('change', aplicarFiltros);
+    });
+</script>
+{% endblock %}

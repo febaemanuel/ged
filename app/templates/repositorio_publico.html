@@ -96,6 +96,40 @@
     transform: rotate(90deg);
 }
 
+.setor-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.setor-dashboard-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    text-decoration: none;
+}
+
+.setor-dashboard-btn:hover {
+    background: var(--secondary-color);
+    transform: scale(1.1);
+    color: white;
+}
+
+.setor-header.active .setor-dashboard-btn {
+    background: rgba(255,255,255,0.2);
+}
+
+.setor-header.active .setor-dashboard-btn:hover {
+    background: rgba(255,255,255,0.3);
+}
+
 .setor-badge {
     background: rgba(0,0,0,0.1);
     padding: 2px 8px;
@@ -789,7 +823,15 @@ async function loadHierarchy() {
                         <span class="setor-chevron">▶</span>
                         <span>📂 ${setor}</span>
                     </div>
-                    <span class="setor-badge">${info.total}</span>
+                    <div class="setor-actions">
+                        <a href="/setor/${encodeURIComponent(setor)}"
+                           class="setor-dashboard-btn"
+                           title="Ver dashboard completo do setor"
+                           onclick="event.stopPropagation()">
+                            <i class="bi bi-graph-up"></i>
+                        </a>
+                        <span class="setor-badge">${info.total}</span>
+                    </div>
                 </div>
                 <div class="setor-tipos" id="tipos-${setor.replace(/\s+/g, '-')}">
                     ${Object.entries(info.tipos).map(([tipo, count]) => `
