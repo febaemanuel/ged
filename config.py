@@ -18,7 +18,14 @@ class Config:
     """Configuração base da aplicação"""
 
     # Configurações gerais
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
+    # IMPORTANTE: SECRET_KEY deve SEMPRE ser definida via variável de ambiente
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    if not SECRET_KEY:
+        raise ValueError(
+            "SECRET_KEY não definida! "
+            "Por favor, defina a variável de ambiente SECRET_KEY com uma chave segura. "
+            "Você pode gerar uma com: python -c 'import secrets; print(secrets.token_hex(32))'"
+        )
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
     # Configurações do banco de dados PostgreSQL
@@ -179,11 +186,25 @@ class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = True
 
+    # Em desenvolvimento, permite chave fraca SE não estiver definida
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-only-key-CHANGE-IN-PRODUCTION-OR-APP-WILL-FAIL'
+
 
 class ProductionConfig(Config):
     """Configuração para produção"""
     DEBUG = False
+
+    # Segurança de cookies (HTTPS obrigatório)
     SESSION_COOKIE_SECURE = True  # HTTPS apenas
+    SESSION_COOKIE_HTTPONLY = True  # Não acessível via JavaScript
+    SESSION_COOKIE_SAMESITE = 'Strict'  # Proteção CSRF adicional
+
+    # Força verificação de SECRET_KEY em produção
+    if not os.environ.get('SECRET_KEY') or len(os.environ.get('SECRET_KEY', '')) < 32:
+        raise ValueError(
+            "Em produção, SECRET_KEY deve ter pelo menos 32 caracteres! "
+            "Gere uma chave segura com: python -c 'import secrets; print(secrets.token_hex(32))'"
+        )
 
 
 class TestingConfig(Config):
