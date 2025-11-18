@@ -14,6 +14,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from datetime import datetime
 
 from app.models import db, Usuario
+from app.utils.validators import validar_senha_forte, validar_email
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -102,6 +103,16 @@ def register():
     if not nome or not email or not senha:
         return jsonify({'erro': 'Nome, email e senha são obrigatórios'}), 400
 
+    # Valida email
+    email_valido, erro_email = validar_email(email)
+    if not email_valido:
+        return jsonify({'erro': erro_email}), 400
+
+    # Valida senha
+    senha_valida, erro_senha = validar_senha_forte(senha)
+    if not senha_valida:
+        return jsonify({'erro': erro_senha}), 400
+
     if perfil not in current_app.config['PERFIS_PERMITIDOS']:
         return jsonify({'erro': 'Perfil inválido'}), 400
 
@@ -172,8 +183,10 @@ def change_password():
     if not current_user.check_password(senha_atual):
         return jsonify({'erro': 'Senha atual incorreta'}), 401
 
-    if len(senha_nova) < 6:
-        return jsonify({'erro': 'Nova senha deve ter no mínimo 6 caracteres'}), 400
+    # Valida senha forte
+    senha_valida, erro_senha = validar_senha_forte(senha_nova)
+    if not senha_valida:
+        return jsonify({'erro': erro_senha}), 400
 
     current_user.set_password(senha_nova)
     db.session.commit()

@@ -54,9 +54,18 @@ def init_db():
 
 @app.cli.command()
 def seed_db():
-    """Popula o banco com dados iniciais"""
+    """Popula o banco com dados iniciais - SENHAS FORTES GERADAS"""
     from app.models import Usuario
     from datetime import datetime
+    import secrets
+
+    print('🔐 Gerando senhas fortes aleatórias...')
+    print('')
+
+    # Gera senhas fortes aleatórias (16 caracteres URL-safe)
+    senha_admin = secrets.token_urlsafe(16)
+    senha_gerente = secrets.token_urlsafe(16)
+    senha_usuario = secrets.token_urlsafe(16)
 
     # Cria usuário administrador padrão
     admin = Usuario.query.filter_by(email='admin@example.com').first()
@@ -67,8 +76,11 @@ def seed_db():
             perfil='administrador',
             ativo=True
         )
-        admin.set_password('admin123')
+        admin.set_password(senha_admin)
         db.session.add(admin)
+        print('✅ Administrador criado')
+    else:
+        print('ℹ️  Administrador já existe')
 
     # Cria usuário gerente de exemplo
     gerente = Usuario.query.filter_by(email='gerente@example.com').first()
@@ -80,8 +92,11 @@ def seed_db():
             setor='Qualidade',
             ativo=True
         )
-        gerente.set_password('gerente123')
+        gerente.set_password(senha_gerente)
         db.session.add(gerente)
+        print('✅ Gerente criado')
+    else:
+        print('ℹ️  Gerente já existe')
 
     # Cria usuário comum de exemplo
     usuario = Usuario.query.filter_by(email='usuario@example.com').first()
@@ -93,16 +108,26 @@ def seed_db():
             setor='Operações',
             ativo=True
         )
-        usuario.set_password('usuario123')
+        usuario.set_password(senha_usuario)
         db.session.add(usuario)
+        print('✅ Usuário comum criado')
+    else:
+        print('ℹ️  Usuário comum já existe')
 
     db.session.commit()
-    print('Dados iniciais criados com sucesso!')
+
     print('')
-    print('Usuários criados:')
-    print('  Admin:   admin@example.com    / admin123')
-    print('  Gerente: gerente@example.com  / gerente123')
-    print('  Usuário: usuario@example.com  / usuario123')
+    print('=' * 80)
+    print('⚠️  SENHAS GERADAS - GUARDE EM LOCAL SEGURO! ⚠️')
+    print('=' * 80)
+    print(f'  Admin:   admin@example.com    / {senha_admin}')
+    print(f'  Gerente: gerente@example.com  / {senha_gerente}')
+    print(f'  Usuário: usuario@example.com  / {senha_usuario}')
+    print('=' * 80)
+    print('⚠️  Estas senhas NÃO serão exibidas novamente!')
+    print('💡 IMPORTANTE: Altere todas as senhas no primeiro login!')
+    print('🔒 Em produção, DELETE estes usuários de teste!')
+    print('=' * 80)
 
 
 @app.cli.command()
