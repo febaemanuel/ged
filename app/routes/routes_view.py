@@ -1102,6 +1102,30 @@ def repositorio_publico():
     return render_template('repositorio_publico.html', documentos=documentos)
 
 
+@view_bp.route('/setor/<setor_nome>')
+def setor_view(setor_nome):
+    """
+    Página dedicada ao setor com dashboard completo
+
+    Exibe:
+    - Estatísticas do setor
+    - Gráficos (vencidos, tipos, status, timeline)
+    - Lista de documentos com filtros
+    - Documentos vencidos e perto de vencer
+    """
+    from urllib.parse import unquote
+    setor_nome = unquote(setor_nome)
+
+    # Opções de tipos de documento
+    tipos_documento = Config.TIPOS_DOCUMENTO
+
+    return render_template(
+        'setor_dashboard.html',
+        setor_nome=setor_nome,
+        tipos_documento=tipos_documento
+    )
+
+
 # ============================================================================
 # ROTAS DO WORKFLOW UGQ OFICIAL EBSERH
 # ============================================================================
