@@ -519,6 +519,65 @@ Responda APENAS em formato JSON válido, sem markdown:
         raise AIClientError(f"Erro ao gerar resumo: {str(e)}")
 
 
+def extract_authors(text):
+    """
+    Extrai autores do texto do documento usando DeepSeek
+
+    Args:
+        text: Texto completo do documento
+
+    Returns:
+        list: Lista de autores identificados no documento
+
+    Example:
+        >>> result = extract_authors("Documento elaborado por João Silva e Maria Santos...")
+        >>> print(result)
+        ['João Silva', 'Maria Santos']
+    """
+    logger.info(f"Extraindo autores de texto ({len(text)} caracteres)")
+
+    system_prompt = """Você é um especialista em análise de documentos técnicos e identificação de autores.
+Analise o texto COMPLETO e identifique todos os autores mencionados.
+
+Procure por:
+- Nomes listados na seção de "Autores", "Elaborado por", "Revisado por"
+- Nomes em assinaturas
+- Nomes mencionados como responsáveis pela elaboração
+
+Responda APENAS em formato JSON válido, sem markdown:
+{
+    "autores": ["Nome Completo 1", "Nome Completo 2", ...]
+}
+
+Se não encontrar autores, retorne uma lista vazia."""
+
+    # Limita texto para não exceder tokens
+    texto_limitado = text[:8000] if len(text) > 8000 else text
+    user_prompt = f"Extraia os autores deste documento:\n\n{texto_limitado}"
+
+    try:
+        result_text = _call_deepseek(system_prompt, user_prompt, temperature=0.3)
+
+        # Limpa resposta e parse JSON
+        import json
+        json_limpo = _clean_json_response(result_text)
+        logger.info(f"JSON limpo (autores): {json_limpo[:200]}")
+        result = json.loads(json_limpo)
+
+        autores = result.get('autores', [])
+        logger.info(f"Autores extraídos: {autores}")
+
+        return autores
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"DeepSeek retornou resposta inválida ao extrair autores: {str(e)}")
+        return []
+    except Exception as e:
+        logger.error(f"Erro ao extrair autores: {str(e)}")
+        # Não lança exceção, apenas retorna lista vazia
+        return []
+
+
 def search_semantic(query, limit=10, filters=None):
     """
     Busca semântica de documentos (DESABILITADA - usar busca textual normal)

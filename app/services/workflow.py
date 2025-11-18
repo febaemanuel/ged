@@ -267,29 +267,31 @@ class WorkflowUGQ:
     # ========================================================================
 
     @classmethod
-    def gerar_proximo_codigo(cls, tipo, setor):
+    def gerar_proximo_codigo(cls, tipo, setor, abrangencia):
         """
         Gera próximo código disponível na Lista Mestra
-        Formato: TIPO.SETOR-NNN
+        Formato: TIPO.SETOR-ABRANGENCIA.NNN
 
         Args:
-            tipo: Tipo do documento (POP, Manual, Protocolo)
+            tipo: Tipo do documento (POP, Manual, Protocolo, Política, Regimento, Regulamento)
             setor: Setor do documento
+            abrangencia: Abrangência do documento (CHUFC, HUWC, MEAC, etc)
 
         Returns:
-            String com código sugerido (ex: POP.OPERACOES-001)
+            String com código sugerido (ex: POP.UGQ-CHUFC.001)
         """
         import re
 
-        # Busca último código do mesmo tipo e setor
+        # Busca último código do mesmo tipo, setor e abrangência
         ultimo = ListaMestra.query.filter_by(
             tipo=tipo,
-            setor=setor
+            setor=setor,
+            abrangencia=abrangencia
         ).order_by(ListaMestra.id.desc()).first()
 
         if ultimo:
-            # Extrai número do código (ex: POP.OPERACOES-001 → 001)
-            match = re.search(r'-(\d+)$', ultimo.codigo)
+            # Extrai número do código (ex: POP.UGQ-CHUFC.001 → 001)
+            match = re.search(r'\.(\d+)$', ultimo.codigo)
             if match:
                 numero_atual = int(match.group(1))
                 numero_novo = numero_atual + 1
@@ -298,23 +300,56 @@ class WorkflowUGQ:
         else:
             numero_novo = 1
 
-        # Gera código no formato: TIPO.SETOR-NNN
-        codigo = f'{tipo}.{setor}-{numero_novo:03d}'
+        # Gera código no formato: TIPO.SETOR-ABRANGENCIA.NNN
+        codigo = f'{tipo}.{setor}-{abrangencia}.{numero_novo:03d}'
 
         log_debug(f"📝 Código sugerido: {codigo}")
 
         return codigo
 
     @classmethod
-    def validador_codifica_documento(cls, tarefa, codigo_definitivo, versao, observacoes_validacao):
+    def calcular_data_vencimento(cls, tipo_documento, data_publicacao=None):
+        """
+        Calcula data de vencimento baseada no tipo de documento
+
+        Regras:
+        - Política, Regimento e Regulamento: 4 anos
+        - Outros documentos: 2 anos
+
+        Args:
+            tipo_documento: Tipo do documento
+            data_publicacao: Data de publicação (default: agora)
+
+        Returns:
+            Data de vencimento
+        """
+        if data_publicacao is None:
+            data_publicacao = datetime.utcnow()
+
+        # Documentos que têm validade de 4 anos
+        if tipo_documento in Config.TIPOS_VALIDADE_4_ANOS:
+            anos = 4
+        else:
+            anos = 2
+
+        # Calcula data de vencimento
+        data_vencimento = data_publicacao + timedelta(days=365 * anos)
+
+        log_debug(f"📅 Validade calculada: {anos} anos - Vencimento: {data_vencimento.strftime('%d/%m/%Y')}")
+
+        return data_vencimento
+
+    @classmethod
+    def validador_codifica_documento(cls, tarefa, codigo_definitivo, versao, observacoes_validacao, abrangencia):
         """
         Validador UGQ codifica documento e atualiza Lista Mestra
 
         Args:
             tarefa: Tarefa de validação e codificação
-            codigo_definitivo: Código gerado (ex: POP.OPERACOES-001)
+            codigo_definitivo: Código gerado (ex: POP.UGQ-CHUFC.001)
             versao: Versão do documento (ex: v1.0)
             observacoes_validacao: Observações da validação
+            abrangencia: Abrangência do documento (CHUFC, HUWC, MEAC, etc)
 
         Returns:
             Documento atualizado
@@ -323,13 +358,15 @@ class WorkflowUGQ:
         log_debug(f"ETAPA 2: Validador codifica documento")
         log_debug(f"Código: {codigo_definitivo}")
         log_debug(f"Versão: {versao}")
+        log_debug(f"Abrangência: {abrangencia}")
         log_debug("=" * 80)
 
         documento = tarefa.documento
 
-        # Atualiza documento com código e versão
+        # Atualiza documento com código, versão e abrangência
         documento.codigo_definitivo = codigo_definitivo
         documento.versao = versao
+        documento.abrangencia = abrangencia
         documento.status = Config.STATUS_VALIDADO
 
         # Cria registro na Lista Mestra
@@ -338,6 +375,7 @@ class WorkflowUGQ:
             tipo=documento.tipo_documento,
             titulo=documento.titulo,
             setor=documento.setor,
+            abrangencia=abrangencia,
             versao=versao,
             data_publicacao=datetime.utcnow(),
             documento_id=documento.id,
@@ -1008,6 +1046,12 @@ class WorkflowUGQ:
         # Atualiza status do documento
         documento.status = Config.STATUS_PUBLICADO
         documento.data_publicacao = datetime.utcnow()
+
+        # Calcula data de vencimento baseada no tipo de documento
+        documento.data_vencimento = cls.calcular_data_vencimento(
+            tipo_documento=documento.tipo_documento,
+            data_publicacao=documento.data_publicacao
+        )
 
         # Atualiza Lista Mestra para VIGENTE
         registro = ListaMestra.query.filter_by(

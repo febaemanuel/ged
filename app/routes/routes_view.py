@@ -287,7 +287,7 @@ def documento_criar():
 
         # Processar documento com IA em background (se possível)
         try:
-            from app.services.ai_client import extract_text, classify_document, summarize_text
+            from app.services.ai_client import extract_text, classify_document, summarize_text, extract_authors
 
             # Extrai texto do documento
             caminho = documento.get_caminho_arquivo()
@@ -303,10 +303,16 @@ def documento_criar():
                         # Gera resumo
                         resultado_resumo = summarize_text(documento.texto_extraido, max_length=500)
 
+                        # Extrai autores
+                        autores_list = extract_authors(documento.texto_extraido)
+                        if autores_list:
+                            documento.autores = ', '.join(autores_list)
+
                         # Salva metadados da IA
                         metadados = {
                             'classificacao': resultado_classificacao,
                             'resumo': resultado_resumo,
+                            'autores': autores_list,
                             'processado_em': datetime.utcnow().isoformat()
                         }
                         documento.set_metadados(metadados)
@@ -403,7 +409,7 @@ def documento_editar(id):
 
             # Reprocessa com IA se houver novo arquivo
             try:
-                from app.services.ai_client import extract_text, classify_document, summarize_text
+                from app.services.ai_client import extract_text, classify_document, summarize_text, extract_authors
 
                 resultado_extracao = extract_text(caminho_completo)
                 documento.texto_extraido = resultado_extracao['texto']
@@ -412,9 +418,15 @@ def documento_editar(id):
                     resultado_classificacao = classify_document(documento.texto_extraido)
                     resultado_resumo = summarize_text(documento.texto_extraido, max_length=500)
 
+                    # Extrai autores
+                    autores_list = extract_authors(documento.texto_extraido)
+                    if autores_list:
+                        documento.autores = ', '.join(autores_list)
+
                     metadados = {
                         'classificacao': resultado_classificacao,
                         'resumo': resultado_resumo,
+                        'autores': autores_list,
                         'processado_em': datetime.utcnow().isoformat()
                     }
                     documento.set_metadados(metadados)
@@ -1177,16 +1189,11 @@ def codificar_documento(tarefa_id):
         return redirect(url_for('view.tarefas'))
 
     if request.method == 'GET':
-        # Sugere próximo código
-        codigo_sugerido = WorkflowUGQ.gerar_proximo_codigo(
-            documento.tipo_documento,
-            documento.setor
-        )
-
+        # Não sugere código aqui - será gerado via JavaScript após selecionar abrangência
         return render_template('tarefa_detalhe.html',
             tarefa=tarefa,
             documento=documento,
-            codigo_sugerido=codigo_sugerido,
+            codigo_sugerido=None,  # Será gerado via AJAX após selecionar abrangência
             modo='codificar'
         )
 
@@ -1194,13 +1201,20 @@ def codificar_documento(tarefa_id):
     codigo_definitivo = request.form.get('codigo_definitivo')
     versao = request.form.get('versao', 'v1.0')
     observacoes_validacao = request.form.get('observacoes_validacao', '')
+    abrangencia = request.form.get('abrangencia', '')
+
+    # Valida abrangência
+    if not abrangencia:
+        flash('Abrangência é obrigatória', 'danger')
+        return redirect(url_for('view.tarefa_detalhe', id=tarefa_id))
 
     try:
         WorkflowUGQ.validador_codifica_documento(
             tarefa,
             codigo_definitivo,
             versao,
-            observacoes_validacao
+            observacoes_validacao,
+            abrangencia
         )
 
         flash(f'✅ Documento codificado: {codigo_definitivo}', 'success')
@@ -1452,3 +1466,33 @@ def documento_restaurar_versao(id):
         db.session.rollback()
         flash(f'Erro ao restaurar versão: {str(e)}', 'danger')
         return redirect(url_for('view.documento_detalhe', id=id))
+
+
+# ============================================================================
+# API: GERAÇÃO DE CÓDIGO DINÂMICO
+# ============================================================================
+
+@view_bp.route('/api/gerar-codigo', methods=['POST'])
+@login_required
+def api_gerar_codigo():
+    """
+    API para gerar código dinamicamente baseado em tipo, setor e abrangência
+    """
+    from flask import jsonify
+    from app.services.workflow import WorkflowUGQ
+
+    try:
+        tipo = request.form.get('tipo')
+        setor = request.form.get('setor')
+        abrangencia = request.form.get('abrangencia')
+
+        if not all([tipo, setor, abrangencia]):
+            return jsonify({'error': 'Tipo, setor e abrangência são obrigatórios'}), 400
+
+        codigo = WorkflowUGQ.gerar_proximo_codigo(tipo, setor, abrangencia)
+
+        return jsonify({'codigo': codigo})
+
+    except Exception as e:
+        logger.error(f"Erro ao gerar código: {str(e)}")
+        return jsonify({'error': str(e)}), 500

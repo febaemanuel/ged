@@ -185,6 +185,76 @@
                     </div>
                     {% endif %}
 
+                    <!-- Informações de Publicação -->
+                    {% if documento.status in ['Publicado', 'Vigente', 'Aprovado'] %}
+                    <div class="mb-3">
+                        <h6><i class="bi bi-info-circle"></i> Informações de Publicação</h6>
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    {% if documento.codigo_definitivo %}
+                                    <div class="col-md-6">
+                                        <small class="text-muted"><i class="bi bi-upc-scan"></i> Código Final</small>
+                                        <div><strong>{{ documento.codigo_definitivo }}</strong></div>
+                                    </div>
+                                    {% endif %}
+                                    {% if documento.versao %}
+                                    <div class="col-md-6">
+                                        <small class="text-muted"><i class="bi bi-tag"></i> Versão</small>
+                                        <div><strong>{{ documento.versao }}</strong></div>
+                                    </div>
+                                    {% endif %}
+                                    {% if documento.autores %}
+                                    <div class="col-md-12">
+                                        <small class="text-muted"><i class="bi bi-people"></i> Autores</small>
+                                        <div><strong>{{ documento.autores }}</strong></div>
+                                    </div>
+                                    {% endif %}
+                                    {% if documento.tipo_documento %}
+                                    <div class="col-md-4">
+                                        <small class="text-muted"><i class="bi bi-file-text"></i> Tipo</small>
+                                        <div><strong>{{ documento.tipo_documento }}</strong></div>
+                                    </div>
+                                    {% endif %}
+                                    {% if documento.setor %}
+                                    <div class="col-md-4">
+                                        <small class="text-muted"><i class="bi bi-building"></i> Setor</small>
+                                        <div><strong>{{ documento.setor }}</strong></div>
+                                    </div>
+                                    {% endif %}
+                                    {% if documento.abrangencia %}
+                                    <div class="col-md-4">
+                                        <small class="text-muted"><i class="bi bi-geo-alt"></i> Abrangência</small>
+                                        <div><strong>{{ documento.abrangencia }}</strong></div>
+                                    </div>
+                                    {% endif %}
+                                    {% if documento.data_publicacao %}
+                                    <div class="col-md-6">
+                                        <small class="text-muted"><i class="bi bi-calendar-check"></i> Data de Publicação</small>
+                                        <div><strong>{{ documento.data_publicacao.strftime('%d/%m/%Y') }}</strong></div>
+                                    </div>
+                                    {% endif %}
+                                    {% if documento.data_vencimento %}
+                                    <div class="col-md-6">
+                                        <small class="text-muted"><i class="bi bi-calendar-x"></i> Data de Vencimento</small>
+                                        <div>
+                                            <strong>{{ documento.data_vencimento.strftime('%d/%m/%Y') }}</strong>
+                                            {% if documento.esta_vencido() %}
+                                                <span class="badge bg-danger ms-1">VENCIDO</span>
+                                            {% elif documento.dias_ate_vencimento() and documento.dias_ate_vencimento() <= 30 %}
+                                                <span class="badge bg-warning text-dark ms-1">Vence em {{ documento.dias_ate_vencimento() }} dias</span>
+                                            {% else %}
+                                                <span class="badge bg-success ms-1">VIGENTE</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- Datas -->
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">

@@ -99,9 +99,11 @@ class Documento(db.Model):
 
     # Informações básicas
     titulo = db.Column(db.String(200), nullable=False)
-    tipo_documento = db.Column(db.String(50), nullable=False)  # POP, Manual, Protocolo
+    tipo_documento = db.Column(db.String(50), nullable=False)  # POP, Manual, Protocolo, Política, Regimento, Regulamento
     descricao = db.Column(db.Text)
     setor = db.Column(db.String(100))
+    abrangencia = db.Column(db.String(100))  # CHUFC, HUWC, MEAC, etc
+    autores = db.Column(db.Text)  # Autores extraídos pela IA (formato JSON ou texto)
 
     # Arquivos
     arquivo_original = db.Column(db.String(255))  # .doc, .odt
@@ -560,6 +562,7 @@ class ListaMestra(db.Model):
     tipo = db.Column(db.String(50), nullable=False)
     titulo = db.Column(db.String(200), nullable=False)
     setor = db.Column(db.String(100), nullable=False)
+    abrangencia = db.Column(db.String(100))  # CHUFC, HUWC, MEAC, etc
     versao = db.Column(db.String(20), nullable=False)
     data_publicacao = db.Column(db.DateTime, nullable=False)
     documento_id = db.Column(db.Integer, db.ForeignKey('documentos.id'))
