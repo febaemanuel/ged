@@ -258,10 +258,23 @@
                         </div>
 
                         <div class="mb-3">
+                            <label for="abrangencia" class="form-label">Abrangência *</label>
+                            <select class="form-select" id="abrangencia" name="abrangencia" required>
+                                <option value="">Selecione a abrangência...</option>
+                                <option value="CHUFC">CHUFC - Complexo Hospitalar Universidade Federal do Ceará</option>
+                                <option value="HUWC">HUWC - Hospital Universitário Walter Cantídio</option>
+                                <option value="MEAC">MEAC - Maternidade Escola Assis Chateaubriand</option>
+                            </select>
+                            <small class="text-muted">Selecione a abrangência para gerar o código correto</small>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="codigo_definitivo" class="form-label">Código Definitivo *</label>
                             <input type="text" class="form-control" id="codigo_definitivo" name="codigo_definitivo"
-                                   value="{{ codigo_sugerido }}">
-                            <small class="text-muted">Código sugerido pela Lista Mestra: <strong>{{ codigo_sugerido }}</strong></small>
+                                   value="" readonly>
+                            <small class="text-muted" id="codigo_hint">
+                                Selecione a abrangência acima para gerar o código
+                            </small>
                         </div>
 
                         <div class="mb-3">
@@ -766,6 +779,58 @@ function marcarComoNovaVersao(id, titulo, codigo, versao) {
         btn.innerHTML = originalText;
     });
 }
+
+// Gera código automaticamente ao selecionar abrangência
+document.addEventListener('DOMContentLoaded', function() {
+    const abrangenciaSelect = document.getElementById('abrangencia');
+    const codigoInput = document.getElementById('codigo_definitivo');
+    const codigoHint = document.getElementById('codigo_hint');
+
+    if (abrangenciaSelect && codigoInput) {
+        abrangenciaSelect.addEventListener('change', function() {
+            const abrangencia = this.value;
+
+            if (!abrangencia) {
+                codigoInput.value = '';
+                codigoHint.innerHTML = 'Selecione a abrangência acima para gerar o código';
+                return;
+            }
+
+            // Pega tipo e setor do documento
+            const tipo = '{{ tarefa.documento.tipo_documento }}';
+            const setor = '{{ tarefa.documento.setor }}';
+
+            // Mostra loading
+            codigoHint.innerHTML = '<i class="spinner-border spinner-border-sm"></i> Gerando código...';
+
+            // Faz requisição para gerar código
+            fetch('{{ url_for("view.api_gerar_codigo") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    tipo: tipo,
+                    setor: setor,
+                    abrangencia: abrangencia
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.codigo) {
+                    codigoInput.value = data.codigo;
+                    codigoHint.innerHTML = 'Código sugerido pela Lista Mestra: <strong>' + data.codigo + '</strong>';
+                } else {
+                    codigoHint.innerHTML = '<span class="text-danger">Erro ao gerar código: ' + (data.error || 'Erro desconhecido') + '</span>';
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                codigoHint.innerHTML = '<span class="text-danger">Erro ao gerar código</span>';
+            });
+        });
+    }
+});
 </script>
 
 {% endblock %}

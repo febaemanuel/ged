@@ -115,8 +115,14 @@ class Config:
     TIPO_POP = 'POP'
     TIPO_MANUAL = 'Manual'
     TIPO_PROTOCOLO = 'Protocolo'
+    TIPO_POLITICA = 'Política'
+    TIPO_REGIMENTO = 'Regimento'
+    TIPO_REGULAMENTO = 'Regulamento'
 
-    TIPOS_DOCUMENTO = [TIPO_POP, TIPO_MANUAL, TIPO_PROTOCOLO]
+    TIPOS_DOCUMENTO = [TIPO_POP, TIPO_MANUAL, TIPO_PROTOCOLO, TIPO_POLITICA, TIPO_REGIMENTO, TIPO_REGULAMENTO]
+
+    # Tipos que têm validade de 4 anos (os demais têm 2 anos)
+    TIPOS_VALIDADE_4_ANOS = [TIPO_POLITICA, TIPO_REGIMENTO, TIPO_REGULAMENTO]
 
     # Tipos de tarefas - WORKFLOW UGQ OFICIAL EBSERH
     # ETAPA 0 - Autor
