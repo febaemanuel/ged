@@ -1,6 +1,10 @@
-# 📱 Guia Completo: Integração com Evolution API
+# 📱 Guia Completo: Evolution API + WhatsApp
 
-**Sistema GED EBSERH - WhatsApp via Evolution API**
+**Sistema GED EBSERH - Integração WhatsApp via Evolution API (Open Source)**
+
+> ✅ Sistema migrado de Twilio para Evolution API
+> ✅ Gratuito, sem burocracia, 100% funcional
+> ✅ Banco de dados criado do zero com campos Evolution API
 
 ---
 
@@ -13,7 +17,7 @@
 5. [Conexão do WhatsApp](#conexão-do-whatsapp)
 6. [Testes e Validação](#testes-e-validação)
 7. [Troubleshooting](#troubleshooting)
-8. [Migração do Twilio](#migração-do-twilio)
+8. [Arquivos do Sistema](#arquivos-do-sistema)
 
 ---
 
@@ -423,57 +427,43 @@ Sua assinatura digital foi registrada com validade jurídica.
 
 ---
 
-## 🔄 Migração do Twilio
+## 📦 Arquivos do Sistema
 
-Se você estava usando Twilio anteriormente:
+### Arquivos Principais da Integração WhatsApp
 
-### 1. Backup dos Dados
+| Arquivo | Descrição |
+|---------|-----------|
+| `app/services/evolution_api_service.py` | Serviço Evolution API (580 linhas) |
+| `app/models/models.py` | Modelo ConfiguracaoWhatsApp com campos Evolution |
+| `app/routes/routes_whatsapp.py` | Rotas e webhook JSON |
+| `.env.example` | Variáveis Evolution API |
 
-```bash
-# Backup do banco de dados
-pg_dump ged_db > backup_antes_migracao.sql
+### Campos no Banco de Dados
 
-# Backup das configurações
-cp .env .env.backup.twilio
+**Tabela: configuracao_whatsapp**
+
+```sql
+-- Campos Evolution API (novos)
+evolution_api_url VARCHAR(200)          -- URL da Evolution API
+evolution_instance_name VARCHAR(100)     -- Nome da instância
+evolution_api_key VARCHAR(200)          -- API Key
+
+-- Campos legados Twilio (deprecated, mantidos por compatibilidade)
+twilio_account_sid VARCHAR(100)
+twilio_auth_token VARCHAR(100)
+twilio_whatsapp_number VARCHAR(20)
 ```
 
-### 2. Execute a Migração
+### Inicialização do Banco
+
+Como você está criando o banco do zero, execute:
 
 ```bash
-python migrate_to_evolution_api.py
+cd /home/user/ged
+python init_database.py
 ```
 
-### 3. Reconfigure WhatsApp
-
-1. Acesse `/admin/whatsapp`
-2. Preencha campos da Evolution API
-3. Deixe campos Twilio em branco (serão ignorados)
-4. Salve e teste
-
-### 4. Desinstale Twilio (Opcional)
-
-```bash
-pip uninstall twilio
-```
-
-### 5. Rollback (Se Necessário)
-
-Se precisar voltar para Twilio:
-
-```bash
-# Restaure backup
-psql ged_db < backup_antes_migracao.sql
-
-# Restaure .env
-cp .env.backup.twilio .env
-
-# Reinstale Twilio
-pip install twilio
-
-# Renomeie serviço antigo
-mv app/services/evolution_api_service.py app/services/evolution_api_service.py.bak
-mv app/services/whatsapp_service.py.old app/services/whatsapp_service.py
-```
+O script `init_database.py` já cria todas as tabelas com os campos Evolution API incluídos.
 
 ---
 
