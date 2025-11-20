@@ -900,10 +900,15 @@ class ConfiguracaoWhatsApp(db.Model):
     # Status
     ativo = db.Column(db.Boolean, default=False, nullable=False)  # WhatsApp ativado/desativado
 
-    # Credenciais Twilio
+    # Credenciais Twilio (DEPRECATED - mantido para compatibilidade)
     twilio_account_sid = db.Column(db.String(100))
     twilio_auth_token = db.Column(db.String(100))
     twilio_whatsapp_number = db.Column(db.String(20))  # Ex: +14155238886
+
+    # Credenciais Evolution API (NOVO - recomendado)
+    evolution_api_url = db.Column(db.String(200))  # Ex: https://api.evolution.com
+    evolution_instance_name = db.Column(db.String(100))  # Ex: minha_instancia
+    evolution_api_key = db.Column(db.String(200))  # API Key da Evolution
 
     # Configurações de uso
     usar_para_notificacoes = db.Column(db.Boolean, default=True)  # Notificar tarefas novas
