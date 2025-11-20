@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %}Logs WhatsApp - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="bi bi-chat-left-text"></i> Logs de Mensagens WhatsApp
+                </h2>
+                <div>
+                    <a href="{{ url_for('whatsapp_admin.configuracao') }}" class="btn btn-secondary">
+                        <i class="bi bi-gear"></i> Configurações
+                    </a>
+                    <a href="{{ url_for('view.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Dashboard
+                    </a>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('whatsapp_admin.logs') }}" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="direcao" class="form-label">Direção</label>
+                            <select class="form-select" id="direcao" name="direcao">
+                                <option value="">Todas</option>
+                                <option value="enviada" {% if request.args.get('direcao') == 'enviada' %}selected{% endif %}>
+                                    📤 Enviadas
+                                </option>
+                                <option value="recebida" {% if request.args.get('direcao') == 'recebida' %}selected{% endif %}>
+                                    📥 Recebidas
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">Todos</option>
+                                <option value="enviado" {% if request.args.get('status') == 'enviado' %}selected{% endif %}>
+                                    ✅ Enviado
+                                </option>
+                                <option value="recebido" {% if request.args.get('status') == 'recebido' %}selected{% endif %}>
+                                    ✅ Recebido
+                                </option>
+                                <option value="entregue" {% if request.args.get('status') == 'entregue' %}selected{% endif %}>
+                                    ✔️ Entregue
+                                </option>
+                                <option value="lido" {% if request.args.get('status') == 'lido' %}selected{% endif %}>
+                                    ✔️✔️ Lido
+                                </option>
+                                <option value="falhou" {% if request.args.get('status') == 'falhou' %}selected{% endif %}>
+                                    ❌ Falhou
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-funnel"></i> Filtrar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Estatísticas Rápidas -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="alert alert-info">
+                        <strong>Total de registros:</strong> {{ logs.total }}
+                        {% if request.args.get('direcao') or request.args.get('status') %}
+                        | <a href="{{ url_for('whatsapp_admin.logs') }}" class="alert-link">Limpar filtros</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela de Logs -->
+            <div class="card">
+                <div class="card-body">
+                    {% if logs.items %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%;">Data/Hora</th>
+                                    <th style="width: 8%;">Direção</th>
+                                    <th style="width: 12%;">Telefone</th>
+                                    <th style="width: 12%;">Usuário</th>
+                                    <th style="width: 35%;">Mensagem</th>
+                                    <th style="width: 8%;">Status</th>
+                                    <th style="width: 8%;">Contexto</th>
+                                    <th style="width: 7%;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs.items %}
+                                <tr>
+                                    <td>
+                                        <small>
+                                            {{ log.criado_em.strftime('%d/%m/%Y') }}<br>
+                                            {{ log.criado_em.strftime('%H:%M:%S') }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if log.direcao == 'enviada' %}
+                                            <span class="badge bg-primary">📤 Enviada</span>
+                                        {% else %}
+                                            <span class="badge bg-info">📥 Recebida</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ log.telefone }}</small>
+                                    </td>
+                                    <td>
+                                        {% if log.usuario %}
+                                            <small>
+                                                <a href="{{ url_for('view.perfil_usuario', id=log.usuario.id) }}" target="_blank">
+                                                    {{ log.usuario.nome }}
+                                                </a>
+                                            </small>
+                                        {% else %}
+                                            <small class="text-muted">N/A</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small style="white-space: pre-wrap; word-break: break-word;">
+                                            {{ log.mensagem[:150] }}
+                                            {% if log.mensagem|length > 150 %}...{% endif %}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if log.status == 'enviado' %}
+                                            <span class="badge bg-success">✅ Enviado</span>
+                                        {% elif log.status == 'recebido' %}
+                                            <span class="badge bg-success">✅ Recebido</span>
+                                        {% elif log.status == 'entregue' %}
+                                            <span class="badge bg-info">✔️ Entregue</span>
+                                        {% elif log.status == 'lido' %}
+                                            <span class="badge bg-info">✔️✔️ Lido</span>
+                                        {% elif log.status == 'falhou' %}
+                                            <span class="badge bg-danger">❌ Falhou</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ log.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {% if log.documento_id %}
+                                                <a href="{{ url_for('view.detalhes_documento', id=log.documento_id) }}"
+                                                   target="_blank" class="badge bg-info text-white">
+                                                    📄 Doc
+                                                </a>
+                                            {% endif %}
+                                            {% if log.tarefa_id %}
+                                                <a href="{{ url_for('view.detalhes_tarefa', id=log.tarefa_id) }}"
+                                                   target="_blank" class="badge bg-warning text-white">
+                                                    📋 Tarefa
+                                                </a>
+                                            {% endif %}
+                                            {% if not log.documento_id and not log.tarefa_id %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalLog{{ log.id }}">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- Modal de Detalhes -->
+                                <div class="modal fade" id="modalLog{{ log.id }}" tabindex="-1">
+                                    <div class="modal-dialog modal-lg">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Detalhes da Mensagem</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <dl class="row">
+                                                    <dt class="col-sm-3">ID:</dt>
+                                                    <dd class="col-sm-9">{{ log.id }}</dd>
+
+                                                    <dt class="col-sm-3">Data/Hora:</dt>
+                                                    <dd class="col-sm-9">{{ log.criado_em.strftime('%d/%m/%Y %H:%M:%S') }}</dd>
+
+                                                    <dt class="col-sm-3">Direção:</dt>
+                                                    <dd class="col-sm-9">
+                                                        {% if log.direcao == 'enviada' %}
+                                                            📤 Enviada
+                                                        {% else %}
+                                                            📥 Recebida
+                                                        {% endif %}
+                                                    </dd>
+
+                                                    <dt class="col-sm-3">Telefone:</dt>
+                                                    <dd class="col-sm-9">{{ log.telefone }}</dd>
+
+                                                    <dt class="col-sm-3">Usuário:</dt>
+                                                    <dd class="col-sm-9">
+                                                        {% if log.usuario %}
+                                                            {{ log.usuario.nome }} ({{ log.usuario.email }})
+                                                        {% else %}
+                                                            N/A
+                                                        {% endif %}
+                                                    </dd>
+
+                                                    <dt class="col-sm-3">Status:</dt>
+                                                    <dd class="col-sm-9">{{ log.status }}</dd>
+
+                                                    <dt class="col-sm-3">Message ID:</dt>
+                                                    <dd class="col-sm-9">
+                                                        <small><code>{{ log.twilio_sid or 'N/A' }}</code></small>
+                                                    </dd>
+
+                                                    {% if log.documento_id %}
+                                                    <dt class="col-sm-3">Documento:</dt>
+                                                    <dd class="col-sm-9">
+                                                        <a href="{{ url_for('view.detalhes_documento', id=log.documento_id) }}" target="_blank">
+                                                            Ver documento #{{ log.documento_id }}
+                                                        </a>
+                                                    </dd>
+                                                    {% endif %}
+
+                                                    {% if log.tarefa_id %}
+                                                    <dt class="col-sm-3">Tarefa:</dt>
+                                                    <dd class="col-sm-9">
+                                                        <a href="{{ url_for('view.detalhes_tarefa', id=log.tarefa_id) }}" target="_blank">
+                                                            Ver tarefa #{{ log.tarefa_id }}
+                                                        </a>
+                                                    </dd>
+                                                    {% endif %}
+
+                                                    {% if log.erro %}
+                                                    <dt class="col-sm-3">Erro:</dt>
+                                                    <dd class="col-sm-9">
+                                                        <div class="alert alert-danger" role="alert">
+                                                            <small>{{ log.erro }}</small>
+                                                        </div>
+                                                    </dd>
+                                                    {% endif %}
+
+                                                    <dt class="col-sm-3">Mensagem:</dt>
+                                                    <dd class="col-sm-9">
+                                                        <div class="alert alert-light" role="alert">
+                                                            <pre style="white-space: pre-wrap; word-break: break-word; margin-bottom: 0;">{{ log.mensagem }}</pre>
+                                                        </div>
+                                                    </dd>
+                                                </dl>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Paginação -->
+                    {% if logs.pages > 1 %}
+                    <nav aria-label="Navegação de logs">
+                        <ul class="pagination justify-content-center">
+                            <!-- Primeira página -->
+                            <li class="page-item {% if not logs.has_prev %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('whatsapp_admin.logs', page=1, direcao=request.args.get('direcao'), status=request.args.get('status')) }}">
+                                    &laquo; Primeira
+                                </a>
+                            </li>
+
+                            <!-- Página anterior -->
+                            <li class="page-item {% if not logs.has_prev %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('whatsapp_admin.logs', page=logs.prev_num, direcao=request.args.get('direcao'), status=request.args.get('status')) }}">
+                                    &lsaquo; Anterior
+                                </a>
+                            </li>
+
+                            <!-- Páginas numeradas -->
+                            {% for page_num in range(1, logs.pages + 1) %}
+                                {% if page_num == logs.page %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% elif page_num >= logs.page - 2 and page_num <= logs.page + 2 %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('whatsapp_admin.logs', page=page_num, direcao=request.args.get('direcao'), status=request.args.get('status')) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            <!-- Próxima página -->
+                            <li class="page-item {% if not logs.has_next %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('whatsapp_admin.logs', page=logs.next_num, direcao=request.args.get('direcao'), status=request.args.get('status')) }}">
+                                    Próxima &rsaquo;
+                                </a>
+                            </li>
+
+                            <!-- Última página -->
+                            <li class="page-item {% if not logs.has_next %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('whatsapp_admin.logs', page=logs.pages, direcao=request.args.get('direcao'), status=request.args.get('status')) }}">
+                                    Última &raquo;
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="alert alert-info text-center">
+                        <i class="bi bi-info-circle"></i> Nenhum log encontrado com os filtros aplicados.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

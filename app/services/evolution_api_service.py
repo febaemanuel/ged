@@ -18,6 +18,8 @@ import string
 import logging
 import requests
 import json
+import time
+from typing import Tuple, Optional, Dict, Any
 
 from flask import current_app, request
 from app.models import (
@@ -42,7 +44,12 @@ class EvolutionAPIService:
         self.instance_name = self.config.evolution_instance_name
         self.api_key = self.config.evolution_api_key
 
-    def esta_ativo(self):
+        # Configurações de retry e timeout
+        self.max_retries = 3
+        self.timeout = 30
+        self.retry_delay = 2  # segundos
+
+    def esta_ativo(self) -> bool:
         """Verifica se WhatsApp está ativo"""
         return (
             self.config.ativo and
@@ -50,6 +57,56 @@ class EvolutionAPIService:
             self.instance_name and
             self.api_key
         )
+
+    def _request_with_retry(self, method: str, url: str, **kwargs) -> requests.Response:
+        """
+        Faz requisição HTTP com retry automático
+
+        Args:
+            method: Método HTTP (GET, POST, etc)
+            url: URL completa
+            **kwargs: Argumentos para requests (headers, json, etc)
+
+        Returns:
+            Response object
+
+        Raises:
+            requests.exceptions.RequestException: Se todas as tentativas falharem
+        """
+        last_exception = None
+
+        for attempt in range(self.max_retries):
+            try:
+                response = requests.request(
+                    method=method,
+                    url=url,
+                    timeout=self.timeout,
+                    **kwargs
+                )
+                return response
+
+            except requests.exceptions.Timeout as e:
+                last_exception = e
+                logger.warning(f"Timeout na tentativa {attempt + 1}/{self.max_retries}: {url}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(self.retry_delay * (attempt + 1))  # Backoff exponencial
+                continue
+
+            except requests.exceptions.ConnectionError as e:
+                last_exception = e
+                logger.warning(f"Erro de conexão na tentativa {attempt + 1}/{self.max_retries}: {url}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(self.retry_delay * (attempt + 1))
+                continue
+
+            except requests.exceptions.RequestException as e:
+                # Outros erros não são retentados
+                logger.error(f"Erro não recuperável na requisição: {str(e)}")
+                raise
+
+        # Se chegou aqui, todas as tentativas falharam
+        logger.error(f"Falha após {self.max_retries} tentativas para {url}")
+        raise last_exception
 
     def _format_number(self, numero):
         """
@@ -110,8 +167,8 @@ class EvolutionAPIService:
         }
 
         try:
-            # Envia requisição
-            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            # Envia requisição com retry automático
+            response = self._request_with_retry('POST', url, headers=headers, json=payload)
 
             # Verifica resposta
             if response.status_code == 200 or response.status_code == 201:
@@ -231,12 +288,109 @@ _Sistema GED - EBSERH_
             tarefa_id=tarefa.id
         )
 
-    def deletar_mensagem(self, message_id):
+    def enviar_mensagem_com_midia(
+        self,
+        para_numero: str,
+        mensagem: str,
+        media_url: str,
+        media_type: str = 'image',
+        documento_id: Optional[int] = None,
+        tarefa_id: Optional[int] = None
+    ) -> Tuple[bool, str]:
+        """
+        Envia mensagem com mídia via WhatsApp (imagem, áudio, vídeo, documento)
+
+        Args:
+            para_numero: Número do destinatário
+            mensagem: Caption/legenda da mídia
+            media_url: URL pública da mídia
+            media_type: Tipo de mídia (image, video, audio, document)
+            documento_id: ID do documento (opcional)
+            tarefa_id: ID da tarefa (opcional)
+
+        Returns:
+            Tuple (sucesso, message_id ou erro)
+        """
+        if not self.esta_ativo():
+            logger.warning("WhatsApp não está ativo")
+            return False, "WhatsApp não configurado"
+
+        # Mapeia tipos para endpoints da Evolution API
+        endpoint_map = {
+            'image': 'sendMedia',
+            'video': 'sendMedia',
+            'audio': 'sendMedia',
+            'document': 'sendMedia'
+        }
+
+        endpoint = endpoint_map.get(media_type, 'sendMedia')
+
+        # Formata número
+        numero_formatado = self._format_number(para_numero)
+        telefone_limpo = para_numero.replace('whatsapp:', '').replace('+', '').strip()
+
+        # Monta URL do endpoint
+        url = f"{self.base_url}/message/{endpoint}/{self.instance_name}"
+
+        # Headers
+        headers = {
+            'Content-Type': 'application/json',
+            'apikey': self.api_key
+        }
+
+        # Payload
+        payload = {
+            'number': numero_formatado,
+            'mediaurl': media_url,
+            'caption': mensagem,
+            'delay': 1000
+        }
+
+        try:
+            response = self._request_with_retry('POST', url, headers=headers, json=payload)
+
+            if response.status_code == 200 or response.status_code == 201:
+                response_data = response.json()
+                message_id = response_data.get('key', {}).get('id', 'unknown')
+
+                # Registra log
+                usuario = Usuario.query.filter_by(telefone=f"+{telefone_limpo}").first()
+
+                log = LogWhatsApp(
+                    usuario_id=usuario.id if usuario else None,
+                    telefone=f"+{telefone_limpo}",
+                    direcao='enviada',
+                    mensagem=f"[{media_type.upper()}] {mensagem}",
+                    twilio_sid=message_id,
+                    documento_id=documento_id,
+                    tarefa_id=tarefa_id,
+                    status='enviado'
+                )
+                db.session.add(log)
+                db.session.commit()
+
+                logger.info(f"Mídia WhatsApp enviada para {telefone_limpo}: {message_id}")
+                return True, message_id
+
+            else:
+                error_msg = f"Erro HTTP {response.status_code}: {response.text}"
+                logger.error(f"Erro ao enviar mídia WhatsApp: {error_msg}")
+                return False, error_msg
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Erro ao enviar mídia WhatsApp: {error_msg}")
+            return False, error_msg
+
+    def deletar_mensagem(self, message_id: str) -> bool:
         """
         Deleta mensagem do WhatsApp (se suportado pela Evolution API)
 
         Args:
             message_id: ID da mensagem
+
+        Returns:
+            bool: True se deletado com sucesso
         """
         if not self.esta_ativo():
             return False
@@ -270,7 +424,7 @@ _Sistema GED - EBSERH_
                 'integration': 'WHATSAPP-BAILEYS'
             }
 
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
+            response = self._request_with_retry('POST', url, headers=headers, json=payload)
 
             if response.status_code == 200 or response.status_code == 201:
                 logger.info(f"Instância {self.instance_name} criada com sucesso")
@@ -302,7 +456,7 @@ _Sistema GED - EBSERH_
             url = f"{self.base_url}/instance/connectionState/{self.instance_name}"
             headers = {'apikey': self.api_key}
 
-            response = requests.get(url, headers=headers, timeout=10)
+            response = self._request_with_retry('GET', url, headers=headers)
 
             if response.status_code == 200:
                 data = response.json()
@@ -345,7 +499,7 @@ _Sistema GED - EBSERH_
 
             try:
                 # Tenta conectar a instância (necessário para gerar QR Code)
-                response_connect = requests.get(url_connect, headers=headers, timeout=10)
+                response_connect = self._request_with_retry('GET', url_connect, headers=headers)
 
                 if response_connect.status_code == 404:
                     # Instância não existe, cria uma nova
@@ -359,14 +513,14 @@ _Sistema GED - EBSERH_
                     time.sleep(2)
 
                     # Tenta conectar novamente
-                    response_connect = requests.get(url_connect, headers=headers, timeout=10)
+                    response_connect = self._request_with_retry('GET', url_connect, headers=headers)
 
             except Exception as e:
                 logger.warning(f"Erro ao conectar instância (continuando...): {str(e)}")
 
             # Agora tenta obter o QR Code
             url_qr = f"{self.base_url}/instance/connect/{self.instance_name}"
-            response = requests.get(url_qr, headers=headers, timeout=10)
+            response = self._request_with_retry('GET', url_qr, headers=headers)
 
             if response.status_code == 200:
                 data = response.json()
