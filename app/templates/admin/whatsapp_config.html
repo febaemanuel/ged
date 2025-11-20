@@ -8,11 +8,21 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2>
-                    <i class="bi bi-whatsapp"></i> Configuração WhatsApp
+                    <i class="bi bi-whatsapp"></i> Configuração WhatsApp (Evolution API)
                 </h2>
                 <a href="{{ url_for('view.dashboard') }}" class="btn btn-secondary">
                     <i class="bi bi-arrow-left"></i> Voltar
                 </a>
+            </div>
+
+            <!-- Aviso sobre banco separado -->
+            <div class="alert alert-info">
+                <h5><i class="bi bi-database"></i> Importante: Banco de Dados Separado</h5>
+                <p class="mb-0">
+                    ⚠️ A <strong>Evolution API</strong> deve usar um banco de dados <strong>separado</strong> chamado <code>evolution_db</code>.<br>
+                    ❌ <strong>NUNCA</strong> use o mesmo banco <code>ged</code> do sistema GED!<br>
+                    📖 Veja o guia completo: <a href="https://github.com/febaemanuel/ged/blob/main/SETUP_EVOLUTION_DB.md" target="_blank">SETUP_EVOLUTION_DB.md</a>
+                </p>
             </div>
         </div>
     </div>
@@ -59,7 +69,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="bi bi-gear"></i> Configurações Gerais
+                        <i class="bi bi-gear"></i> Configurações Evolution API
                     </h5>
                 </div>
                 <div class="card-body">
@@ -84,45 +94,46 @@
                             </small>
                         </div>
 
-                        <!-- Credenciais Twilio -->
-                        <h6 class="border-bottom pb-2 mb-3">🔑 Credenciais Twilio</h6>
+                        <!-- Credenciais Evolution API -->
+                        <h6 class="border-bottom pb-2 mb-3">🔑 Credenciais Evolution API</h6>
 
                         <div class="mb-3">
-                            <label for="twilio_account_sid" class="form-label">
-                                Account SID *
+                            <label for="evolution_api_url" class="form-label">
+                                URL da Evolution API *
                                 <i class="bi bi-info-circle" data-bs-toggle="tooltip"
-                                   title="Encontre em: https://console.twilio.com"></i>
+                                   title="URL onde a Evolution API está rodando (ex: http://localhost:8080)"></i>
                             </label>
                             <input type="text" class="form-control font-monospace"
-                                   id="twilio_account_sid" name="twilio_account_sid"
-                                   value="{{ config.twilio_account_sid or '' }}"
-                                   placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                                   id="evolution_api_url" name="evolution_api_url"
+                                   value="{{ config.evolution_api_url or '' }}"
+                                   placeholder="http://localhost:8080" required>
+                            <small class="text-muted">Sem barra no final. Exemplo: http://localhost:8080</small>
                         </div>
 
                         <div class="mb-3">
-                            <label for="twilio_auth_token" class="form-label">
-                                Auth Token *
+                            <label for="evolution_instance_name" class="form-label">
+                                Nome da Instância *
                                 <i class="bi bi-info-circle" data-bs-toggle="tooltip"
-                                   title="Mantenha este token seguro!"></i>
-                            </label>
-                            <input type="password" class="form-control font-monospace"
-                                   id="twilio_auth_token" name="twilio_auth_token"
-                                   value="{{ config.twilio_auth_token or '' }}"
-                                   placeholder="••••••••••••••••••••••••••••••••">
-                            <small class="text-muted">Token não é exibido por segurança</small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="twilio_whatsapp_number" class="form-label">
-                                Número WhatsApp Business *
-                                <i class="bi bi-info-circle" data-bs-toggle="tooltip"
-                                   title="Número fornecido pelo Twilio"></i>
+                                   title="Nome único para sua instância WhatsApp"></i>
                             </label>
                             <input type="text" class="form-control"
-                                   id="twilio_whatsapp_number" name="twilio_whatsapp_number"
-                                   value="{{ config.twilio_whatsapp_number or '' }}"
-                                   placeholder="+14155238886">
-                            <small class="text-muted">Formato: +código do país + número</small>
+                                   id="evolution_instance_name" name="evolution_instance_name"
+                                   value="{{ config.evolution_instance_name or '' }}"
+                                   placeholder="ged_ebserh_production" required>
+                            <small class="text-muted">Use apenas letras, números e underscore</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="evolution_api_key" class="form-label">
+                                API Key *
+                                <i class="bi bi-info-circle" data-bs-toggle="tooltip"
+                                   title="Chave de autenticação da Evolution API (configure no .env da Evolution)"></i>
+                            </label>
+                            <input type="password" class="form-control font-monospace"
+                                   id="evolution_api_key" name="evolution_api_key"
+                                   value="{{ config.evolution_api_key or '' }}"
+                                   placeholder="••••••••••••••••••••••••••••••••" required>
+                            <small class="text-muted">API Key configurada na Evolution API</small>
                         </div>
 
                         <!-- Funcionalidades -->
@@ -186,7 +197,7 @@
                                    name="exigir_2fa" {% if config.exigir_2fa %}checked{% endif %}>
                             <label class="form-check-label" for="exigir_2fa">
                                 🔐 Exigir 2FA (Autenticação em Dois Fatores)
-                                <small class="d-block text-muted">Envia código SMS adicional além da senha</small>
+                                <small class="d-block text-muted">Envia código adicional além da senha</small>
                             </label>
                         </div>
 
@@ -261,6 +272,32 @@
         <!-- Painel Lateral -->
         <div class="col-md-4">
 
+            <!-- QR Code -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-qr-code"></i> Conectar WhatsApp
+                    </h6>
+                </div>
+                <div class="card-body text-center">
+                    <p class="small text-muted">Escaneie o QR Code com seu WhatsApp</p>
+                    <button type="button" class="btn btn-success w-100 mb-3" id="btnObterQRCode">
+                        <i class="bi bi-qr-code"></i> Obter QR Code
+                    </button>
+                    <div id="qrcodeContainer" class="d-none">
+                        <img id="qrcodeImage" src="" alt="QR Code" class="img-fluid mb-2" style="max-width: 250px;">
+                        <div class="alert alert-info small">
+                            <strong>Como conectar:</strong><br>
+                            1. Abra o WhatsApp no celular<br>
+                            2. Vá em Configurações > Aparelhos conectados<br>
+                            3. Toque em "Conectar um aparelho"<br>
+                            4. Escaneie o QR Code acima
+                        </div>
+                    </div>
+                    <div id="statusConexao" class="mt-2"></div>
+                </div>
+            </div>
+
             <!-- Teste de Envio -->
             <div class="card mb-3">
                 <div class="card-header">
@@ -292,7 +329,7 @@
                     </h6>
                 </div>
                 <div class="card-body">
-                    <p class="small text-muted">Configure esta URL no Twilio Console:</p>
+                    <p class="small text-muted">Configure esta URL na Evolution API:</p>
                     <div class="input-group mb-2">
                         <input type="text" class="form-control font-monospace small"
                                id="webhookUrl" readonly
@@ -302,10 +339,6 @@
                             <i class="bi bi-clipboard"></i>
                         </button>
                     </div>
-                    <a href="https://console.twilio.com/us1/develop/sms/services"
-                       target="_blank" class="btn btn-sm btn-outline-primary w-100">
-                        <i class="bi bi-box-arrow-up-right"></i> Abrir Twilio Console
-                    </a>
                 </div>
             </div>
 
@@ -323,9 +356,13 @@
                     <a href="{{ url_for('whatsapp_admin.templates') }}" class="list-group-item list-group-item-action">
                         <i class="bi bi-chat-square-text"></i> Editar Templates
                     </a>
-                    <a href="https://www.twilio.com/docs/whatsapp" target="_blank"
+                    <a href="https://doc.evolution-api.com" target="_blank"
                        class="list-group-item list-group-item-action">
-                        <i class="bi bi-book"></i> Documentação Twilio
+                        <i class="bi bi-book"></i> Documentação Evolution API
+                    </a>
+                    <a href="https://github.com/febaemanuel/ged/blob/main/GUIA_EVOLUTION_API.md" target="_blank"
+                       class="list-group-item list-group-item-action">
+                        <i class="bi bi-file-text"></i> Guia de Instalação
                     </a>
                 </div>
             </div>
@@ -334,6 +371,44 @@
 </div>
 
 <script>
+// Obter QR Code
+document.getElementById('btnObterQRCode').addEventListener('click', function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Obtendo QR Code...';
+
+    fetch('{{ url_for("whatsapp_admin.obter_qrcode") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.sucesso) {
+                document.getElementById('qrcodeImage').src = data.qrcode;
+                document.getElementById('qrcodeContainer').classList.remove('d-none');
+                document.getElementById('statusConexao').innerHTML = `
+                    <div class="alert alert-success small">
+                        <i class="bi bi-check-circle"></i> ${data.mensagem}
+                    </div>
+                `;
+            } else {
+                document.getElementById('statusConexao').innerHTML = `
+                    <div class="alert alert-danger small">
+                        <i class="bi bi-x-circle"></i> ${data.erro}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            document.getElementById('statusConexao').innerHTML = `
+                <div class="alert alert-danger small">
+                    <i class="bi bi-x-circle"></i> Erro: ${error}
+                </div>
+            `;
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-qr-code"></i> Atualizar QR Code';
+        });
+});
+
 // Teste de envio via AJAX
 document.getElementById('formTesteWhatsApp').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -353,17 +428,17 @@ document.getElementById('formTesteWhatsApp').addEventListener('submit', function
     .then(response => response.json())
     .then(data => {
         if (data.sucesso) {
-            resultadoDiv.innerHTML = `<div class="alert alert-success">
+            resultadoDiv.innerHTML = `<div class="alert alert-success small">
                 <i class="bi bi-check-circle"></i> ${data.mensagem}
             </div>`;
         } else {
-            resultadoDiv.innerHTML = `<div class="alert alert-danger">
+            resultadoDiv.innerHTML = `<div class="alert alert-danger small">
                 <i class="bi bi-x-circle"></i> ${data.erro}
             </div>`;
         }
     })
     .catch(error => {
-        resultadoDiv.innerHTML = `<div class="alert alert-danger">
+        resultadoDiv.innerHTML = `<div class="alert alert-danger small">
             <i class="bi bi-x-circle"></i> Erro: ${error}
         </div>`;
     })
@@ -379,7 +454,13 @@ function copyToClipboard(elementId) {
     element.select();
     document.execCommand('copy');
 
-    showToast('URL copiada para área de transferência!', 'success');
+    // Feedback visual
+    const btn = event.target.closest('button');
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-check"></i>';
+    setTimeout(() => {
+        btn.innerHTML = originalHTML;
+    }, 2000);
 }
 
 // Atualiza label do status ativo/inativo em tempo real
@@ -393,20 +474,12 @@ document.getElementById('ativo').addEventListener('change', function() {
         alertDiv.classList.remove('alert-warning');
         alertDiv.classList.add('alert-success');
         descricao.innerHTML = '<i class="bi bi-check-circle"></i> WhatsApp está ativo e funcionando. O sistema enviará mensagens via WhatsApp.';
-        console.log('WhatsApp checkbox MARCADO - Será enviado como ativo=on');
     } else {
         label.textContent = 'WhatsApp DESATIVADO';
         alertDiv.classList.remove('alert-success');
         alertDiv.classList.add('alert-warning');
         descricao.innerHTML = '<i class="bi bi-exclamation-triangle"></i> WhatsApp está desativado. Nenhuma mensagem será enviada. Ative para começar a usar.';
-        console.log('WhatsApp checkbox DESMARCADO - Não será enviado (ativo=False no backend)');
     }
-});
-
-// Log do estado inicial ao carregar a página
-document.addEventListener('DOMContentLoaded', function() {
-    const checkboxAtivo = document.getElementById('ativo');
-    console.log('Estado inicial do WhatsApp:', checkboxAtivo.checked ? 'ATIVADO' : 'DESATIVADO');
 });
 </script>
 {% endblock %}

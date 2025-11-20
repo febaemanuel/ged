@@ -256,17 +256,20 @@ Acesse: **http://localhost:5000**
 
 ## 📱 WhatsApp (Evolution API)
 
-Sistema migrado de **Twilio** para **Evolution API** (open-source, gratuita, sem burocracia).
+Sistema utiliza **Evolution API** (open-source, gratuita, sem burocracia).
+
+> ⚠️ **Nota:** Twilio foi **descontinuado** neste projeto. Use apenas Evolution API.
 
 ### Vantagens da Evolution API
 
-| Critério | Evolution API | Twilio |
-|----------|---------------|--------|
-| **Custo** | ✅ Gratuito | ❌ Pago por mensagem |
-| **Aprovação** | ✅ Instantânea | ❌ Documentos, espera |
-| **Multi-instância** | ✅ Ilimitadas | ❌ Pago por número |
-| **Hospedagem** | ✅ Própria | ❌ Cloud Twilio |
-| **Código** | ✅ Open Source | ❌ Proprietário |
+| Critério | Valor |
+|----------|-------|
+| **Custo** | ✅ Gratuito (sem custos por mensagem) |
+| **Aprovação** | ✅ Instantânea (sem burocracia) |
+| **Multi-instância** | ✅ Ilimitadas (vários números WhatsApp) |
+| **Hospedagem** | ✅ Própria (controle total) |
+| **Código** | ✅ Open Source |
+| **Banco de Dados** | ⚠️ Separado (`evolution_db`) |
 
 ### Instalação Evolution API (Docker)
 
@@ -466,9 +469,13 @@ Verifique DATABASE_URL no .env com credenciais corretas.
 2. Configure em `/admin/whatsapp`
 3. Conecte WhatsApp via QR Code
 
-### Erro: "twilio-cli not found"
+### Erro: P3005 - "Database schema is not empty"
 
-Twilio foi descontinuado. Use Evolution API (gratuita).
+Evolution API precisa de banco separado! Veja: [SETUP_EVOLUTION_DB.md](SETUP_EVOLUTION_DB.md)
+
+```sql
+CREATE DATABASE evolution_db OWNER ged_user;
+```
 
 ---
 
