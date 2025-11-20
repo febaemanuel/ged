@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Templates WhatsApp - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="bi bi-file-text"></i> Templates de Mensagens WhatsApp
+                </h2>
+                <div>
+                    <a href="{{ url_for('whatsapp_admin.configuracao') }}" class="btn btn-secondary">
+                        <i class="bi bi-gear"></i> Configurações
+                    </a>
+                    <a href="{{ url_for('view.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Dashboard
+                    </a>
+                </div>
+            </div>
+
+            <!-- Informações sobre templates -->
+            <div class="alert alert-info">
+                <h5><i class="bi bi-info-circle"></i> Sobre os Templates</h5>
+                <p class="mb-0">
+                    📝 Os templates definem as mensagens enviadas automaticamente pelo chatbot do WhatsApp.<br>
+                    🔧 Use <strong>placeholders</strong> como <code>{nome}</code>, <code>{documento}</code>, <code>{prazo}</code> para personalizar as mensagens.<br>
+                    💬 Utilize <strong>*texto*</strong> para negrito e <strong>_texto_</strong> para itálico (formatação WhatsApp).
+                </p>
+            </div>
+
+            <!-- Formulário de Templates -->
+            <form method="POST" action="{{ url_for('whatsapp_admin.templates') }}">
+                <div class="row">
+                    <!-- Coluna Esquerda -->
+                    <div class="col-md-6">
+                        <!-- Template: Boas-vindas -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0"><i class="bi bi-hand-wave"></i> Boas-vindas</h5>
+                            </div>
+                            <div class="card-body">
+                                <label for="template_boas_vindas" class="form-label">
+                                    Mensagem enviada quando usuário inicia conversa
+                                </label>
+                                <textarea class="form-control font-monospace" id="template_boas_vindas"
+                                          name="template_boas_vindas" rows="5" required>{{ templates.get('boas_vindas', 'Olá! Bem-vindo ao Sistema GED.\n\nDigite *menu* para ver suas tarefas pendentes.') }}</textarea>
+                                <small class="text-muted">
+                                    Placeholders: <code>{nome}</code>
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Template: Menu Principal -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0"><i class="bi bi-list"></i> Menu Principal</h5>
+                            </div>
+                            <div class="card-body">
+                                <label for="template_menu_principal" class="form-label">
+                                    Cabeçalho do menu de documentos pendentes
+                                </label>
+                                <textarea class="form-control font-monospace" id="template_menu_principal"
+                                          name="template_menu_principal" rows="4" required>{{ templates.get('menu_principal', '📋 *Documentos Pendentes de Assinatura*\n\nVocê tem {total} documentos aguardando sua assinatura:') }}</textarea>
+                                <small class="text-muted">
+                                    Placeholders: <code>{total}</code>, <code>{nome}</code>
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Template: Detalhes do Documento -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Detalhes do Documento</h5>
+                            </div>
+                            <div class="card-body">
+                                <label for="template_documento_detalhes" class="form-label">
+                                    Mensagem com detalhes completos do documento
+                                </label>
+                                <textarea class="form-control font-monospace" id="template_documento_detalhes"
+                                          name="template_documento_detalhes" rows="6" required>{{ templates.get('documento_detalhes', '📄 *Documento: {codigo}*\n*{titulo}*\n\n👤 Autor: {autor}\n📅 Criado em: {data}\n⏰ Prazo: {prazo}\n\n💬 O que deseja fazer?\n1️⃣ - Aprovar e assinar\n2️⃣ - Reprovar\n3️⃣ - Ver documento\n4️⃣ - Voltar') }}</textarea>
+                                <small class="text-muted">
+                                    Placeholders: <code>{codigo}</code>, <code>{titulo}</code>, <code>{autor}</code>, <code>{data}</code>, <code>{prazo}</code>
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Template: Pedir Senha -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Pedir Confirmação (Email)</h5>
+                            </div>
+                            <div class="card-body">
+                                <label for="template_pedir_senha" class="form-label">
+                                    Mensagem solicitando confirmação por email para assinar
+                                </label>
+                                <textarea class="form-control font-monospace" id="template_pedir_senha"
+                                          name="template_pedir_senha" rows="6" required>{{ templates.get('pedir_senha', '🔒 *Confirmação de Assinatura Digital*\n\n📄 Documento: {codigo}\n📝 Título: {titulo}\n\nPara confirmar sua assinatura, digite seu *endereço de email*:\n\n⚠️ Digite exatamente o email cadastrado no sistema\n⚠️ Após 3 tentativas incorretas, você será bloqueado por 30 minutos') }}</textarea>
+                                <small class="text-muted">
+                                    Placeholders: <code>{codigo}</code>, <code>{titulo}</code>
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Template: Assinatura com Sucesso -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0"><i class="bi bi-check-circle"></i> Assinatura com Sucesso</h5>
+                            </div>
+                            <div class="card-body">
+                                <label for="template_assinatura_sucesso" class="form-label">
+                                    Mensagem de confirmação de assinatura registrada
+                                </label>
+                                <textarea class="form-control font-monospace" id="template_assinatura_sucesso"
+                                          name="template_assinatura_sucesso" rows="7" required>{{ templates.get('assinatura_sucesso', '✅ *ASSINATURA REGISTRADA COM SUCESSO!*\n\n📋 Documento: {codigo}\n⏰ Data/Hora: {timestamp}\n🔐 Hash: {hash}\n📧 Protocolo: #ASS-{tarefa_id}\n\n📧 Comprovante enviado para: {email}\n\n_Sua assinatura digital foi registrada com validade jurídica._') }}</textarea>
+                                <small class="text-muted">
+                                    Placeholders: <code>{codigo}</code>, <code>{timestamp}</code>, <code>{hash}</code>, <code>{tarefa_id}</code>, <code>{email}</code>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Coluna Direita -->
+                    <div class="col-md-6">
+                        <!-- Template: Senha Incorreta -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-danger text-white">
+                                <h5 class="mb-0"><i class="bi bi-x-circle"></i> Email Incorreto</h5>
+                            </div>
+                            <div class="card-body">
+                                <label for="template_senha_incorreta" class="form-label">
+                                    Mensagem quando usuário digita email incorreto
+                                </label>
+                                <textarea class="form-control font-monospace" id="template_senha_incorreta"
+                                          name="template_senha_incorreta" rows="5" required>{{ templates.get('senha_incorreta', '❌ *Email incorreto!*\n\nO email digitado não corresponde ao cadastrado no sistema.\n\nVocê tem *{tentativas}* tentativa(s) restante(s).\n\nDigite seu email novamente ou *cancelar* para sair.') }}</textarea>
+                                <small class="text-muted">
+                                    Placeholders: <code>{tentativas}</code>
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Template: Sessão Expirada -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Sessão Expirada</h5>
+                            </div>
+                            <div class="card-body">
+                                <label for="template_sessao_expirada" class="form-label">
+                                    Mensagem quando a sessão do usuário expira por inatividade
+                                </label>
+                                <textarea class="form-control font-monospace" id="template_sessao_expirada"
+                                          name="template_sessao_expirada" rows="4" required>{{ templates.get('sessao_expirada', '⏰ *Sessão Expirada*\n\nSua sessão expirou por inatividade ({timeout} minutos).\n\nDigite *menu* para recomeçar.') }}</textarea>
+                                <small class="text-muted">
+                                    Placeholders: <code>{timeout}</code>
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Template: Fora de Horário -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="mb-0"><i class="bi bi-clock"></i> Fora de Horário</h5>
+                            </div>
+                            <div class="card-body">
+                                <label for="template_fora_horario" class="form-label">
+                                    Mensagem enviada fora do horário de funcionamento
+                                </label>
+                                <textarea class="form-control font-monospace" id="template_fora_horario"
+                                          name="template_fora_horario" rows="5" required>{{ templates.get('fora_horario', '🕐 *Fora do Horário de Atendimento*\n\nO chatbot está disponível apenas de segunda a sexta-feira, das {inicio} às {fim}.\n\nRetorne neste horário para ser atendido.\n\n_Horário atual: {agora}_') }}</textarea>
+                                <small class="text-muted">
+                                    Placeholders: <code>{inicio}</code>, <code>{fim}</code>, <code>{agora}</code>
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Template: Número Não Cadastrado -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-danger text-white">
+                                <h5 class="mb-0"><i class="bi bi-person-x"></i> Número Não Cadastrado</h5>
+                            </div>
+                            <div class="card-body">
+                                <label for="template_numero_nao_cadastrado" class="form-label">
+                                    Mensagem quando número do WhatsApp não está cadastrado no sistema
+                                </label>
+                                <textarea class="form-control font-monospace" id="template_numero_nao_cadastrado"
+                                          name="template_numero_nao_cadastrado" rows="6" required>{{ templates.get('numero_nao_cadastrado', '❌ *Número Não Cadastrado*\n\nEste número de WhatsApp não está cadastrado no Sistema GED.\n\nPara usar o chatbot, você precisa:\n1. Ter uma conta ativa no sistema\n2. Cadastrar seu número de WhatsApp no seu perfil\n\nEntre em contato com o administrador do sistema.') }}</textarea>
+                                <small class="text-muted">
+                                    Sem placeholders
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Guia de Formatação -->
+                        <div class="card mb-4 border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0"><i class="bi bi-book"></i> Guia de Formatação WhatsApp</h5>
+                            </div>
+                            <div class="card-body">
+                                <h6>Formatação de Texto:</h6>
+                                <ul class="mb-3">
+                                    <li><code>*texto*</code> → <strong>Negrito</strong></li>
+                                    <li><code>_texto_</code> → <em>Itálico</em></li>
+                                    <li><code>~texto~</code> → <del>Riscado</del></li>
+                                    <li><code>```texto```</code> → <code>Monoespaçado</code></li>
+                                </ul>
+
+                                <h6>Emojis Úteis:</h6>
+                                <div class="mb-3">
+                                    <span class="badge bg-light text-dark me-1">✅ Sucesso</span>
+                                    <span class="badge bg-light text-dark me-1">❌ Erro</span>
+                                    <span class="badge bg-light text-dark me-1">⚠️ Aviso</span>
+                                    <span class="badge bg-light text-dark me-1">📄 Documento</span>
+                                    <span class="badge bg-light text-dark me-1">📋 Tarefa</span>
+                                    <span class="badge bg-light text-dark me-1">🔒 Segurança</span>
+                                    <span class="badge bg-light text-dark me-1">⏰ Prazo</span>
+                                    <span class="badge bg-light text-dark me-1">💬 Mensagem</span>
+                                    <span class="badge bg-light text-dark me-1">👤 Usuário</span>
+                                    <span class="badge bg-light text-dark me-1">🔔 Notificação</span>
+                                </div>
+
+                                <h6>Quebras de Linha:</h6>
+                                <p class="mb-0">
+                                    Use <code>\n</code> para quebra de linha simples<br>
+                                    Use <code>\n\n</code> para parágrafo (linha em branco)
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <button type="submit" class="btn btn-primary btn-lg me-2">
+                                    <i class="bi bi-save"></i> Salvar Templates
+                                </button>
+                                <a href="{{ url_for('whatsapp_admin.configuracao') }}" class="btn btn-outline-secondary btn-lg">
+                                    <i class="bi bi-x-circle"></i> Cancelar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
