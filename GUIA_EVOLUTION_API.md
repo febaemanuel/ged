@@ -5,6 +5,9 @@
 > ✅ Sistema migrado de Twilio para Evolution API
 > ✅ Gratuito, sem burocracia, 100% funcional
 > ✅ Banco de dados criado do zero com campos Evolution API
+>
+> ⚠️ **ATENÇÃO:** Evolution API usa banco separado (`evolution_db`)
+> ❌ **NUNCA** use o mesmo banco `ged` do sistema GED!
 
 ---
 
@@ -79,9 +82,13 @@ PORT=8080
 # API Key (gere uma chave aleatória)
 AUTHENTICATION_API_KEY=sua-chave-super-secreta-aqui
 
-# Banco de dados (opcional, mas recomendado)
+# Banco de dados (OBRIGATÓRIO - use banco separado!)
+# ⚠️ IMPORTANTE: NÃO use o mesmo banco do sistema GED!
+# Crie um banco separado chamado 'evolution_db'
 DATABASE_ENABLED=true
-DATABASE_CONNECTION_URI=postgresql://user:pass@localhost:5432/evolution
+DATABASE_PROVIDER=postgresql
+DATABASE_CONNECTION_URI=postgresql://ged_user:ged_password@host.docker.internal:5432/evolution_db
+DATABASE_CONNECTION_CLIENT_NAME=evolution_api_client
 
 # Webhook (configuraremos depois)
 WEBHOOK_GLOBAL_ENABLED=false
@@ -97,6 +104,60 @@ docker-compose up -d
 
 ```bash
 curl http://localhost:8080/
+```
+
+### ⚠️ IMPORTANTE: Criando o Banco de Dados Separado
+
+**A Evolution API PRECISA de um banco separado!** Não pode usar o mesmo banco do sistema GED.
+
+**No Windows (pgAdmin ou linha de comando):**
+
+1. Abra o pgAdmin ou SQL Shell (psql)
+2. Conecte ao PostgreSQL
+3. Execute os comandos SQL:
+
+```sql
+-- Criar o banco para Evolution API
+CREATE DATABASE evolution_db
+    WITH
+    OWNER = ged_user
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'Portuguese_Brazil.1252'
+    LC_CTYPE = 'Portuguese_Brazil.1252'
+    TABLESPACE = pg_default
+    CONNECTION LIMIT = -1;
+
+-- Conceder permissões
+GRANT ALL PRIVILEGES ON DATABASE evolution_db TO ged_user;
+
+-- Conectar ao banco e dar permissões no schema
+\c evolution_db
+GRANT ALL ON SCHEMA public TO ged_user;
+```
+
+**Ou pelo psql direto:**
+
+```bash
+# Abra o prompt de comando do Windows
+psql -U postgres
+
+# Execute:
+CREATE DATABASE evolution_db OWNER ged_user;
+GRANT ALL PRIVILEGES ON DATABASE evolution_db TO ged_user;
+\c evolution_db
+GRANT ALL ON SCHEMA public TO ged_user;
+\q
+```
+
+**Verificar que o banco foi criado:**
+
+```sql
+-- Listar todos os bancos
+\l
+
+-- Você deve ver:
+-- ged         -> Sistema GED principal
+-- evolution_db -> Evolution API (SEPARADO!)
 ```
 
 ### Opção 2: Instalação Manual (Node.js)
@@ -333,6 +394,55 @@ Sua assinatura digital foi registrada com validade jurídica.
 ---
 
 ## 🔧 Troubleshooting
+
+### ⚠️ PROBLEMA CRÍTICO: Erro P3005 - "The database schema is not empty"
+
+**Erro completo:**
+```
+Error: P3005
+The database schema is not empty. Read more about how to baseline
+an existing production database: https://pris.ly/d/migrate-baseline
+```
+
+**Causa:**
+A Evolution API está tentando usar o mesmo banco `ged` do sistema GED principal. O Prisma (ORM da Evolution API) detectou que já existem tabelas no banco e bloqueou para evitar conflitos.
+
+**Solução:**
+
+1. **Crie um banco separado** (veja seção "Criando o Banco de Dados Separado" acima):
+   ```sql
+   CREATE DATABASE evolution_db OWNER ged_user;
+   ```
+
+2. **Configure o `.env` da Evolution API** com o banco correto:
+   ```bash
+   DATABASE_CONNECTION_URI=postgresql://ged_user:ged_password@host.docker.internal:5432/evolution_db
+   ```
+
+3. **Reinicie a Evolution API**:
+   ```bash
+   docker-compose down
+   docker-compose up -d
+   ```
+
+4. **Verifique a conexão**:
+   ```bash
+   # Logs devem mostrar: "Datasource 'db': PostgreSQL database 'evolution_db'"
+   docker logs evolution-api
+   ```
+
+**✅ Conexão correta:**
+```
+✅ Datasource "db": PostgreSQL database "evolution_db" at "host.docker.internal:5432"
+✅ Database schema created successfully
+```
+
+**❌ NUNCA faça:**
+- ❌ Usar o banco `ged` na Evolution API
+- ❌ Misturar tabelas dos dois sistemas
+- ❌ Usar `--force` ou `--skip-migrations` para ignorar o erro
+
+---
 
 ### Problema: "WhatsApp não está ativo ou não configurado"
 
