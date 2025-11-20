@@ -30,9 +30,9 @@ except ImportError:
     EMAIL_ENABLED = False
     logger.warning("EmailService não disponível")
 
-# Import do serviço de WhatsApp
+# Import do serviço de WhatsApp (Evolution API)
 try:
-    from app.services.whatsapp_service import WhatsAppService
+    from app.services.evolution_api_service import EvolutionAPIService as WhatsAppService
     WHATSAPP_ENABLED = True
 except ImportError:
     WHATSAPP_ENABLED = False
