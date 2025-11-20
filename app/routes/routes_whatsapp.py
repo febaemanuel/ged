@@ -263,36 +263,59 @@ _Data/Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}_
 def obter_qrcode():
     """
     Obtém QR Code para conectar WhatsApp
+    Cria a instância automaticamente se não existir
     """
     if not current_user.is_admin():
+        logger.warning(f"Usuário {current_user.id} tentou acessar QR Code sem permissão")
         return jsonify({'erro': 'Acesso negado'}), 403
 
-    service = EvolutionAPIService()
+    try:
+        service = EvolutionAPIService()
 
-    if not service.esta_ativo():
-        return jsonify({'erro': 'WhatsApp não configurado'}), 400
+        # Verifica se o WhatsApp está configurado
+        if not service.esta_ativo():
+            logger.error("WhatsApp não está ativo ou não configurado corretamente")
+            return jsonify({
+                'erro': 'WhatsApp não configurado',
+                'detalhes': 'Verifique se URL, nome da instância e API Key estão preenchidos corretamente'
+            }), 400
 
-    # Verifica se já está conectado
-    conectado, info = service.verificar_conexao()
+        logger.info(f"Tentando obter QR Code para instância {service.instance_name}")
 
-    if conectado:
+        # Verifica se já está conectado
+        conectado, info = service.verificar_conexao()
+        logger.info(f"Status da conexão: conectado={conectado}, info={info}")
+
+        if conectado:
+            return jsonify({
+                'conectado': True,
+                'mensagem': 'WhatsApp já está conectado!',
+                'info': info
+            })
+
+        # Obtém QR Code (cria instância automaticamente se necessário)
+        sucesso, resultado = service.obter_qrcode()
+
+        if sucesso:
+            logger.info("QR Code obtido com sucesso")
+            return jsonify({
+                'conectado': False,
+                'qrcode': resultado,
+                'mensagem': 'Escaneie o QR Code com seu WhatsApp'
+            })
+        else:
+            logger.error(f"Erro ao obter QR Code: {resultado}")
+            return jsonify({
+                'erro': 'Erro ao obter QR Code',
+                'detalhes': resultado
+            }), 400
+
+    except Exception as e:
+        logger.error(f"Erro inesperado ao obter QR Code: {str(e)}", exc_info=True)
         return jsonify({
-            'conectado': True,
-            'mensagem': 'WhatsApp já está conectado!'
-        })
-
-    # Obtém QR Code
-    sucesso, qrcode = service.obter_qrcode()
-
-    if sucesso:
-        return jsonify({
-            'conectado': False,
-            'qrcode': qrcode
-        })
-    else:
-        return jsonify({
-            'erro': f'Erro ao obter QR Code: {qrcode}'
-        }), 400
+            'erro': 'Erro inesperado',
+            'detalhes': str(e)
+        }), 500
 
 
 @admin_bp.route('/status', methods=['GET'])

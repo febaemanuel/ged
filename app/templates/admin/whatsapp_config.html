@@ -378,28 +378,49 @@ document.getElementById('btnObterQRCode').addEventListener('click', function() {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Obtendo QR Code...';
 
     fetch('{{ url_for("whatsapp_admin.obter_qrcode") }}')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                // Trata erros HTTP (400, 500, etc.)
+                return response.json().then(data => {
+                    throw new Error(data.detalhes || data.erro || 'Erro desconhecido');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.sucesso) {
+            if (data.conectado) {
+                // WhatsApp já está conectado
+                document.getElementById('qrcodeContainer').classList.add('d-none');
+                document.getElementById('statusConexao').innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> <strong>${data.mensagem}</strong><br>
+                        <small>${data.info || ''}</small>
+                    </div>
+                `;
+            } else if (data.qrcode) {
+                // QR Code disponível
                 document.getElementById('qrcodeImage').src = data.qrcode;
                 document.getElementById('qrcodeContainer').classList.remove('d-none');
                 document.getElementById('statusConexao').innerHTML = `
-                    <div class="alert alert-success small">
-                        <i class="bi bi-check-circle"></i> ${data.mensagem}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> ${data.mensagem || 'Escaneie o QR Code'}
                     </div>
                 `;
             } else {
+                // Outro caso (não deveria acontecer)
                 document.getElementById('statusConexao').innerHTML = `
-                    <div class="alert alert-danger small">
-                        <i class="bi bi-x-circle"></i> ${data.erro}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> Resposta inesperada do servidor
                     </div>
                 `;
             }
         })
         .catch(error => {
+            document.getElementById('qrcodeContainer').classList.add('d-none');
             document.getElementById('statusConexao').innerHTML = `
-                <div class="alert alert-danger small">
-                    <i class="bi bi-x-circle"></i> Erro: ${error}
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i> <strong>Erro ao obter QR Code</strong><br>
+                    <small>${error.message}</small>
                 </div>
             `;
         })

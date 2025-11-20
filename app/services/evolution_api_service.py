@@ -246,6 +246,48 @@ _Sistema GED - EBSERH_
         logger.warning("Deletar mensagens não implementado para Evolution API")
         return False
 
+    def criar_instancia(self):
+        """
+        Cria uma nova instância na Evolution API
+
+        Returns:
+            Tuple (sucesso, mensagem)
+        """
+        if not self.esta_ativo():
+            return False, "WhatsApp não configurado"
+
+        try:
+            url = f"{self.base_url}/instance/create"
+            headers = {
+                'Content-Type': 'application/json',
+                'apikey': self.api_key
+            }
+
+            payload = {
+                'instanceName': self.instance_name,
+                'token': self.api_key,
+                'qrcode': True,
+                'integration': 'WHATSAPP-BAILEYS'
+            }
+
+            response = requests.post(url, headers=headers, json=payload, timeout=10)
+
+            if response.status_code == 200 or response.status_code == 201:
+                logger.info(f"Instância {self.instance_name} criada com sucesso")
+                return True, "Instância criada com sucesso"
+            elif response.status_code == 409:
+                # Instância já existe
+                logger.info(f"Instância {self.instance_name} já existe")
+                return True, "Instância já existe"
+            else:
+                error_msg = f"Erro HTTP {response.status_code}: {response.text}"
+                logger.error(f"Erro ao criar instância: {error_msg}")
+                return False, error_msg
+
+        except Exception as e:
+            logger.error(f"Erro ao criar instância: {str(e)}")
+            return False, str(e)
+
     def verificar_conexao(self):
         """
         Verifica se a instância está conectada ao WhatsApp
@@ -270,6 +312,14 @@ _Sistema GED - EBSERH_
                     return True, "Conectado"
                 else:
                     return False, f"Estado: {state}"
+            elif response.status_code == 404:
+                # Instância não existe, tenta criar
+                logger.info(f"Instância {self.instance_name} não existe, tentando criar...")
+                sucesso, msg = self.criar_instancia()
+                if sucesso:
+                    return False, "Instância criada, aguardando conexão"
+                else:
+                    return False, f"Erro ao criar instância: {msg}"
             else:
                 return False, f"Erro HTTP {response.status_code}"
 
@@ -280,6 +330,7 @@ _Sistema GED - EBSERH_
     def obter_qrcode(self):
         """
         Obtém QR Code para conectar WhatsApp
+        Cria a instância automaticamente se não existir
 
         Returns:
             Tuple (sucesso, qrcode_base64 ou erro)
@@ -288,24 +339,73 @@ _Sistema GED - EBSERH_
             return False, "WhatsApp não configurado"
 
         try:
-            url = f"{self.base_url}/instance/qrcode/{self.instance_name}"
+            # Primeiro, tenta conectar/criar a instância
+            url_connect = f"{self.base_url}/instance/connect/{self.instance_name}"
             headers = {'apikey': self.api_key}
 
-            response = requests.get(url, headers=headers, timeout=10)
+            try:
+                # Tenta conectar a instância (necessário para gerar QR Code)
+                response_connect = requests.get(url_connect, headers=headers, timeout=10)
+
+                if response_connect.status_code == 404:
+                    # Instância não existe, cria uma nova
+                    logger.info(f"Instância {self.instance_name} não encontrada, criando...")
+                    sucesso, msg = self.criar_instancia()
+                    if not sucesso:
+                        return False, f"Erro ao criar instância: {msg}"
+
+                    # Aguarda um pouco para a instância ser criada
+                    import time
+                    time.sleep(2)
+
+                    # Tenta conectar novamente
+                    response_connect = requests.get(url_connect, headers=headers, timeout=10)
+
+            except Exception as e:
+                logger.warning(f"Erro ao conectar instância (continuando...): {str(e)}")
+
+            # Agora tenta obter o QR Code
+            url_qr = f"{self.base_url}/instance/connect/{self.instance_name}"
+            response = requests.get(url_qr, headers=headers, timeout=10)
 
             if response.status_code == 200:
                 data = response.json()
-                qrcode = data.get('qrcode', {}).get('base64')
+
+                # Tenta diferentes formatos de resposta da Evolution API
+                qrcode = None
+
+                # Formato 1: { "base64": "data:image/png;base64,..." }
+                if isinstance(data, dict) and 'base64' in data:
+                    qrcode = data['base64']
+
+                # Formato 2: { "qrcode": { "base64": "..." } }
+                elif isinstance(data, dict) and 'qrcode' in data:
+                    qr_obj = data['qrcode']
+                    if isinstance(qr_obj, dict):
+                        qrcode = qr_obj.get('base64') or qr_obj.get('code')
+                    elif isinstance(qr_obj, str):
+                        qrcode = qr_obj
+
+                # Formato 3: { "code": "..." }
+                elif isinstance(data, dict) and 'code' in data:
+                    qrcode = data['code']
 
                 if qrcode:
+                    logger.info("QR Code obtido com sucesso")
                     return True, qrcode
                 else:
-                    return False, "QR Code não disponível (já conectado?)"
+                    logger.warning(f"QR Code não encontrado na resposta: {data}")
+                    return False, "QR Code não disponível (instância já conectada ou erro na API)"
+
+            elif response.status_code == 404:
+                return False, "Instância não encontrada. Verifique a configuração."
             else:
-                return False, f"Erro HTTP {response.status_code}"
+                error_msg = f"Erro HTTP {response.status_code}: {response.text}"
+                logger.error(f"Erro ao obter QR Code: {error_msg}")
+                return False, error_msg
 
         except Exception as e:
-            logger.error(f"Erro ao obter QR Code: {str(e)}")
+            logger.error(f"Erro ao obter QR Code: {str(e)}", exc_info=True)
             return False, str(e)
 
 
