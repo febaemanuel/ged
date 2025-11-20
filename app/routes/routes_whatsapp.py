@@ -2,18 +2,19 @@
 Rotas de WhatsApp - Webhooks e Administração
 
 Endpoints:
-- POST /whatsapp/webhook - Recebe mensagens do Twilio
-- GET /whatsapp/webhook - Valida webhook do Twilio
+- POST /whatsapp/webhook - Recebe mensagens da Evolution API
+- GET /whatsapp/webhook - Valida webhook
 - GET /admin/whatsapp - Painel de configuração (admin apenas)
 - POST /admin/whatsapp/config - Salva configurações
 - POST /admin/whatsapp/testar - Testa envio de mensagem
+- GET /admin/whatsapp/qrcode - Obtém QR Code para conexão
 """
 
 from flask import Blueprint, request, render_template, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime
 from app.models import db, ConfiguracaoWhatsApp, LogWhatsApp, Usuario
-from app.services.whatsapp_service import WhatsAppChatbot, WhatsAppService
+from app.services.evolution_api_service import WhatsAppChatbot, EvolutionAPIService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,51 +27,60 @@ admin_bp = Blueprint('whatsapp_admin', __name__, url_prefix='/admin/whatsapp')
 
 
 # ============================================================================
-# WEBHOOKS - Recebe mensagens do Twilio
+# WEBHOOKS - Recebe mensagens da Evolution API
 # ============================================================================
 
 @webhook_bp.route('/webhook', methods=['POST'])
 def webhook():
     """
-    Webhook que recebe mensagens do WhatsApp via Twilio
+    Webhook que recebe mensagens do WhatsApp via Evolution API
 
-    Este endpoint é chamado pelo Twilio toda vez que alguém envia mensagem
-    para o número do WhatsApp Business configurado.
+    Este endpoint é chamado pela Evolution API toda vez que alguém envia mensagem
+    para o número do WhatsApp conectado.
 
-    Twilio envia:
-    - From: whatsapp:+5585999999999 (número do remetente)
-    - Body: Texto da mensagem
-    - MessageSid: ID único da mensagem
+    Evolution API envia JSON:
+    {
+      "event": "messages.upsert",
+      "instance": "instance_name",
+      "data": {
+        "key": {
+          "remoteJid": "5585999999999@s.whatsapp.net",
+          "fromMe": false,
+          "id": "message_id"
+        },
+        "message": {
+          "conversation": "texto da mensagem"
+        }
+      }
+    }
     """
     try:
-        from_numero = request.form.get('From')  # whatsapp:+5585999999999
-        body = request.form.get('Body')  # Texto da mensagem
-        message_sid = request.form.get('MessageSid')
+        # Evolution API envia JSON
+        webhook_data = request.get_json()
 
-        logger.info(f"Mensagem recebida de {from_numero}: {body[:50]}...")
+        if not webhook_data:
+            logger.warning("Webhook recebido sem dados JSON")
+            return jsonify({'status': 'error', 'message': 'No JSON data'}), 400
+
+        logger.info(f"Webhook recebido: {webhook_data.get('event')}")
 
         # Processa mensagem com chatbot
         chatbot = WhatsAppChatbot()
-        response = chatbot.processar_mensagem_recebida(from_numero, body)
+        response_data = chatbot.processar_mensagem_recebida(webhook_data)
 
-        return response, 200, {'Content-Type': 'text/xml'}
+        return jsonify(response_data), 200
 
     except Exception as e:
         logger.error(f"Erro no webhook WhatsApp: {str(e)}", exc_info=True)
-
-        # Retorna mensagem de erro genérica
-        from twilio.twiml.messaging_response import MessagingResponse
-        response = MessagingResponse()
-        response.message("❌ Erro ao processar mensagem. Tente novamente em instantes.")
-        return str(response), 200, {'Content-Type': 'text/xml'}
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 @webhook_bp.route('/webhook', methods=['GET'])
 def webhook_validacao():
     """
-    Endpoint de validação do webhook (Twilio usa para verificar se está ativo)
+    Endpoint de validação do webhook
     """
-    return "Webhook WhatsApp OK", 200
+    return jsonify({'status': 'ok', 'message': 'Webhook WhatsApp ativo'}), 200
 
 
 # ============================================================================
@@ -117,7 +127,7 @@ def configuracao():
 @login_required
 def salvar_configuracao():
     """
-    Salva configurações do WhatsApp
+    Salva configurações do WhatsApp (Evolution API)
     """
     if not current_user.is_admin():
         return jsonify({'erro': 'Acesso negado'}), 403
@@ -134,27 +144,19 @@ def salvar_configuracao():
         novo_estado_ativo = request.form.get('ativo') == 'on'
         config.ativo = novo_estado_ativo
 
-        config.twilio_account_sid = request.form.get('twilio_account_sid', '').strip()
-        config.twilio_auth_token = request.form.get('twilio_auth_token', '').strip()
+        # Configurações da Evolution API
+        config.evolution_api_url = request.form.get('evolution_api_url', '').strip()
+        config.evolution_instance_name = request.form.get('evolution_instance_name', '').strip()
+        config.evolution_api_key = request.form.get('evolution_api_key', '').strip()
 
-        # Valida número do WhatsApp
-        whatsapp_number = request.form.get('twilio_whatsapp_number', '').strip()
-        if whatsapp_number:
-            # Valida formato
-            if not whatsapp_number.startswith('+'):
-                flash('Número do WhatsApp deve começar com + (código do país). Exemplo: +14155238886', 'danger')
-                return redirect(url_for('whatsapp_admin.configuracao'))
+        # Valida URL da API
+        if config.evolution_api_url and not config.evolution_api_url.startswith('http'):
+            flash('URL da Evolution API deve começar com http:// ou https://', 'danger')
+            return redirect(url_for('whatsapp_admin.configuracao'))
 
-            if len(whatsapp_number) < 10:
-                flash('Número do WhatsApp muito curto. Exemplo: +14155238886 ou +5585999999999', 'danger')
-                return redirect(url_for('whatsapp_admin.configuracao'))
-
-            # Remove caracteres inválidos (aceita apenas números e +)
-            if not all(c.isdigit() or c == '+' for c in whatsapp_number):
-                flash('Número do WhatsApp deve conter apenas números e + no início. Exemplo: +14155238886', 'danger')
-                return redirect(url_for('whatsapp_admin.configuracao'))
-
-        config.twilio_whatsapp_number = whatsapp_number
+        # Remove trailing slash da URL
+        if config.evolution_api_url and config.evolution_api_url.endswith('/'):
+            config.evolution_api_url = config.evolution_api_url[:-1]
 
         # Funcionalidades
         config.usar_para_notificacoes = request.form.get('usar_para_notificacoes') == 'on'
@@ -206,7 +208,7 @@ def salvar_configuracao():
 @login_required
 def testar_envio():
     """
-    Testa envio de mensagem via WhatsApp
+    Testa envio de mensagem via WhatsApp (Evolution API)
     """
     if not current_user.is_admin():
         return jsonify({'erro': 'Acesso negado'}), 403
@@ -223,7 +225,7 @@ def testar_envio():
         telefone = '+55' + telefone  # Assume Brasil se não tem código de país
 
     # Envia mensagem de teste
-    service = WhatsAppService()
+    service = EvolutionAPIService()
 
     if not service.esta_ativo():
         return jsonify({'erro': 'WhatsApp não está ativo ou não configurado'}), 400
@@ -247,13 +249,72 @@ _Data/Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}_
         return jsonify({
             'sucesso': True,
             'mensagem': f'Mensagem enviada com sucesso para {telefone}!',
-            'message_sid': resultado
+            'message_id': resultado
         })
     else:
         return jsonify({
             'sucesso': False,
             'erro': f'Erro ao enviar mensagem: {resultado}'
         }), 400
+
+
+@admin_bp.route('/qrcode', methods=['GET'])
+@login_required
+def obter_qrcode():
+    """
+    Obtém QR Code para conectar WhatsApp
+    """
+    if not current_user.is_admin():
+        return jsonify({'erro': 'Acesso negado'}), 403
+
+    service = EvolutionAPIService()
+
+    if not service.esta_ativo():
+        return jsonify({'erro': 'WhatsApp não configurado'}), 400
+
+    # Verifica se já está conectado
+    conectado, info = service.verificar_conexao()
+
+    if conectado:
+        return jsonify({
+            'conectado': True,
+            'mensagem': 'WhatsApp já está conectado!'
+        })
+
+    # Obtém QR Code
+    sucesso, qrcode = service.obter_qrcode()
+
+    if sucesso:
+        return jsonify({
+            'conectado': False,
+            'qrcode': qrcode
+        })
+    else:
+        return jsonify({
+            'erro': f'Erro ao obter QR Code: {qrcode}'
+        }), 400
+
+
+@admin_bp.route('/status', methods=['GET'])
+@login_required
+def verificar_status():
+    """
+    Verifica status da conexão WhatsApp
+    """
+    if not current_user.is_admin():
+        return jsonify({'erro': 'Acesso negado'}), 403
+
+    service = EvolutionAPIService()
+
+    if not service.esta_ativo():
+        return jsonify({'conectado': False, 'mensagem': 'WhatsApp não configurado'})
+
+    conectado, info = service.verificar_conexao()
+
+    return jsonify({
+        'conectado': conectado,
+        'mensagem': info
+    })
 
 
 @admin_bp.route('/logs', methods=['GET'])

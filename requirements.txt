@@ -51,9 +51,13 @@ Flask-CORS==4.0.0
 # E-mail
 Flask-Mail==0.10.0
 
-# WhatsApp (Twilio)
-# IMPORTANTE: Use 'twilio' (Python SDK), NÃO 'twilio-cli' (Node.js)
-twilio>=8.10.0
+# WhatsApp (Evolution API - gratuita e open-source)
+# Usa apenas 'requests' que já está instalado acima
+# Não precisa de dependências adicionais!
+
+# WhatsApp (Twilio - DEPRECATED)
+# OPCIONAL: Descomente apenas se precisar usar Twilio em vez de Evolution API
+# twilio>=8.10.0
 
 # Migração de banco (opcional)
 Flask-Migrate==4.0.5
