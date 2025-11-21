@@ -52,8 +52,11 @@
                     <div id="etapa-2" class="etapa" style="display: none;">
                         <form method="POST" action="{{ url_for('view.documento_criar') }}" enctype="multipart/form-data" id="formDocumento">
                         <div class="mb-3">
-                            <label for="titulo" class="form-label">Título *</label>
-                            <input type="text" class="form-control" id="titulo" name="titulo" required>
+                            <label for="titulo" class="form-label">Título <small class="text-muted">(opcional - será extraído pela IA)</small></label>
+                            <input type="text" class="form-control" id="titulo" name="titulo" placeholder="Deixe em branco para extrair automaticamente">
+                            <small class="form-text text-muted">
+                                <i class="bi bi-robot"></i> Se deixar em branco, o título será extraído automaticamente do documento pela IA.
+                            </small>
                         </div>
 
                         <div class="row mb-3">

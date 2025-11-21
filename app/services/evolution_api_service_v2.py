@@ -913,7 +913,8 @@ class WhatsAppChatbot:
         # Atualiza contexto com a tarefa selecionada
         conversacao.atualizar_estado('aguardando_acao', {
             'tarefa_id': tarefa.id,
-            'documento_id': doc.id
+            'documento_id': doc.id,
+            'tipo_tarefa': tarefa.tipo_tarefa
         })
         db.session.commit()
 
@@ -924,9 +925,28 @@ class WhatsAppChatbot:
 
         msg += "━━━━━━━━━━━━━━━━━━━━━\n"
         msg += "*O que deseja fazer?*\n\n"
-        msg += "1️⃣ *Aprovar e Assinar*\n"
-        msg += "2️⃣ *Reprovar*\n"
-        msg += "3️⃣ *Ver Resumo do Documento*\n"
+
+        # Opções baseadas no tipo de tarefa
+        if 'Assinar Documento' in tarefa.tipo_tarefa:
+            # Tarefas de assinatura
+            msg += "1️⃣ *Aprovar e Assinar*\n"
+            msg += "2️⃣ *Reprovar*\n"
+            msg += "3️⃣ *Ver Resumo do Documento*\n"
+        elif tarefa.tipo_tarefa == 'Validar e Codificar Documento':
+            # Tarefas de validação/codificação
+            msg += "1️⃣ *Validar e Prosseguir* (usar código atual)\n"
+            msg += "2️⃣ *Devolver para Correção*\n"
+            msg += "3️⃣ *Ver Resumo do Documento*\n"
+        elif tarefa.tipo_tarefa == 'Publicar Documento Aprovado':
+            # Tarefas de publicação
+            msg += "1️⃣ *Publicar Documento* ✅\n"
+            msg += "2️⃣ *Devolver para Revisão*\n"
+            msg += "3️⃣ *Ver Resumo do Documento*\n"
+        else:
+            # Outras tarefas (genérico)
+            msg += "1️⃣ *Concluir Tarefa*\n"
+            msg += "2️⃣ *Ver Resumo do Documento*\n"
+
         msg += "4️⃣ *Voltar às tarefas*\n"
         msg += "0️⃣ *Menu principal*\n\n"
         msg += "_Responda com o número da opção._"
@@ -937,49 +957,105 @@ class WhatsAppChatbot:
         """Processa a ação escolhida para o documento"""
         contexto = conversacao.get_contexto()
         tarefa_id = contexto.get('tarefa_id')
+        tipo_tarefa = contexto.get('tipo_tarefa', '')
 
         texto_limpo = texto.strip().lower()
 
-        if texto_limpo in ['1', 'aprovar', 'assinar']:
-            # Pede o email para confirmar assinatura
-            conversacao.atualizar_estado('aguardando_email', {
-                'tarefa_id': tarefa_id,
-                'acao': 'aprovar'
-            })
-            db.session.commit()
-
-            # Mostra email parcialmente oculto como dica
-            email_dica = self._ocultar_email(usuario.email)
-
-            msg = "🔒 *Confirmação de Assinatura*\n\n"
-            msg += f"Para confirmar, digite seu *email cadastrado*.\n"
-            msg += f"💡 Dica: {email_dica}\n\n"
-            msg += "_Responda *0* para cancelar._"
-            self.api.enviar_mensagem(remote_jid, msg)
-
-        elif texto_limpo in ['2', 'reprovar']:
-            # Pede justificativa da reprovação
-            conversacao.atualizar_estado('aguardando_justificativa', {
-                'tarefa_id': tarefa_id,
-                'acao': 'reprovar'
-            })
-            db.session.commit()
-
-            msg = "📝 *Reprovação de Documento*\n\n"
-            msg += "Por favor, digite o *motivo da reprovação*.\n\n"
-            msg += "_Responda *0* para cancelar._"
-            self.api.enviar_mensagem(remote_jid, msg)
-
-        elif texto_limpo in ['3', 'resumo']:
-            # Mostra resumo do documento
-            self._mostrar_resumo_documento(usuario, remote_jid, tarefa_id, conversacao)
-
-        elif texto_limpo in ['4', 'voltar']:
-            # Volta para lista de tarefas
+        # Opções comuns
+        if texto_limpo in ['4', 'voltar']:
             self._listar_tarefas(usuario, remote_jid, conversacao)
+            return
+
+        # Roteamento baseado no tipo de tarefa
+        if 'Assinar Documento' in tipo_tarefa:
+            # FLUXO DE ASSINATURA
+            if texto_limpo in ['1', 'aprovar', 'assinar']:
+                self._iniciar_confirmacao_email(usuario, remote_jid, tarefa_id, 'aprovar', conversacao)
+            elif texto_limpo in ['2', 'reprovar']:
+                self._iniciar_justificativa(usuario, remote_jid, tarefa_id, conversacao)
+            elif texto_limpo in ['3', 'resumo']:
+                self._mostrar_resumo_documento(usuario, remote_jid, tarefa_id, conversacao)
+            else:
+                self.api.enviar_mensagem(remote_jid, "❌ Opção inválida.\n\nEscolha: *1* (Aprovar), *2* (Reprovar), *3* (Resumo), *4* (Voltar) ou *0* (Menu)")
+
+        elif tipo_tarefa == 'Validar e Codificar Documento':
+            # FLUXO DE VALIDAÇÃO/CODIFICAÇÃO
+            if texto_limpo in ['1', 'validar']:
+                self._iniciar_confirmacao_email(usuario, remote_jid, tarefa_id, 'validar', conversacao)
+            elif texto_limpo in ['2', 'devolver']:
+                self._iniciar_justificativa_devolucao(usuario, remote_jid, tarefa_id, conversacao)
+            elif texto_limpo in ['3', 'resumo']:
+                self._mostrar_resumo_documento(usuario, remote_jid, tarefa_id, conversacao)
+            else:
+                self.api.enviar_mensagem(remote_jid, "❌ Opção inválida.\n\nEscolha: *1* (Validar), *2* (Devolver), *3* (Resumo), *4* (Voltar) ou *0* (Menu)")
+
+        elif tipo_tarefa == 'Publicar Documento Aprovado':
+            # FLUXO DE PUBLICAÇÃO
+            if texto_limpo in ['1', 'publicar']:
+                self._iniciar_confirmacao_email(usuario, remote_jid, tarefa_id, 'publicar', conversacao)
+            elif texto_limpo in ['2', 'devolver']:
+                self._iniciar_justificativa_devolucao(usuario, remote_jid, tarefa_id, conversacao)
+            elif texto_limpo in ['3', 'resumo']:
+                self._mostrar_resumo_documento(usuario, remote_jid, tarefa_id, conversacao)
+            else:
+                self.api.enviar_mensagem(remote_jid, "❌ Opção inválida.\n\nEscolha: *1* (Publicar), *2* (Devolver), *3* (Resumo), *4* (Voltar) ou *0* (Menu)")
 
         else:
-            self.api.enviar_mensagem(remote_jid, "❌ Opção inválida.\n\nEscolha: *1* (Aprovar), *2* (Reprovar), *3* (Resumo), *4* (Voltar) ou *0* (Menu)")
+            # FLUXO GENÉRICO
+            if texto_limpo in ['1', 'concluir']:
+                self._iniciar_confirmacao_email(usuario, remote_jid, tarefa_id, 'concluir', conversacao)
+            elif texto_limpo in ['2', 'resumo']:
+                self._mostrar_resumo_documento(usuario, remote_jid, tarefa_id, conversacao)
+            else:
+                self.api.enviar_mensagem(remote_jid, "❌ Opção inválida.\n\nEscolha: *1* (Concluir), *2* (Resumo), *4* (Voltar) ou *0* (Menu)")
+
+    def _iniciar_confirmacao_email(self, usuario, remote_jid, tarefa_id, acao, conversacao):
+        """Inicia fluxo de confirmação por email"""
+        conversacao.atualizar_estado('aguardando_email', {
+            'tarefa_id': tarefa_id,
+            'acao': acao
+        })
+        db.session.commit()
+
+        email_dica = self._ocultar_email(usuario.email)
+        acao_texto = {
+            'aprovar': 'Assinatura',
+            'validar': 'Validação',
+            'publicar': 'Publicação',
+            'concluir': 'Conclusão'
+        }.get(acao, 'Ação')
+
+        msg = f"🔒 *Confirmação de {acao_texto}*\n\n"
+        msg += f"Para confirmar, digite seu *email cadastrado*.\n"
+        msg += f"💡 Dica: {email_dica}\n\n"
+        msg += "_Responda *0* para cancelar._"
+        self.api.enviar_mensagem(remote_jid, msg)
+
+    def _iniciar_justificativa(self, usuario, remote_jid, tarefa_id, conversacao):
+        """Inicia fluxo de justificativa para reprovação"""
+        conversacao.atualizar_estado('aguardando_justificativa', {
+            'tarefa_id': tarefa_id,
+            'acao': 'reprovar'
+        })
+        db.session.commit()
+
+        msg = "📝 *Reprovação de Documento*\n\n"
+        msg += "Por favor, digite o *motivo da reprovação*.\n\n"
+        msg += "_Responda *0* para cancelar._"
+        self.api.enviar_mensagem(remote_jid, msg)
+
+    def _iniciar_justificativa_devolucao(self, usuario, remote_jid, tarefa_id, conversacao):
+        """Inicia fluxo de justificativa para devolução"""
+        conversacao.atualizar_estado('aguardando_justificativa', {
+            'tarefa_id': tarefa_id,
+            'acao': 'devolver'
+        })
+        db.session.commit()
+
+        msg = "📝 *Devolução de Documento*\n\n"
+        msg += "Por favor, digite o *motivo da devolução*.\n\n"
+        msg += "_Responda *0* para cancelar._"
+        self.api.enviar_mensagem(remote_jid, msg)
 
     def _ocultar_email(self, email):
         """Oculta parte do email para mostrar como dica"""
@@ -1117,13 +1193,62 @@ class WhatsAppChatbot:
             else:
                 self.api.enviar_mensagem(remote_jid, f"❌ *Erro ao reprovar:* {mensagem}\n\n_Responda *menu* para voltar._")
 
+        elif acao == 'validar':
+            # Executa a validação/codificação
+            sucesso, mensagem = self._executar_validacao(usuario, tarefa)
+
+            if sucesso:
+                hash_confirmacao = hashlib.sha256(f"{usuario.id}{tarefa.id}{timestamp}".encode()).hexdigest()[:12].upper()
+
+                msg = "✅ *Documento Validado com Sucesso!*\n\n"
+                msg += f"📄 *Documento:* {codigo}\n"
+                msg += f"⏰ *Data/Hora:* {timestamp}\n"
+                msg += f"🔐 *Hash:* {hash_confirmacao}\n\n"
+                msg += "📝 O documento seguirá para assinatura.\n\n"
+                msg += "_Responda *menu* para voltar ao início._"
+                self.api.enviar_mensagem(remote_jid, msg)
+            else:
+                self.api.enviar_mensagem(remote_jid, f"❌ *Erro ao validar:* {mensagem}\n\n_Responda *menu* para voltar._")
+
+        elif acao == 'publicar':
+            # Executa a publicação
+            sucesso, mensagem = self._executar_publicacao(usuario, tarefa)
+
+            if sucesso:
+                hash_confirmacao = hashlib.sha256(f"{usuario.id}{tarefa.id}{timestamp}".encode()).hexdigest()[:12].upper()
+
+                msg = "🎉 *Documento Publicado com Sucesso!*\n\n"
+                msg += f"📄 *Documento:* {codigo}\n"
+                msg += f"⏰ *Data/Hora:* {timestamp}\n"
+                msg += f"🔐 *Hash:* {hash_confirmacao}\n\n"
+                msg += "📊 Status: VIGENTE na Lista Mestra\n\n"
+                msg += "_Responda *menu* para voltar ao início._"
+                self.api.enviar_mensagem(remote_jid, msg)
+            else:
+                self.api.enviar_mensagem(remote_jid, f"❌ *Erro ao publicar:* {mensagem}\n\n_Responda *menu* para voltar._")
+
+        elif acao == 'devolver':
+            # Executa a devolução
+            sucesso, mensagem = self._executar_devolucao(usuario, tarefa, justificativa)
+
+            if sucesso:
+                msg = "🔙 *Documento Devolvido*\n\n"
+                msg += f"📄 *Documento:* {codigo}\n"
+                msg += f"📝 *Motivo:* {justificativa}\n"
+                msg += f"⏰ *Data/Hora:* {timestamp}\n\n"
+                msg += "_Responda *menu* para voltar ao início._"
+                self.api.enviar_mensagem(remote_jid, msg)
+            else:
+                self.api.enviar_mensagem(remote_jid, f"❌ *Erro ao devolver:* {mensagem}\n\n_Responda *menu* para voltar._")
+
         conversacao.atualizar_estado('menu', {})
         db.session.commit()
 
     def _processar_justificativa(self, usuario, remote_jid, texto, conversacao):
-        """Processa justificativa de reprovação"""
+        """Processa justificativa de reprovação ou devolução"""
         contexto = conversacao.get_contexto()
         tarefa_id = contexto.get('tarefa_id')
+        acao = contexto.get('acao', 'reprovar')
 
         if len(texto.strip()) < 10:
             self.api.enviar_mensagem(remote_jid, "❌ A justificativa deve ter pelo menos 10 caracteres.\n\n_Digite o motivo ou responda *0* para cancelar._")
@@ -1136,17 +1261,18 @@ class WhatsAppChatbot:
             db.session.commit()
             return
 
-        # Pede email para confirmar reprovação
+        # Pede email para confirmar
         conversacao.atualizar_estado('aguardando_email', {
             'tarefa_id': tarefa_id,
-            'acao': 'reprovar',
+            'acao': acao,
             'justificativa': texto.strip()
         })
         db.session.commit()
 
         email_dica = self._ocultar_email(usuario.email)
+        acao_texto = 'Devolução' if acao == 'devolver' else 'Reprovação'
 
-        msg = "🔒 *Confirmação de Reprovação*\n\n"
+        msg = f"🔒 *Confirmação de {acao_texto}*\n\n"
         msg += f"📝 *Motivo:* {texto.strip()}\n\n"
         msg += f"Digite seu *email cadastrado* para confirmar.\n"
         msg += f"💡 Dica: {email_dica}\n\n"
@@ -1275,4 +1401,95 @@ class WhatsAppChatbot:
         except Exception as e:
             db.session.rollback()
             logger.error(f"Erro ao executar reprovação via WhatsApp: {str(e)}", exc_info=True)
+            return False, str(e)
+
+    def _executar_validacao(self, usuario, tarefa):
+        """Executa a validação/codificação do documento via WhatsApp"""
+        try:
+            from app.services.workflow import WorkflowUGQ
+
+            doc = tarefa.documento
+
+            # Verifica se o documento já tem código definitivo
+            if not doc.codigo_definitivo:
+                # Gera código automático se não tiver
+                # Usa abrangência padrão CHUFC
+                tipo = doc.tipo_documento or 'POP'
+                setor = doc.setor or 'Geral'
+
+                # Gera código usando o workflow
+                try:
+                    codigo = WorkflowUGQ._gerar_codigo_definitivo(tipo, setor, 'CHUFC')
+                    doc.codigo_definitivo = codigo
+                    logger.info(f"[WHATSAPP] Código gerado automaticamente: {codigo}")
+                except Exception as e:
+                    logger.warning(f"Erro ao gerar código automático: {e}")
+                    # Usa código provisório como fallback
+                    if doc.codigo_provisorio:
+                        doc.codigo_definitivo = doc.codigo_provisorio.replace('PROV-', 'DEF-')
+
+            # Se não tiver versão, define como v1.0
+            if not doc.versao:
+                doc.versao = 'v1.0'
+
+            # Chama o workflow para codificar
+            WorkflowUGQ.validador_codifica_documento(tarefa, doc.codigo_definitivo, doc.versao)
+
+            db.session.commit()
+            logger.info(f"Validação via WhatsApp: Usuario {usuario.id} validou documento {doc.id}")
+            return True, "Documento validado com sucesso"
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Erro ao executar validação via WhatsApp: {str(e)}", exc_info=True)
+            return False, str(e)
+
+    def _executar_publicacao(self, usuario, tarefa):
+        """Executa a publicação do documento via WhatsApp"""
+        try:
+            from app.services.workflow import WorkflowUGQ
+
+            doc = tarefa.documento
+
+            # Usa o workflow oficial para publicar
+            WorkflowUGQ.validador_publica_documento(tarefa)
+
+            logger.info(f"Publicação via WhatsApp: Usuario {usuario.id} publicou documento {doc.id}")
+            return True, "Documento publicado com sucesso"
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Erro ao executar publicação via WhatsApp: {str(e)}", exc_info=True)
+            return False, str(e)
+
+    def _executar_devolucao(self, usuario, tarefa, justificativa):
+        """Executa a devolução do documento via WhatsApp"""
+        try:
+            doc = tarefa.documento
+
+            # Conclui a tarefa como não aprovada
+            tarefa.concluir(parecer=f"Devolvido via WhatsApp: {justificativa}", aprovado=False)
+
+            # Atualiza status do documento para Em Ajustes
+            if doc.status in ['Em Validação', 'Em Assinatura', 'Aprovado']:
+                doc.status = 'Em Ajustes'
+
+            # Cria tarefa de correção para o autor
+            nova_tarefa = Tarefa(
+                tipo_tarefa='Realizar Correção',
+                documento_id=doc.id,
+                responsavel_id=doc.criador_id,
+                criador_id=usuario.id,
+                prazo=datetime.utcnow() + timedelta(days=5),
+                descricao=f"Correções solicitadas via WhatsApp: {justificativa}"
+            )
+            db.session.add(nova_tarefa)
+
+            db.session.commit()
+            logger.info(f"Devolução via WhatsApp: Usuario {usuario.id} devolveu documento {doc.id}")
+            return True, "Documento devolvido com sucesso"
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Erro ao executar devolução via WhatsApp: {str(e)}", exc_info=True)
             return False, str(e)
