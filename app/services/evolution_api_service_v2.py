@@ -191,6 +191,17 @@ class EvolutionAPIv2:
                 logger.info(f"Instância já existe: {self.instance_name}")
                 return True, "Instância já existe"
 
+            elif response.status_code == 403:
+                # Verifica se o erro é por instância já existir
+                response_text = response.text.lower()
+                if "already in use" in response_text or "já existe" in response_text:
+                    logger.info(f"Instância já existe (403): {self.instance_name}")
+                    return True, "Instância já existe"
+                else:
+                    error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+                    logger.error(f"Erro de permissão ao criar instância: {error_msg}")
+                    return False, error_msg
+
             else:
                 error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
                 logger.error(f"Erro ao criar instância: {error_msg}")

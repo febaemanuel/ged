@@ -88,7 +88,7 @@
                     <form method="POST" action="{{ url_for('whatsapp_admin.salvar_configuracao') }}" id="formConfig">
 
                         <!-- Status Ativo/Inativo -->
-                        <div class="alert alert-{% if config.ativo %}success{% else %}warning{% endif %}" id="alertStatus">
+                        <div class="alert alert-{% if config.ativo %}success{% else %}warning{% endif %} alert-permanent" id="alertStatus">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="ativo" name="ativo"
                                        {% if config.ativo %}checked{% endif %}
@@ -316,7 +316,7 @@
                     </button>
 
                     <div id="qrcodeContainer" class="d-none">
-                        <img id="qrcodeImage" src="" alt="QR Code" class="img-fluid rounded mb-2" style="max-width: 250px; border: 2px solid #198754;">
+                        <img id="qrcodeImage" src="" alt="QR Code" class="mb-2" style="max-width: 250px; width: 100%; height: auto; display: block; background: white; padding: 10px; border: 2px solid #dee2e6; border-radius: 8px;">
                         <div class="alert alert-info small mb-2">
                             <strong>Como conectar:</strong><br>
                             1. Abra o WhatsApp no celular<br>
@@ -692,4 +692,22 @@ window.addEventListener('beforeunload', function() {
     if (autoRefreshQR) clearInterval(autoRefreshQR);
 });
 </script>
+
+<style>
+#qrcodeImage {
+    transition: opacity 0.3s ease;
+    /* Força QR Code em preto e branco puro */
+    filter: grayscale(100%) contrast(1.5) brightness(1.1) !important;
+    -webkit-filter: grayscale(100%) contrast(1.5) brightness(1.1) !important;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+    /* Remove qualquer tint de cor */
+    mix-blend-mode: normal !important;
+}
+
+#qrcodeImage:hover {
+    opacity: 0.95;
+}
+</style>
 {% endblock %}
