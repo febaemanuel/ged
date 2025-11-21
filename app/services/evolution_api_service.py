@@ -688,8 +688,21 @@ class WhatsAppChatbot:
                 return {'status': 'ignored', 'reason': 'message from me'}
 
             # Extrai número do remetente
+            # IMPORTANTE: Evolution API v2 usa LIDs (Link IDs), devemos usar remoteJidAlt para o número real
             remote_jid = key.get('remoteJid', '')
-            from_numero = remote_jid.replace('@s.whatsapp.net', '')
+            remote_jid_alt = key.get('remoteJidAlt', '')
+
+            # Prioriza remoteJidAlt (número real) se disponível, senão usa remoteJid
+            if remote_jid_alt and '@s.whatsapp.net' in remote_jid_alt:
+                from_numero = remote_jid_alt.replace('@s.whatsapp.net', '')
+                logger.info(f"Usando remoteJidAlt: {from_numero}")
+            elif '@lid' in remote_jid:
+                # Se for LID mas não tem remoteJidAlt, não conseguimos processar
+                logger.warning(f"Mensagem com LID sem remoteJidAlt: {remote_jid}")
+                return {'status': 'ignored', 'reason': 'LID without remoteJidAlt'}
+            else:
+                from_numero = remote_jid.replace('@s.whatsapp.net', '')
+                logger.info(f"Usando remoteJid: {from_numero}")
 
             # Extrai texto da mensagem
             body = (
