@@ -493,74 +493,124 @@ _Sistema GED - EBSERH_
             return False, "WhatsApp não configurado"
 
         try:
-            # Primeiro, tenta conectar/criar a instância
-            url_connect = f"{self.base_url}/instance/connect/{self.instance_name}"
+            logger.info(f"Tentando obter QR Code para instância: {self.instance_name}")
+            logger.info(f"URL Base: {self.base_url}")
+
+            # Headers para autenticação
             headers = {'apikey': self.api_key}
 
+            # Primeiro verifica se a instância existe
+            url_fetch = f"{self.base_url}/instance/fetchInstances"
+            logger.info(f"Verificando instâncias existentes: {url_fetch}")
+
             try:
-                # Tenta conectar a instância (necessário para gerar QR Code)
-                response_connect = self._request_with_retry('GET', url_connect, headers=headers)
+                response_fetch = self._request_with_retry('GET', url_fetch, headers=headers)
+                logger.info(f"Response fetchInstances: {response_fetch.status_code}")
 
-                if response_connect.status_code == 404:
-                    # Instância não existe, cria uma nova
-                    logger.info(f"Instância {self.instance_name} não encontrada, criando...")
-                    sucesso, msg = self.criar_instancia()
-                    if not sucesso:
-                        return False, f"Erro ao criar instância: {msg}"
+                if response_fetch.status_code == 200:
+                    instances = response_fetch.json()
+                    logger.info(f"Instâncias encontradas: {instances}")
 
-                    # Aguarda um pouco para a instância ser criada
-                    import time
-                    time.sleep(2)
+                    # Verifica se nossa instância existe
+                    instance_exists = False
+                    if isinstance(instances, list):
+                        for inst in instances:
+                            if inst.get('instance', {}).get('instanceName') == self.instance_name:
+                                instance_exists = True
+                                logger.info(f"Instância {self.instance_name} encontrada!")
+                                break
 
-                    # Tenta conectar novamente
-                    response_connect = self._request_with_retry('GET', url_connect, headers=headers)
+                    if not instance_exists:
+                        logger.info(f"Instância {self.instance_name} não existe, criando...")
+                        sucesso, msg = self.criar_instancia()
+                        if not sucesso:
+                            return False, f"Erro ao criar instância: {msg}"
+
+                        # Aguarda criação
+                        import time
+                        time.sleep(3)
 
             except Exception as e:
-                logger.warning(f"Erro ao conectar instância (continuando...): {str(e)}")
+                logger.warning(f"Erro ao verificar instâncias (continuando...): {str(e)}")
 
-            # Agora tenta obter o QR Code
-            url_qr = f"{self.base_url}/instance/connect/{self.instance_name}"
-            response = self._request_with_retry('GET', url_qr, headers=headers)
+            # Tenta conectar e obter QR Code
+            url_connect = f"{self.base_url}/instance/connect/{self.instance_name}"
+            logger.info(f"Conectando instância: {url_connect}")
+
+            response = self._request_with_retry('GET', url_connect, headers=headers)
+            logger.info(f"Response connect: {response.status_code}")
+            logger.info(f"Response body: {response.text[:500]}")
 
             if response.status_code == 200:
                 data = response.json()
+                logger.info(f"Dados recebidos: {json.dumps(data, indent=2)[:500]}")
 
-                # Tenta diferentes formatos de resposta da Evolution API
+                # Tenta diferentes formatos de resposta da Evolution API v2.x
                 qrcode = None
 
                 # Formato 1: { "base64": "data:image/png;base64,..." }
                 if isinstance(data, dict) and 'base64' in data:
                     qrcode = data['base64']
+                    logger.info("QR Code encontrado no formato 1 (base64)")
 
                 # Formato 2: { "qrcode": { "base64": "..." } }
                 elif isinstance(data, dict) and 'qrcode' in data:
                     qr_obj = data['qrcode']
                     if isinstance(qr_obj, dict):
                         qrcode = qr_obj.get('base64') or qr_obj.get('code')
+                        logger.info("QR Code encontrado no formato 2 (qrcode.base64)")
                     elif isinstance(qr_obj, str):
                         qrcode = qr_obj
+                        logger.info("QR Code encontrado no formato 2 (qrcode string)")
 
                 # Formato 3: { "code": "..." }
                 elif isinstance(data, dict) and 'code' in data:
                     qrcode = data['code']
+                    logger.info("QR Code encontrado no formato 3 (code)")
+
+                # Formato 4: { "pairingCode": "..." } - Evolution API v2
+                elif isinstance(data, dict) and 'pairingCode' in data:
+                    # Pairing code não é QR code, mas vamos logar
+                    logger.warning(f"Pairing code recebido: {data['pairingCode']}")
+                    return False, f"Instância requer pairing code: {data['pairingCode']}"
 
                 if qrcode:
-                    logger.info("QR Code obtido com sucesso")
+                    logger.info("QR Code obtido com sucesso!")
+                    # Garante que tem o prefixo data:image correto
+                    if not qrcode.startswith('data:image'):
+                        qrcode = f"data:image/png;base64,{qrcode}"
                     return True, qrcode
                 else:
                     logger.warning(f"QR Code não encontrado na resposta: {data}")
-                    return False, "QR Code não disponível (instância já conectada ou erro na API)"
+                    # Verifica se já está conectado
+                    if data.get('instance', {}).get('state') == 'open':
+                        return False, "WhatsApp já está conectado!"
+                    return False, "QR Code não disponível na resposta da API"
 
             elif response.status_code == 404:
-                return False, "Instância não encontrada. Verifique a configuração."
+                logger.error("Instância não encontrada (404)")
+                return False, "Instância não encontrada. Verifique o nome da instância."
+
+            elif response.status_code == 401 or response.status_code == 403:
+                logger.error("Erro de autenticação")
+                return False, "API Key inválida. Verifique a configuração."
+
             else:
-                error_msg = f"Erro HTTP {response.status_code}: {response.text}"
+                error_msg = f"Erro HTTP {response.status_code}: {response.text[:200]}"
                 logger.error(f"Erro ao obter QR Code: {error_msg}")
                 return False, error_msg
 
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Erro de conexão: {str(e)}")
+            return False, f"Não foi possível conectar à Evolution API em {self.base_url}. Verifique se a API está rodando."
+
+        except requests.exceptions.Timeout as e:
+            logger.error(f"Timeout: {str(e)}")
+            return False, "Timeout ao conectar à Evolution API (30s). Verifique a URL."
+
         except Exception as e:
-            logger.error(f"Erro ao obter QR Code: {str(e)}", exc_info=True)
-            return False, str(e)
+            logger.error(f"Erro inesperado ao obter QR Code: {str(e)}", exc_info=True)
+            return False, f"Erro inesperado: {str(e)}"
 
 
 class WhatsAppChatbot:

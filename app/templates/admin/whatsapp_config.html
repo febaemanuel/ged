@@ -15,11 +15,23 @@
                 </a>
             </div>
 
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
             <!-- Aviso sobre banco separado -->
             <div class="alert alert-info">
                 <h5><i class="bi bi-database"></i> Importante: Banco de Dados Separado</h5>
                 <p class="mb-0">
-                    ⚠️ A <strong>Evolution API</strong> deve usar um banco de dados <strong>separado</strong> chamado <code>evolution_db</code>.<br>
+                    ⚠️ A <strong>Evolution API</strong> deve usar um banco de dados <strong>separado</strong> chamado <code>evolution</code>.<br>
                     ❌ <strong>NUNCA</strong> use o mesmo banco <code>ged</code> do sistema GED!<br>
                     📖 Veja o guia completo: <a href="https://github.com/febaemanuel/ged/blob/main/SETUP_EVOLUTION_DB.md" target="_blank">SETUP_EVOLUTION_DB.md</a>
                 </p>
@@ -73,7 +85,7 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('whatsapp_admin.salvar_configuracao') }}">
+                    <form method="POST" action="{{ url_for('whatsapp_admin.salvar_configuracao') }}" id="formConfig">
 
                         <!-- Status Ativo/Inativo -->
                         <div class="alert alert-{% if config.ativo %}success{% else %}warning{% endif %}" id="alertStatus">
@@ -101,13 +113,13 @@
                             <label for="evolution_api_url" class="form-label">
                                 URL da Evolution API *
                                 <i class="bi bi-info-circle" data-bs-toggle="tooltip"
-                                   title="URL onde a Evolution API está rodando (ex: http://localhost:8080)"></i>
+                                   title="URL onde a Evolution API está rodando (ex: http://192.168.18.6:8080)"></i>
                             </label>
                             <input type="text" class="form-control font-monospace"
                                    id="evolution_api_url" name="evolution_api_url"
                                    value="{{ config.evolution_api_url or '' }}"
-                                   placeholder="http://localhost:8080" required>
-                            <small class="text-muted">Sem barra no final. Exemplo: http://localhost:8080</small>
+                                   placeholder="http://192.168.18.6:8080" required>
+                            <small class="text-muted">Sem barra no final. Exemplo: http://192.168.18.6:8080</small>
                         </div>
 
                         <div class="mb-3">
@@ -119,7 +131,7 @@
                             <input type="text" class="form-control"
                                    id="evolution_instance_name" name="evolution_instance_name"
                                    value="{{ config.evolution_instance_name or '' }}"
-                                   placeholder="ged_ebserh_production" required>
+                                   placeholder="principal12" required>
                             <small class="text-muted">Use apenas letras, números e underscore</small>
                         </div>
 
@@ -133,7 +145,7 @@
                                    id="evolution_api_key" name="evolution_api_key"
                                    value="{{ config.evolution_api_key or '' }}"
                                    placeholder="••••••••••••••••••••••••••••••••" required>
-                            <small class="text-muted">API Key configurada na Evolution API</small>
+                            <small class="text-muted">API Key configurada na Evolution API (AUTHENTICATION_API_KEY no .env)</small>
                         </div>
 
                         <!-- Funcionalidades -->
@@ -272,35 +284,60 @@
         <!-- Painel Lateral -->
         <div class="col-md-4">
 
+            <!-- Status da Conexão -->
+            <div class="card mb-3" id="cardStatus">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-wifi"></i> Status da Conexão
+                    </h6>
+                </div>
+                <div class="card-body text-center">
+                    <div id="statusContainer">
+                        <div class="spinner-border text-secondary mb-2" role="status">
+                            <span class="visually-hidden">Verificando...</span>
+                        </div>
+                        <p class="text-muted mb-0">Verificando status...</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- QR Code -->
             <div class="card mb-3">
-                <div class="card-header">
+                <div class="card-header bg-success text-white">
                     <h6 class="mb-0">
                         <i class="bi bi-qr-code"></i> Conectar WhatsApp
                     </h6>
                 </div>
                 <div class="card-body text-center">
                     <p class="small text-muted">Escaneie o QR Code com seu WhatsApp</p>
+
                     <button type="button" class="btn btn-success w-100 mb-3" id="btnObterQRCode">
                         <i class="bi bi-qr-code"></i> Obter QR Code
                     </button>
+
                     <div id="qrcodeContainer" class="d-none">
-                        <img id="qrcodeImage" src="" alt="QR Code" class="img-fluid mb-2" style="max-width: 250px;">
-                        <div class="alert alert-info small">
+                        <img id="qrcodeImage" src="" alt="QR Code" class="img-fluid rounded mb-2" style="max-width: 250px; border: 2px solid #198754;">
+                        <div class="alert alert-info small mb-2">
                             <strong>Como conectar:</strong><br>
                             1. Abra o WhatsApp no celular<br>
                             2. Vá em Configurações > Aparelhos conectados<br>
                             3. Toque em "Conectar um aparelho"<br>
                             4. Escaneie o QR Code acima
                         </div>
+                        <div class="progress mb-2" style="height: 5px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning"
+                                 role="progressbar" id="qrcodeProgress" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">QR Code expira em <span id="qrcodeTimer">30</span>s</small>
                     </div>
+
                     <div id="statusConexao" class="mt-2"></div>
                 </div>
             </div>
 
             <!-- Teste de Envio -->
             <div class="card mb-3">
-                <div class="card-header">
+                <div class="card-header bg-info text-white">
                     <h6 class="mb-0">
                         <i class="bi bi-send"></i> Testar Envio
                     </h6>
@@ -313,7 +350,7 @@
                                    name="telefone_teste" placeholder="+5585999999999" required>
                             <small class="text-muted">Formato: +55 DDD número</small>
                         </div>
-                        <button type="submit" class="btn btn-success w-100" id="btnTestar">
+                        <button type="submit" class="btn btn-info w-100 text-white" id="btnTestar">
                             <i class="bi bi-send"></i> Enviar Teste
                         </button>
                     </form>
@@ -323,7 +360,7 @@
 
             <!-- Webhook URL -->
             <div class="card mb-3">
-                <div class="card-header">
+                <div class="card-header bg-warning">
                     <h6 class="mb-0">
                         <i class="bi bi-link-45deg"></i> Webhook URL
                     </h6>
@@ -344,7 +381,7 @@
 
             <!-- Links Rápidos -->
             <div class="card">
-                <div class="card-header">
+                <div class="card-header bg-primary text-white">
                     <h6 class="mb-0">
                         <i class="bi bi-link"></i> Links Rápidos
                     </h6>
@@ -371,16 +408,73 @@
 </div>
 
 <script>
-// Obter QR Code
+// Variáveis globais
+let qrcodeTimer = null;
+let qrcodeTimeLeft = 30;
+let qrcodeInterval = null;
+let autoRefreshQR = null;
+
+// ============================================================================
+// VERIFICAR STATUS DA CONEXÃO AO CARREGAR PÁGINA
+// ============================================================================
+document.addEventListener('DOMContentLoaded', function() {
+    verificarStatus();
+
+    // Verifica status a cada 10 segundos
+    setInterval(verificarStatus, 10000);
+});
+
+function verificarStatus() {
+    fetch('{{ url_for("whatsapp_admin.verificar_status") }}')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('statusContainer');
+            const card = document.getElementById('cardStatus');
+
+            if (data.conectado) {
+                card.querySelector('.card-header').className = 'card-header bg-success text-white';
+                container.innerHTML = `
+                    <div class="text-success mb-2">
+                        <i class="bi bi-check-circle-fill" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="text-success mb-1">WhatsApp Conectado</h5>
+                    <p class="text-muted small mb-0">${data.mensagem || 'Pronto para enviar mensagens'}</p>
+                `;
+            } else {
+                card.querySelector('.card-header').className = 'card-header bg-warning text-dark';
+                container.innerHTML = `
+                    <div class="text-warning mb-2">
+                        <i class="bi bi-exclamation-triangle-fill" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="text-warning mb-1">WhatsApp Desconectado</h5>
+                    <p class="text-muted small mb-0">${data.mensagem || 'Clique em "Obter QR Code" para conectar'}</p>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao verificar status:', error);
+        });
+}
+
+// ============================================================================
+// OBTER QR CODE COM AUTO-REFRESH
+// ============================================================================
 document.getElementById('btnObterQRCode').addEventListener('click', function() {
-    const btn = this;
+    obterQRCode();
+});
+
+function obterQRCode() {
+    const btn = document.getElementById('btnObterQRCode');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Obtendo QR Code...';
+
+    // Limpa timers anteriores
+    if (qrcodeTimer) clearInterval(qrcodeTimer);
+    if (autoRefreshQR) clearInterval(autoRefreshQR);
 
     fetch('{{ url_for("whatsapp_admin.obter_qrcode") }}')
         .then(response => {
             if (!response.ok) {
-                // Trata erros HTTP (400, 500, etc.)
                 return response.json().then(data => {
                     throw new Error(data.detalhes || data.erro || 'Erro desconhecido');
                 });
@@ -394,20 +488,31 @@ document.getElementById('btnObterQRCode').addEventListener('click', function() {
                 document.getElementById('statusConexao').innerHTML = `
                     <div class="alert alert-success">
                         <i class="bi bi-check-circle"></i> <strong>${data.mensagem}</strong><br>
-                        <small>${data.info || ''}</small>
+                        <small>${data.info || 'Pronto para enviar mensagens!'}</small>
                     </div>
                 `;
+                verificarStatus(); // Atualiza status
             } else if (data.qrcode) {
                 // QR Code disponível
                 document.getElementById('qrcodeImage').src = data.qrcode;
                 document.getElementById('qrcodeContainer').classList.remove('d-none');
                 document.getElementById('statusConexao').innerHTML = `
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> ${data.mensagem || 'Escaneie o QR Code'}
+                    <div class="alert alert-info small">
+                        <i class="bi bi-info-circle"></i> ${data.mensagem || 'Escaneie o QR Code acima'}
                     </div>
                 `;
+
+                // Inicia timer de 30 segundos
+                iniciarTimerQRCode();
+
+                // Auto-refresh a cada 25 segundos
+                autoRefreshQR = setInterval(() => {
+                    console.log('Auto-refresh QR Code...');
+                    obterQRCode();
+                }, 25000);
+
             } else {
-                // Outro caso (não deveria acontecer)
+                // Outro caso
                 document.getElementById('statusConexao').innerHTML = `
                     <div class="alert alert-warning">
                         <i class="bi bi-exclamation-triangle"></i> Resposta inesperada do servidor
@@ -420,17 +525,49 @@ document.getElementById('btnObterQRCode').addEventListener('click', function() {
             document.getElementById('statusConexao').innerHTML = `
                 <div class="alert alert-danger">
                     <i class="bi bi-x-circle"></i> <strong>Erro ao obter QR Code</strong><br>
-                    <small>${error.message}</small>
+                    <small>${error.message}</small><br>
+                    <small class="text-muted">Verifique se a Evolution API está rodando em <code>{{ config.evolution_api_url }}</code></small>
                 </div>
             `;
         })
         .finally(() => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-qr-code"></i> Atualizar QR Code';
+            btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Atualizar QR Code';
         });
-});
+}
 
-// Teste de envio via AJAX
+function iniciarTimerQRCode() {
+    qrcodeTimeLeft = 30;
+    const timerSpan = document.getElementById('qrcodeTimer');
+    const progressBar = document.getElementById('qrcodeProgress');
+
+    if (qrcodeTimer) clearInterval(qrcodeTimer);
+
+    qrcodeTimer = setInterval(() => {
+        qrcodeTimeLeft--;
+        timerSpan.textContent = qrcodeTimeLeft;
+
+        // Atualiza progress bar
+        const percentRemaining = (qrcodeTimeLeft / 30) * 100;
+        progressBar.style.width = percentRemaining + '%';
+
+        // Muda cor quando está acabando
+        if (qrcodeTimeLeft <= 10) {
+            progressBar.classList.remove('bg-warning');
+            progressBar.classList.add('bg-danger');
+        }
+
+        if (qrcodeTimeLeft <= 0) {
+            clearInterval(qrcodeTimer);
+            timerSpan.textContent = '0';
+            progressBar.style.width = '0%';
+        }
+    }, 1000);
+}
+
+// ============================================================================
+// TESTE DE ENVIO VIA AJAX
+// ============================================================================
 document.getElementById('formTesteWhatsApp').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -469,7 +606,9 @@ document.getElementById('formTesteWhatsApp').addEventListener('submit', function
     });
 });
 
-// Copiar webhook URL
+// ============================================================================
+// COPIAR WEBHOOK URL
+// ============================================================================
 function copyToClipboard(elementId) {
     const element = document.getElementById(elementId);
     element.select();
@@ -479,12 +618,19 @@ function copyToClipboard(elementId) {
     const btn = event.target.closest('button');
     const originalHTML = btn.innerHTML;
     btn.innerHTML = '<i class="bi bi-check"></i>';
+    btn.classList.add('btn-success');
+    btn.classList.remove('btn-outline-secondary');
+
     setTimeout(() => {
         btn.innerHTML = originalHTML;
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-outline-secondary');
     }, 2000);
 }
 
-// Atualiza label do status ativo/inativo em tempo real
+// ============================================================================
+// ATUALIZA LABEL DO STATUS ATIVO/INATIVO EM TEMPO REAL
+// ============================================================================
 document.getElementById('ativo').addEventListener('change', function() {
     const label = document.getElementById('labelStatus');
     const alertDiv = document.getElementById('alertStatus');
@@ -501,6 +647,49 @@ document.getElementById('ativo').addEventListener('change', function() {
         alertDiv.classList.add('alert-warning');
         descricao.innerHTML = '<i class="bi bi-exclamation-triangle"></i> WhatsApp está desativado. Nenhuma mensagem será enviada. Ative para começar a usar.';
     }
+});
+
+// ============================================================================
+// VALIDAÇÃO DE FORMULÁRIO
+// ============================================================================
+document.getElementById('formConfig').addEventListener('submit', function(e) {
+    const url = document.getElementById('evolution_api_url').value.trim();
+    const instance = document.getElementById('evolution_instance_name').value.trim();
+    const apiKey = document.getElementById('evolution_api_key').value.trim();
+
+    // Valida URL
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        e.preventDefault();
+        alert('A URL da Evolution API deve começar com http:// ou https://');
+        return false;
+    }
+
+    // Remove barra final
+    if (url.endsWith('/')) {
+        document.getElementById('evolution_api_url').value = url.slice(0, -1);
+    }
+
+    // Valida nome da instância (apenas letras, números e underscore)
+    if (!/^[a-zA-Z0-9_]+$/.test(instance)) {
+        e.preventDefault();
+        alert('O nome da instância deve conter apenas letras, números e underscore');
+        return false;
+    }
+
+    // Valida API Key
+    if (apiKey.length < 8) {
+        e.preventDefault();
+        alert('A API Key deve ter pelo menos 8 caracteres');
+        return false;
+    }
+
+    return true;
+});
+
+// Limpa auto-refresh quando sair da página
+window.addEventListener('beforeunload', function() {
+    if (qrcodeTimer) clearInterval(qrcodeTimer);
+    if (autoRefreshQR) clearInterval(autoRefreshQR);
 });
 </script>
 {% endblock %}
