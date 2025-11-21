@@ -1037,15 +1037,12 @@ function createCardHTML(doc) {
             <div class="card-header bg-primary text-white">
                 <h6 class="mb-0">
                     <span class="badge bg-light text-dark">${doc.tipo_documento}</span>
-                    ${doc.codigo_definitivo || doc.codigo}
+                    ${doc.titulo_completo || doc.codigo_definitivo || doc.codigo}
                 </h6>
             </div>
 
             <div class="card-body">
-                <h5 class="card-title">${doc.codigo_definitivo || doc.codigo}</h5>
-                ${doc.titulo && doc.titulo.toLowerCase() !== 'ok' && doc.titulo.toLowerCase() !== 'teste' ? `
-                    <p class="text-muted small mb-2">${highlightText(doc.titulo, currentSearch)}</p>
-                ` : ''}
+                <h5 class="card-title">${highlightText(doc.titulo_completo || doc.codigo_definitivo || doc.codigo, currentSearch)}</h5>
 
                 ${resumo ? `
                 <div class="alert alert-light py-2 mb-2">
@@ -1115,12 +1112,8 @@ function createListHTML(doc) {
         <div class="list-item">
             <div class="list-item-main">
                 <i class="bi bi-file-earmark-pdf list-item-icon"></i>
-                <span class="list-item-code">${doc.codigo_definitivo || doc.codigo}</span>
                 <span class="list-item-title">
-                    ${doc.codigo_definitivo || doc.codigo}
-                    ${doc.titulo && doc.titulo.toLowerCase() !== 'ok' && doc.titulo.toLowerCase() !== 'teste' ? `
-                        <span class="text-muted small"> - ${highlightText(doc.titulo, currentSearch)}</span>
-                    ` : ''}
+                    ${highlightText(doc.titulo_completo || doc.codigo_definitivo || doc.codigo, currentSearch)}
                 </span>
                 <div class="list-item-meta">
                     <span><i class="bi bi-building"></i> ${doc.setor || '-'}</span>

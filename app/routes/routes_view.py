@@ -287,7 +287,7 @@ def documento_criar():
 
         # Processar documento com IA em background (se possível)
         try:
-            from app.services.ai_client import extract_text, classify_document, summarize_text, extract_authors
+            from app.services.ai_client import extract_text, classify_document, summarize_text, extract_authors, extract_title
 
             # Extrai texto do documento
             caminho = documento.get_caminho_arquivo()
@@ -298,6 +298,13 @@ def documento_criar():
                 # Classifica o documento usando IA
                 if documento.texto_extraido:
                     try:
+                        # Se título não foi fornecido, extrai pela IA
+                        if not documento.titulo or documento.titulo.strip() == '':
+                            titulo_extraido = extract_title(documento.texto_extraido)
+                            if titulo_extraido:
+                                documento.titulo = titulo_extraido
+                                logger.info(f"[IA] Título extraído automaticamente: {titulo_extraido}")
+
                         resultado_classificacao = classify_document(documento.texto_extraido)
 
                         # Gera resumo
@@ -1445,6 +1452,22 @@ def publicar_documento(tarefa_id):
         return redirect(url_for('view.tarefas'))
 
     try:
+        # Atualiza dados confirmados antes de publicar
+        documento = tarefa.documento
+        titulo_confirmado = request.form.get('titulo_confirmado', '').strip()
+        autores_confirmados = request.form.get('autores_confirmados', '').strip()
+        descricao_confirmada = request.form.get('descricao_confirmada', '').strip()
+
+        if titulo_confirmado:
+            documento.titulo = titulo_confirmado
+        if autores_confirmados:
+            documento.autores = autores_confirmados
+        if descricao_confirmada:
+            documento.descricao = descricao_confirmada
+
+        db.session.commit()
+        logger.info(f"[PUBLICACAO] Dados confirmados - Título: {titulo_confirmado}, Autores: {autores_confirmados}")
+
         documento = WorkflowUGQ.validador_publica_documento(tarefa)
 
         flash(f'🎉 Documento {documento.codigo_definitivo} publicado com sucesso!', 'success')

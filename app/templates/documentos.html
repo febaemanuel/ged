@@ -65,8 +65,7 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>Código</th>
-                            <th>Título</th>
+                            <th>Documento</th>
                             <th>Tipo</th>
                             <th>Setor</th>
                             <th>Status</th>
@@ -77,8 +76,7 @@
                     <tbody>
                         {% for doc in documentos %}
                         <tr>
-                            <td><strong>{{ doc.codigo_definitivo or doc.codigo_provisorio }}</strong></td>
-                            <td>{{ doc.titulo }}</td>
+                            <td><strong>{{ doc.titulo_completo }}</strong></td>
                             <td><span class="badge bg-info">{{ doc.tipo_documento }}</span></td>
                             <td>{{ doc.setor or '-' }}</td>
                             <td>

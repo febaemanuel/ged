@@ -578,6 +578,69 @@ Se não encontrar autores, retorne uma lista vazia."""
         return []
 
 
+def extract_title(text):
+    """
+    Extrai o título do documento usando DeepSeek
+
+    Args:
+        text: Texto completo do documento
+
+    Returns:
+        str: Título extraído do documento
+
+    Example:
+        >>> result = extract_title("POP - GESTAÇÃO ECTÓPICA...")
+        >>> print(result)
+        'Gestação Ectópica'
+    """
+    logger.info(f"Extraindo título de texto ({len(text)} caracteres)")
+
+    system_prompt = """Você é um especialista em análise de documentos técnicos.
+Analise o texto e extraia o TÍTULO principal do documento.
+
+Procure por:
+- Título na primeira página ou cabeçalho
+- Nome do procedimento, protocolo ou manual
+- Texto após "POP -", "PROTOCOLO -", "MANUAL -"
+
+O título deve ser:
+- Conciso (máximo 100 caracteres)
+- Sem o prefixo de tipo (remover "POP -", "PROTOCOLO -", etc)
+- Em formato de título (primeira letra maiúscula)
+
+Responda APENAS em formato JSON válido, sem markdown:
+{
+    "titulo": "Título do Documento"
+}
+
+Se não encontrar um título claro, tente inferir do conteúdo."""
+
+    # Usa apenas o início do texto onde geralmente está o título
+    texto_limitado = text[:3000] if len(text) > 3000 else text
+    user_prompt = f"Extraia o título deste documento:\n\n{texto_limitado}"
+
+    try:
+        result_text = _call_deepseek(system_prompt, user_prompt, temperature=0.3)
+
+        # Limpa resposta e parse JSON
+        import json
+        json_limpo = _clean_json_response(result_text)
+        logger.info(f"JSON limpo (título): {json_limpo[:200]}")
+        result = json.loads(json_limpo)
+
+        titulo = result.get('titulo', '')
+        logger.info(f"Título extraído: {titulo}")
+
+        return titulo
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"DeepSeek retornou resposta inválida ao extrair título: {str(e)}")
+        return ''
+    except Exception as e:
+        logger.error(f"Erro ao extrair título: {str(e)}")
+        return ''
+
+
 def search_semantic(query, limit=10, filters=None):
     """
     Busca semântica de documentos (DESABILITADA - usar busca textual normal)

@@ -29,10 +29,8 @@
                     <div class="mb-3">
                         <strong>Documento:</strong><br>
                         <a href="{{ url_for('view.documento_detalhe', id=tarefa.documento_id) }}">
-                            {{ tarefa.documento.titulo }}
+                            {{ tarefa.documento.titulo_completo }}
                         </a>
-                        <br>
-                        <small class="text-muted">{{ tarefa.documento.codigo_provisorio or tarefa.documento.codigo_definitivo }}</small>
                     </div>
 
                     {% if tarefa.descricao %}
@@ -391,16 +389,80 @@
                     <form method="POST" action="{{ url_for('view.publicar_documento', tarefa_id=tarefa.id) }}">
                         <div class="alert alert-success">
                             <i class="bi bi-check-circle"></i> <strong>Documento aprovado por todos os aprovadores!</strong><br>
-                            Validador UGQ: clique em "Publicar" para adicionar o documento à Lista Mestra e torná-lo VIGENTE.
+                            Revise os dados abaixo e confirme a publicação.
                         </div>
 
-                        <div class="mb-3">
-                            <p><strong>Ações realizadas ao publicar:</strong></p>
-                            <ul>
+                        <!-- Confirmação de Dados do Documento -->
+                        <div class="card mb-4 border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <i class="bi bi-clipboard-check"></i> <strong>Confirme os Dados do Documento</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Código Definitivo</label>
+                                        <input type="text" class="form-control" name="codigo_definitivo"
+                                               value="{{ tarefa.documento.codigo_definitivo or '' }}" readonly>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Versão</label>
+                                        <input type="text" class="form-control" name="versao_confirmada"
+                                               value="{{ tarefa.documento.versao or 'v1.0' }}" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Título do Documento *</label>
+                                    <input type="text" class="form-control" name="titulo_confirmado"
+                                           value="{{ tarefa.documento.titulo or '' }}" required>
+                                    <small class="text-muted">Confira e ajuste o título se necessário</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Autores *</label>
+                                    <input type="text" class="form-control" name="autores_confirmados"
+                                           value="{{ tarefa.documento.autores or '' }}" required>
+                                    <small class="text-muted">Separe os nomes por vírgula. Ex: João Silva, Maria Santos</small>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Tipo de Documento</label>
+                                        <input type="text" class="form-control"
+                                               value="{{ tarefa.documento.tipo_documento }}" readonly>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Setor</label>
+                                        <input type="text" class="form-control"
+                                               value="{{ tarefa.documento.setor or '-' }}" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Descrição</label>
+                                    <textarea class="form-control" name="descricao_confirmada" rows="2">{{ tarefa.documento.descricao or '' }}</textarea>
+                                </div>
+
+                                {% set metadados = tarefa.documento.get_metadados() %}
+                                {% if metadados and metadados.get('resumo') %}
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Resumo (gerado pela IA)</label>
+                                    {% if metadados.resumo is mapping %}
+                                    <textarea class="form-control bg-light" rows="3" readonly>{{ metadados.resumo.get('resumo', '') }}</textarea>
+                                    {% else %}
+                                    <textarea class="form-control bg-light" rows="3" readonly>{{ metadados.resumo }}</textarea>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <p class="mb-2"><strong>Ao publicar:</strong></p>
+                            <ul class="mb-0">
                                 <li>Documento será marcado como <strong>VIGENTE</strong></li>
                                 <li>Será adicionado à <strong>Lista Mestra oficial</strong></li>
-                                <li>Arquivo será movido para pasta de publicados</li>
-                                <li>Código definitivo será registrado</li>
+                                <li>Título final: <strong>{{ tarefa.documento.codigo_definitivo or 'CODIGO' }} - {{ tarefa.documento.titulo or 'TITULO' }}</strong></li>
                             </ul>
                         </div>
 
@@ -409,7 +471,7 @@
                                 <i class="bi bi-x-circle"></i> Voltar
                             </a>
                             <button type="submit" class="btn btn-success btn-lg">
-                                <i class="bi bi-cloud-upload"></i> Publicar Documento
+                                <i class="bi bi-cloud-upload"></i> Confirmar e Publicar
                             </button>
                         </div>
                     </form>
