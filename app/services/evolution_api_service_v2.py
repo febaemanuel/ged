@@ -781,9 +781,9 @@ class WhatsAppChatbot:
             elif estado == 'aguardando_acao':
                 self._processar_acao_documento(usuario, remote_jid, texto, conversacao)
 
-            # Estado: AGUARDANDO SENHA PARA ASSINATURA
-            elif estado == 'aguardando_senha':
-                self._processar_senha(usuario, remote_jid, texto, conversacao)
+            # Estado: AGUARDANDO EMAIL PARA CONFIRMAÇÃO
+            elif estado == 'aguardando_email':
+                self._processar_email(usuario, remote_jid, texto, conversacao)
 
             # Estado: AGUARDANDO JUSTIFICATIVA DE REPROVAÇÃO
             elif estado == 'aguardando_justificativa':
@@ -801,13 +801,16 @@ class WhatsAppChatbot:
             logger.error(f"Erro ao processar mensagem: {str(e)}", exc_info=True)
             return {'status': 'error', 'message': str(e)}
 
-    def _obter_ou_criar_conversacao(self, usuario, telefone):
+    def _obter_ou_criar_conversacao(self, usuario, telefone_jid):
         """Obtém ou cria uma conversação para o usuário"""
+        # Limpa o JID para salvar apenas o número (max 20 chars)
+        telefone_limpo = ''.join(filter(str.isdigit, str(telefone_jid).split('@')[0]))[:20]
+
         conversacao = ConversacaoWhatsApp.query.filter_by(usuario_id=usuario.id).first()
 
         if not conversacao:
             conversacao = ConversacaoWhatsApp(
-                telefone=telefone,
+                telefone=telefone_limpo,
                 usuario_id=usuario.id,
                 estado_atual='menu'
             )
@@ -815,7 +818,7 @@ class WhatsAppChatbot:
             db.session.commit()
         else:
             # Atualiza telefone caso tenha mudado
-            conversacao.telefone = telefone
+            conversacao.telefone = telefone_limpo
             conversacao.ultima_mensagem_em = datetime.utcnow()
             db.session.commit()
 
@@ -935,16 +938,19 @@ class WhatsAppChatbot:
         texto_limpo = texto.strip().lower()
 
         if texto_limpo in ['1', 'aprovar', 'assinar']:
-            # Pede a senha para confirmar assinatura
-            conversacao.atualizar_estado('aguardando_senha', {
+            # Pede o email para confirmar assinatura
+            conversacao.atualizar_estado('aguardando_email', {
                 'tarefa_id': tarefa_id,
                 'acao': 'aprovar'
             })
             db.session.commit()
 
+            # Mostra email parcialmente oculto como dica
+            email_dica = self._ocultar_email(usuario.email)
+
             msg = "🔒 *Confirmação de Assinatura*\n\n"
-            msg += "Digite sua *senha* para confirmar a aprovação.\n\n"
-            msg += "⚠️ _Sua senha será processada de forma segura._\n\n"
+            msg += f"Para confirmar, digite seu *email cadastrado*.\n"
+            msg += f"💡 Dica: {email_dica}\n\n"
             msg += "_Responda *0* para cancelar._"
             self.api.enviar_mensagem(remote_jid, msg)
 
@@ -968,15 +974,35 @@ class WhatsAppChatbot:
         else:
             self.api.enviar_mensagem(remote_jid, "❌ Opção inválida.\n\nEscolha: *1* (Aprovar), *2* (Reprovar), *3* (Voltar) ou *0* (Menu)")
 
-    def _processar_senha(self, usuario, remote_jid, texto, conversacao):
-        """Processa a senha para assinatura ou reprovação"""
+    def _ocultar_email(self, email):
+        """Oculta parte do email para mostrar como dica"""
+        if not email or '@' not in email:
+            return '***@***.***'
+
+        partes = email.split('@')
+        usuario = partes[0]
+        dominio = partes[1]
+
+        # Mostra primeiros 2 chars e últimos 2 do usuário
+        if len(usuario) > 4:
+            usuario_oculto = usuario[:2] + '*' * (len(usuario) - 4) + usuario[-2:]
+        else:
+            usuario_oculto = usuario[0] + '*' * (len(usuario) - 1)
+
+        return f"{usuario_oculto}@{dominio}"
+
+    def _processar_email(self, usuario, remote_jid, texto, conversacao):
+        """Processa o email para confirmação de assinatura ou reprovação"""
         contexto = conversacao.get_contexto()
         tarefa_id = contexto.get('tarefa_id')
         acao = contexto.get('acao', 'aprovar')
         justificativa = contexto.get('justificativa', '')
 
-        # Valida senha do usuário
-        if not usuario.check_password(texto):
+        # Valida email do usuário (case insensitive)
+        email_digitado = texto.strip().lower()
+        email_cadastrado = (usuario.email or '').lower()
+
+        if email_digitado != email_cadastrado:
             conversacao.incrementar_tentativa_senha()
             db.session.commit()
 
@@ -985,10 +1011,11 @@ class WhatsAppChatbot:
                 return
 
             tentativas_restantes = 3 - conversacao.tentativas_senha
-            self.api.enviar_mensagem(remote_jid, f"❌ *Senha incorreta!*\n\nTentativas restantes: {tentativas_restantes}\n\n_Responda *0* para cancelar._")
+            email_dica = self._ocultar_email(usuario.email)
+            self.api.enviar_mensagem(remote_jid, f"❌ *Email incorreto!*\n\n💡 Dica: {email_dica}\nTentativas restantes: {tentativas_restantes}\n\n_Responda *0* para cancelar._")
             return
 
-        # Senha correta - processa ação
+        # Email correto - processa ação
         conversacao.resetar_tentativas()
 
         tarefa = Tarefa.query.get(tarefa_id)
@@ -1051,17 +1078,20 @@ class WhatsAppChatbot:
             db.session.commit()
             return
 
-        # Pede senha para confirmar reprovação
-        conversacao.atualizar_estado('aguardando_senha', {
+        # Pede email para confirmar reprovação
+        conversacao.atualizar_estado('aguardando_email', {
             'tarefa_id': tarefa_id,
             'acao': 'reprovar',
             'justificativa': texto.strip()
         })
         db.session.commit()
 
+        email_dica = self._ocultar_email(usuario.email)
+
         msg = "🔒 *Confirmação de Reprovação*\n\n"
         msg += f"📝 *Motivo:* {texto.strip()}\n\n"
-        msg += "Digite sua *senha* para confirmar.\n\n"
+        msg += f"Digite seu *email cadastrado* para confirmar.\n"
+        msg += f"💡 Dica: {email_dica}\n\n"
         msg += "_Responda *0* para cancelar._"
         self.api.enviar_mensagem(remote_jid, msg)
 
