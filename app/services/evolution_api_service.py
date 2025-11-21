@@ -702,8 +702,25 @@ class WhatsAppChatbot:
                 self.service.enviar_mensagem(telefone_limpo, msg)
                 return {'status': 'sent', 'message': 'Fora de horário'}
 
-            # Identifica usuário
+            # Identifica usuário - tenta diferentes formatos de telefone
             usuario = Usuario.query.filter_by(telefone=telefone_limpo).first()
+
+            # Se não encontrou com +, tenta sem +
+            if not usuario and telefone_limpo.startswith('+'):
+                telefone_sem_mais = telefone_limpo[1:]  # Remove o +
+                usuario = Usuario.query.filter_by(telefone=telefone_sem_mais).first()
+
+            # Se não encontrou, tenta buscar por correspondência parcial (últimos 8 dígitos)
+            if not usuario and len(telefone_limpo) >= 8:
+                ultimos_8_digitos = telefone_limpo[-8:]
+                usuarios_possiveis = Usuario.query.filter(
+                    Usuario.telefone.like(f'%{ultimos_8_digitos}')
+                ).all()
+
+                # Se encontrou apenas um, usa esse
+                if len(usuarios_possiveis) == 1:
+                    usuario = usuarios_possiveis[0]
+                    logger.info(f"Usuário encontrado por correspondência parcial: {usuario.nome} ({usuario.telefone})")
 
             if not usuario:
                 templates = self.config.get_templates()
