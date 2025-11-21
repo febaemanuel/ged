@@ -88,7 +88,7 @@
                     <form method="POST" action="{{ url_for('whatsapp_admin.salvar_configuracao') }}" id="formConfig">
 
                         <!-- Status Ativo/Inativo -->
-                        <div class="alert alert-{% if config.ativo %}success{% else %}warning{% endif %}" id="alertStatus">
+                        <div class="alert alert-{% if config.ativo %}success{% else %}warning{% endif %} alert-permanent" id="alertStatus">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="ativo" name="ativo"
                                        {% if config.ativo %}checked{% endif %}
