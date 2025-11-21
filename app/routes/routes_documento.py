@@ -17,9 +17,12 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import or_
 from datetime import datetime
 import os
+import logging
 
 from app.models import db, Documento, Tarefa, Usuario
-from app.services import extract_text
+
+# Logger para este módulo
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('documento', __name__, url_prefix='/api/documento')
 

@@ -1028,11 +1028,8 @@ class WhatsAppChatbot:
 
         db.session.commit()
 
-        # Continua workflow (processa próxima assinatura se houver)
-        if item_id:
-            from app.services.workflow import WorkflowUGQ
-            item = ItemBlocoAssinatura.query.get(item_id)
-            WorkflowUGQ.processar_assinatura(item)
+        # O workflow continua automaticamente através do método aprovador_assina
+        # que já processa a próxima assinatura se necessário
 
         # Mensagem de confirmação
         msg = "✅ *ASSINATURA REGISTRADA COM SUCESSO!*\n\n"
@@ -1088,11 +1085,8 @@ class WhatsAppChatbot:
         tarefa.concluir(parecer=justificativa, aprovado=False)
         db.session.commit()
 
-        # Continua workflow (volta para validador)
-        if item_id:
-            from app.services.workflow import WorkflowUGQ
-            item = ItemBlocoAssinatura.query.get(item_id)
-            WorkflowUGQ.processar_assinatura(item)
+        # O workflow continua automaticamente através do método aprovador_assina
+        # que já processa a devolução para o validador se necessário
 
         # Mensagem de confirmação
         msg = "❌ *DOCUMENTO REPROVADO*\n\n"

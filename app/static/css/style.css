@@ -13,13 +13,21 @@
     --gray-100: #f3f4f6;
     --gray-200: #e5e7eb;
     --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
     --gray-700: #374151;
+    --gray-800: #1f2937;
     --gray-900: #111827;
+    --border-color: #dee2e6;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --border-radius-sm: 0.5rem;
+    --border-radius-md: 0.75rem;
+    --border-radius-lg: 1rem;
 }
 
 /* General */
@@ -203,11 +211,12 @@ main {
 }
 
 .table thead th {
-    border-bottom: 2px solid #dee2e6;
+    border-bottom: 2px solid var(--border-color);
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.875rem;
-    color: #495057;
+    font-size: 0.85rem;
+    color: var(--gray-700);
+    padding: 1rem 0.75rem;
 }
 
 .table-hover tbody tr:hover {
@@ -225,19 +234,20 @@ main {
 
 /* Forms */
 .form-control, .form-select {
-    border-radius: 0.25rem;
-    border: 1px solid #ced4da;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+    padding: 0.625rem 1rem;
 }
 
 .form-control:focus, .form-select:focus {
-    border-color: #86b7fe;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25);
 }
 
 .form-label {
     font-weight: 500;
-    color: #495057;
+    color: var(--gray-700);
     margin-bottom: 0.5rem;
 }
 
@@ -306,9 +316,9 @@ main {
 
 /* Dashboard Stats Cards */
 .stats-card {
-    background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-primary-rgb) 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
     color: white;
-    border-radius: 0.5rem;
+    border-radius: var(--border-radius-sm);
     padding: 1.5rem;
     position: relative;
     overflow: hidden;
@@ -418,19 +428,21 @@ main {
 .custom-file-input::before {
     content: 'Escolher arquivo';
     display: inline-block;
-    background: #0d6efd;
+    background: var(--info-color);
     color: white;
-    border: 1px solid #0d6efd;
-    border-radius: 0.25rem;
+    border: 1px solid var(--info-color);
+    border-radius: var(--border-radius-sm);
     padding: 0.375rem 0.75rem;
     outline: none;
     white-space: nowrap;
     cursor: pointer;
     font-weight: 500;
+    transition: var(--transition);
 }
 
 .custom-file-input:hover::before {
-    background: #0b5ed7;
+    background: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
 /* Pagination */
@@ -439,22 +451,65 @@ main {
 }
 
 .page-link {
-    color: #0d6efd;
-    border: 1px solid #dee2e6;
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
     padding: 0.5rem 0.75rem;
+    transition: var(--transition);
 }
 
 .page-link:hover {
-    background-color: #e9ecef;
-    border-color: #dee2e6;
+    background-color: var(--gray-100);
+    border-color: var(--border-color);
+    color: var(--primary-dark);
 }
 
 .page-item.active .page-link {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
-/* Responsive */
+/* Responsive - Mobile First */
+@media (max-width: 576px) {
+    .container, .container-fluid {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .form-control, .form-select {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+
+    .table {
+        font-size: 0.85rem;
+    }
+
+    .table thead th {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.25rem;
+    }
+
+    h1, .h1 { font-size: 1.75rem; }
+    h2, .h2 { font-size: 1.5rem; }
+    h3, .h3 { font-size: 1.25rem; }
+
+    .stats-card {
+        padding: 1rem;
+    }
+
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+}
+
 @media (max-width: 768px) {
     .timeline:before {
         left: 10px;
@@ -469,6 +524,14 @@ main {
         height: 30px;
         line-height: 30px;
         font-size: 0.875rem;
+    }
+
+    .card:hover {
+        transform: none;
+    }
+
+    .modal-dialog {
+        margin: 0.5rem;
     }
 }
 

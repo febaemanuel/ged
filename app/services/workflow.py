@@ -1293,7 +1293,7 @@ class WorkflowUGQ:
             ['#', 'Nome', 'Data/Hora', 'Decisão', 'Hash (Assinatura Digital)']
         ]
 
-        for item in bloco.itens.order_by(ItemBlocoAssinatura.ordem):
+        for item in sorted(bloco.itens, key=lambda x: x.ordem):
             aprovador = item.aprovador
             decisao = '✅ APROVADO' if item.status == 'Aprovado' else '❌ REPROVADO' if item.status == 'Reprovado' else '⏳ PENDENTE'
             data_assinatura = item.data_assinatura.strftime('%d/%m/%Y %H:%M') if item.data_assinatura else '---'
@@ -1354,7 +1354,7 @@ class WorkflowUGQ:
             spaceAfter=8
         )
 
-        for item in bloco.itens.order_by(ItemBlocoAssinatura.ordem):
+        for item in sorted(bloco.itens, key=lambda x: x.ordem):
             aprovador = item.aprovador
             # Box do parecer
             parecer_data = [
