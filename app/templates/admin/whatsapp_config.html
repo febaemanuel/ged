@@ -692,4 +692,22 @@ window.addEventListener('beforeunload', function() {
     if (autoRefreshQR) clearInterval(autoRefreshQR);
 });
 </script>
+
+<style>
+#qrcodeImage {
+    transition: opacity 0.3s ease;
+    /* Força QR Code em preto e branco puro */
+    filter: grayscale(100%) contrast(1.5) brightness(1.1) !important;
+    -webkit-filter: grayscale(100%) contrast(1.5) brightness(1.1) !important;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+    /* Remove qualquer tint de cor */
+    mix-blend-mode: normal !important;
+}
+
+#qrcodeImage:hover {
+    opacity: 0.95;
+}
+</style>
 {% endblock %}
