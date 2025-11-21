@@ -14,8 +14,14 @@ from flask import Blueprint, request, render_template, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from datetime import datetime
 from app.models import db, ConfiguracaoWhatsApp, LogWhatsApp, Usuario
+
+# ============================================================================
+# CORREÇÃO AQUI: Importar AMBAS as classes do arquivo _v2
+# ============================================================================
 from app.services.evolution_api_service_v2 import EvolutionAPIv2 as EvolutionAPIService
-from app.services.evolution_api_service import WhatsAppChatbot
+from app.services.evolution_api_service_v2 import WhatsAppChatbot 
+# ============================================================================
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -35,25 +41,6 @@ admin_bp = Blueprint('whatsapp_admin', __name__, url_prefix='/admin/whatsapp')
 def webhook():
     """
     Webhook que recebe mensagens do WhatsApp via Evolution API
-
-    Este endpoint é chamado pela Evolution API toda vez que alguém envia mensagem
-    para o número do WhatsApp conectado.
-
-    Evolution API envia JSON:
-    {
-      "event": "messages.upsert",
-      "instance": "instance_name",
-      "data": {
-        "key": {
-          "remoteJid": "5585999999999@s.whatsapp.net",
-          "fromMe": false,
-          "id": "message_id"
-        },
-        "message": {
-          "conversation": "texto da mensagem"
-        }
-      }
-    }
     """
     try:
         # Evolution API envia JSON
@@ -63,7 +50,7 @@ def webhook():
             logger.warning("Webhook recebido sem dados JSON")
             return jsonify({'status': 'error', 'message': 'No JSON data'}), 400
 
-        logger.info(f"Webhook recebido: {webhook_data.get('event')}")
+        # logger.info(f"Webhook recebido: {webhook_data.get('event')}")
 
         # Processa mensagem com chatbot
         chatbot = WhatsAppChatbot()
@@ -138,8 +125,7 @@ def salvar_configuracao():
 
         # Log estado anterior
         estado_anterior_ativo = config.ativo
-        logger.info(f"Estado anterior WhatsApp ativo: {estado_anterior_ativo}")
-
+        
         # Atualiza configurações
         # IMPORTANTE: Checkbox envia 'on' quando marcado, nada quando desmarcado
         novo_estado_ativo = request.form.get('ativo') == 'on'
