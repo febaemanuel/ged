@@ -611,3 +611,184 @@ _Sistema GED - EBSERH_
 # Alias para compatibilidade com código antigo
 EvolutionAPIService = EvolutionAPIv2
 WhatsAppService = EvolutionAPIv2
+class WhatsAppChatbot:
+    """
+    Classe responsável por processar mensagens recebidas (Webhook)
+    e gerenciar o fluxo de conversa (Chatbot)
+    """
+    def __init__(self):
+        self.api = EvolutionAPIv2()
+        self.config = ConfiguracaoWhatsApp.get_config()
+
+    def _buscar_usuario_inteligente(self, remote_jid):
+        """
+        Busca usuário no banco tentando vários formatos de telefone.
+        """
+        if not remote_jid:
+            return None
+
+        # 1. Limpa o JID (remove @s.whatsapp.net, @lid e caracteres não numéricos)
+        telefone_limpo = ''.join(filter(str.isdigit, str(remote_jid).split('@')[0]))
+        
+        # Se o telefone for muito curto (ex: ID técnico estranho), ignora
+        if len(telefone_limpo) < 8:
+            return None
+
+        # Lista de formatos para tentar buscar no banco
+        tentativas = [
+            telefone_limpo,              # Ex: 558592231683
+            f"+{telefone_limpo}"         # Ex: +558592231683
+        ]
+
+        # Lógica do 9º Dígito para Brasil (DDI 55)
+        if len(telefone_limpo) == 12 and telefone_limpo.startswith('55'):
+            # Tem 12 digitos (sem 9), tenta ADICIONAR o 9
+            com_9 = f"{telefone_limpo[:4]}9{telefone_limpo[4:]}"
+            tentativas.append(com_9)
+            tentativas.append(f"+{com_9}")
+        
+        elif len(telefone_limpo) == 13 and telefone_limpo.startswith('55'):
+            # Tem 13 digitos (com 9), tenta REMOVER o 9 (caso o banco esteja antigo)
+            sem_9 = f"{telefone_limpo[:4]}{telefone_limpo[5:]}"
+            tentativas.append(sem_9)
+            tentativas.append(f"+{sem_9}")
+
+        logger.info(f"Buscando usuário. JID: {remote_jid} | Tentativas: {tentativas}")
+
+        # Tenta encontrar o usuário com qualquer um dos formatos
+        for t in tentativas:
+            usuario = Usuario.query.filter_by(telefone=t).first()
+            if usuario:
+                logger.info(f"✓ Usuário encontrado: {usuario.nome} (ID: {usuario.id}) pelo telefone {t}")
+                return usuario
+        
+        logger.warning(f"❌ Usuário não encontrado nas tentativas: {tentativas}")
+        return None
+
+    def processar_mensagem_recebida(self, data):
+        """
+        Processa o webhook recebido da Evolution API
+        """
+        try:
+            # Extrai dados básicos do JSON
+            event_type = data.get('event')
+            payload = data.get('data')
+
+            if event_type != 'messages.upsert':
+                return {'status': 'ignored', 'reason': 'not a message upsert'}
+
+            # Garante que payload é dicionário
+            msg_data = payload if isinstance(payload, dict) else {}
+            key = msg_data.get('key', {})
+            
+            # --- CORREÇÃO CRÍTICA PARA LID (WHATSAPP WEB) ---
+            remote_jid = key.get('remoteJid')
+            remote_jid_alt = key.get('remoteJidAlt') # <--- O NÚMERO REAL ESTÁ AQUI QUANDO USA WEB
+            
+            # Se existir um ID alternativo e ele for um número de celular padrão (@s.whatsapp.net), usa ele
+            jid_para_busca = remote_jid
+            if remote_jid_alt and 's.whatsapp.net' in str(remote_jid_alt):
+                logger.info(f"Detectado ID de dispositivo vinculado (LID). Trocando {remote_jid} por {remote_jid_alt}")
+                jid_para_busca = remote_jid_alt
+            # -------------------------------------------------
+
+            from_me = key.get('fromMe', False)
+            if from_me:
+                return {'status': 'ignored', 'reason': 'from me'}
+
+            # Extrai o texto da mensagem
+            message_content = msg_data.get('message', {})
+            texto = (
+                message_content.get('conversation') or 
+                message_content.get('extendedTextMessage', {}).get('text') or
+                ''
+            ).strip()
+
+            if not texto:
+                return {'status': 'ignored', 'reason': 'no text content'}
+
+            logger.info(f"Mensagem recebida de {jid_para_busca}: {texto}")
+
+            # ============================================================
+            # BUSCA O USUÁRIO USANDO O JID CORRIGIDO
+            # ============================================================
+            usuario = self._buscar_usuario_inteligente(jid_para_busca)
+
+            if not usuario:
+                # Se não achar, envia aviso para o remetente original
+                # msg_erro = "❌ Número não cadastrado no sistema GED."
+                # self.api.enviar_mensagem(remote_jid, msg_erro)
+                return {'status': 'error', 'message': 'User not found'}
+
+            # Log da mensagem recebida no banco (salva com o telefone do cadastro)
+            try:
+                log = LogWhatsApp(
+                    usuario_id=usuario.id,
+                    telefone=usuario.telefone, 
+                    direcao='recebida',
+                    mensagem=texto,
+                    twilio_sid=key.get('id'),
+                    status='recebido'
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception as e:
+                logger.error(f"Erro ao salvar log: {e}")
+                db.session.rollback()
+
+            # ============================================================
+            # LÓGICA DO CHATBOT (MENU)
+            # ============================================================
+            texto_lower = texto.lower()
+
+            if texto_lower in ['menu', 'oi', 'olá', 'ola', 'inicio', 'start', 'ajuda', 'm']:
+                self._enviar_menu_principal(usuario, remote_jid) # Responde onde a msg veio
+            
+            elif texto_lower in ['tarefas', '1', 'um']:
+                self._listar_tarefas(usuario, remote_jid)
+            
+            elif texto_lower in ['documentos', '2', 'dois']:
+                self.api.enviar_mensagem(remote_jid, "📂 *Meus Documentos*\n\nEsta funcionalidade estará disponível em breve.")
+
+            else:
+                self._enviar_menu_principal(usuario, remote_jid)
+
+            return {'status': 'success'}
+
+        except Exception as e:
+            logger.error(f"Erro ao processar mensagem: {str(e)}", exc_info=True)
+            return {'status': 'error', 'message': str(e)}
+
+    def _enviar_menu_principal(self, usuario, remote_jid):
+        """Envia o menu principal"""
+        total_tarefas = Tarefa.query.filter_by(
+            usuario_responsavel_id=usuario.id, 
+            data_conclusao=None
+        ).count()
+
+        templates = self.config.get_templates()
+        texto_base = templates.get('menu_principal', '📋 *Olá, {nome}*').replace('{total}', str(total_tarefas)).replace('{nome}', usuario.nome)
+
+        msg_menu = f"{texto_base}\n\n1️⃣ Ver Tarefas Pendentes ({total_tarefas})\n2️⃣ Meus Documentos\n\n_Responda com o número da opção._"
+
+        self.api.enviar_mensagem(remote_jid, msg_menu)
+
+    def _listar_tarefas(self, usuario, remote_jid):
+        """Lista tarefas"""
+        tarefas = Tarefa.query.filter_by(
+            usuario_responsavel_id=usuario.id, 
+            data_conclusao=None
+        ).order_by(Tarefa.prazo.asc()).limit(5).all()
+
+        if not tarefas:
+            self.api.enviar_mensagem(remote_jid, "✅ *Tudo limpo!* Você não possui tarefas pendentes.")
+            return
+
+        msg = "📋 *Suas Tarefas Pendentes:*\n"
+        for t in tarefas:
+            prazo = t.prazo.strftime('%d/%m') if t.prazo else 'S/ Prazo'
+            codigo = t.documento.codigo_definitivo or t.documento.codigo_provisorio or f"#{t.documento.id}"
+            msg += f"\n🔹 *{codigo}* - {t.tipo_tarefa}\n   📅 Prazo: {prazo}\n"
+        
+        msg += "\n_Acesse o sistema para ver detalhes._"
+        self.api.enviar_mensagem(remote_jid, msg)
