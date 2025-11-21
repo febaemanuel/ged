@@ -213,6 +213,19 @@ class Documento(db.Model):
             return datetime.utcnow() > self.data_vencimento
         return False
 
+    @property
+    def codigo(self):
+        """Retorna o código preferido (definitivo > provisório > único)"""
+        return self.codigo_definitivo or self.codigo_provisorio or self.codigo_unico
+
+    @property
+    def titulo_completo(self):
+        """Retorna título formatado: CODIGO - TITULO"""
+        codigo = self.codigo_definitivo or self.codigo_provisorio or f"DOC-{self.id}"
+        if self.titulo:
+            return f"{codigo} - {self.titulo}"
+        return codigo
+
     def dias_ate_vencimento(self):
         """Retorna quantos dias faltam para o vencimento"""
         if self.data_vencimento:

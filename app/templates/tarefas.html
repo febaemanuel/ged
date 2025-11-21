@@ -107,11 +107,7 @@
                                 aria-controls="collapse{{ grupo.documento.id }}">
                             <div class="d-flex w-100 justify-content-between align-items-center pe-3">
                                 <div style="flex: 1;">
-                                    <strong>{{ grupo.documento.titulo }}</strong>
-                                    <br>
-                                    <small class="text-muted">
-                                        {{ grupo.documento.codigo_provisorio or grupo.documento.codigo_definitivo or grupo.documento.codigo_unico }}
-                                    </small>
+                                    <strong>{{ grupo.documento.titulo_completo }}</strong>
                                     <br>
                                     <small>
                                         <strong>Status:</strong>

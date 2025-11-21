@@ -655,6 +655,7 @@ def repositorio_publico():
         'documentos': [{
             'id': doc.id,
             'titulo': doc.titulo,
+            'titulo_completo': doc.titulo_completo,
             'tipo_documento': doc.tipo_documento,
             'codigo_definitivo': doc.codigo_definitivo,
             'codigo': doc.codigo_provisorio or doc.codigo_unico,

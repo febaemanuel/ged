@@ -29,10 +29,8 @@
                     <div class="mb-3">
                         <strong>Documento:</strong><br>
                         <a href="{{ url_for('view.documento_detalhe', id=tarefa.documento_id) }}">
-                            {{ tarefa.documento.titulo }}
+                            {{ tarefa.documento.titulo_completo }}
                         </a>
-                        <br>
-                        <small class="text-muted">{{ tarefa.documento.codigo_provisorio or tarefa.documento.codigo_definitivo }}</small>
                     </div>
 
                     {% if tarefa.descricao %}
