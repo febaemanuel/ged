@@ -51,11 +51,9 @@
                             <small class="form-text text-muted">Breve descrição do documento</small>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="validade_anos" class="form-label">Validade (anos)</label>
-                            <input type="number" class="form-control" id="validade_anos" name="validade_anos" value="{{ documento.validade_anos }}" min="1" max="20">
-                            <small class="form-text text-muted">Prazo de validade do documento após publicação</small>
-                        </div>
+                        <!-- VALIDADE AUTOMÁTICA: Sistema define automaticamente baseado no tipo -->
+                        <!-- 2 anos para: POP, Manual, Protocolo -->
+                        <!-- 4 anos para: Política, Regimento, Regulamento -->
 
                         <div class="mb-4">
                             <label for="arquivo" class="form-label">Substituir Arquivo (opcional)</label>

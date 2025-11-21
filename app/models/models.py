@@ -185,9 +185,27 @@ class Documento(db.Model):
         self.codigo_definitivo = f"{prefixo}-DEF-{data}-{seq:04d}"
 
     def calcular_data_vencimento(self):
-        """Calcula data de vencimento com base na validade em anos"""
-        if self.data_publicacao and self.validade_anos:
-            self.data_vencimento = self.data_publicacao + timedelta(days=self.validade_anos * 365)
+        """
+        Calcula data de vencimento com base no tipo de documento (regra automática)
+
+        Regras EBSERH:
+        - Política, Regimento, Regulamento: 4 anos
+        - POP, Manual, Protocolo: 2 anos
+        """
+        if self.data_publicacao and self.tipo_documento:
+            from config import Config
+
+            # Define validade baseada no tipo
+            if self.tipo_documento in Config.TIPOS_VALIDADE_4_ANOS:
+                anos = 4
+            else:
+                anos = 2
+
+            # Atualiza campo validade_anos para refletir a regra
+            self.validade_anos = anos
+
+            # Calcula data de vencimento
+            self.data_vencimento = self.data_publicacao + timedelta(days=anos * 365)
 
     def esta_vencido(self):
         """Verifica se o documento está vencido"""

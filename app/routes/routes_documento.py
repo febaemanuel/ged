@@ -188,7 +188,7 @@ def criar_documento():
     tipo_documento = request.form.get('tipo_documento')
     descricao = request.form.get('descricao', '')
     setor = request.form.get('setor') or current_user.setor
-    validade_anos = request.form.get('validade_anos', 5, type=int)
+    # VALIDADE: Calculada automaticamente baseado no tipo (2 ou 4 anos)
 
     if not titulo or not tipo_documento:
         return jsonify({'erro': 'Título e tipo de documento são obrigatórios'}), 400
@@ -204,6 +204,7 @@ def criar_documento():
     arquivo.save(caminho_arquivo)
 
     # Cria documento
+    # VALIDADE: Será calculada automaticamente na publicação
     documento = Documento(
         titulo=titulo,
         tipo_documento=tipo_documento,
@@ -211,7 +212,6 @@ def criar_documento():
         setor=setor,
         arquivo_original=nome_arquivo,
         criador_id=current_user.id,
-        validade_anos=validade_anos,
         status='Novo'
     )
 
