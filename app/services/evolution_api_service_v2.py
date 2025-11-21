@@ -737,20 +737,62 @@ class WhatsAppChatbot:
                 db.session.rollback()
 
             # ============================================================
-            # LÓGICA DO CHATBOT (MENU)
+            # GERENCIAMENTO DE SESSÃO/CONVERSAÇÃO
             # ============================================================
-            texto_lower = texto.lower()
+            conversacao = self._obter_ou_criar_conversacao(usuario, jid_para_busca)
 
-            if texto_lower in ['menu', 'oi', 'olá', 'ola', 'inicio', 'start', 'ajuda', 'm']:
-                self._enviar_menu_principal(usuario, remote_jid) # Responde onde a msg veio
-            
-            elif texto_lower in ['tarefas', '1', 'um']:
-                self._listar_tarefas(usuario, remote_jid)
-            
-            elif texto_lower in ['documentos', '2', 'dois']:
-                self.api.enviar_mensagem(remote_jid, "📂 *Meus Documentos*\n\nEsta funcionalidade estará disponível em breve.")
+            # Verifica se sessão expirou
+            timeout = self.config.timeout_sessao_minutos or 15
+            if conversacao.estado_atual and not conversacao.esta_ativa(timeout):
+                conversacao.expirar()
+                db.session.commit()
 
+            # Verifica se usuário está bloqueado
+            if conversacao.esta_bloqueado():
+                self.api.enviar_mensagem(remote_jid, "⏳ *Muitas tentativas incorretas.*\n\nTente novamente em 30 minutos.")
+                return {'status': 'blocked'}
+
+            # ============================================================
+            # LÓGICA DO CHATBOT COM ESTADOS
+            # ============================================================
+            texto_lower = texto.lower().strip()
+            estado = conversacao.estado_atual or 'menu'
+
+            # Comandos que sempre resetam para o menu
+            if texto_lower in ['menu', 'oi', 'olá', 'ola', 'inicio', 'start', 'ajuda', 'm', 'voltar', '0', 'sair']:
+                conversacao.atualizar_estado('menu', {})
+                db.session.commit()
+                self._enviar_menu_principal(usuario, remote_jid)
+
+            # Estado: MENU PRINCIPAL
+            elif estado == 'menu':
+                if texto_lower in ['tarefas', '1', 'um']:
+                    self._listar_tarefas(usuario, remote_jid, conversacao)
+                elif texto_lower in ['documentos', '2', 'dois']:
+                    self.api.enviar_mensagem(remote_jid, "📂 *Meus Documentos*\n\nEsta funcionalidade estará disponível em breve.\n\n_Responda *menu* para voltar._")
+                else:
+                    self._enviar_menu_principal(usuario, remote_jid)
+
+            # Estado: AGUARDANDO SELEÇÃO DE TAREFA
+            elif estado == 'aguardando_selecao':
+                self._processar_selecao_tarefa(usuario, remote_jid, texto, conversacao)
+
+            # Estado: AGUARDANDO AÇÃO NO DOCUMENTO
+            elif estado == 'aguardando_acao':
+                self._processar_acao_documento(usuario, remote_jid, texto, conversacao)
+
+            # Estado: AGUARDANDO SENHA PARA ASSINATURA
+            elif estado == 'aguardando_senha':
+                self._processar_senha(usuario, remote_jid, texto, conversacao)
+
+            # Estado: AGUARDANDO JUSTIFICATIVA DE REPROVAÇÃO
+            elif estado == 'aguardando_justificativa':
+                self._processar_justificativa(usuario, remote_jid, texto, conversacao)
+
+            # Estado desconhecido - volta ao menu
             else:
+                conversacao.atualizar_estado('menu', {})
+                db.session.commit()
                 self._enviar_menu_principal(usuario, remote_jid)
 
             return {'status': 'success'}
@@ -759,36 +801,384 @@ class WhatsAppChatbot:
             logger.error(f"Erro ao processar mensagem: {str(e)}", exc_info=True)
             return {'status': 'error', 'message': str(e)}
 
+    def _obter_ou_criar_conversacao(self, usuario, telefone):
+        """Obtém ou cria uma conversação para o usuário"""
+        conversacao = ConversacaoWhatsApp.query.filter_by(usuario_id=usuario.id).first()
+
+        if not conversacao:
+            conversacao = ConversacaoWhatsApp(
+                telefone=telefone,
+                usuario_id=usuario.id,
+                estado_atual='menu'
+            )
+            db.session.add(conversacao)
+            db.session.commit()
+        else:
+            # Atualiza telefone caso tenha mudado
+            conversacao.telefone = telefone
+            conversacao.ultima_mensagem_em = datetime.utcnow()
+            db.session.commit()
+
+        return conversacao
+
     def _enviar_menu_principal(self, usuario, remote_jid):
         """Envia o menu principal"""
         total_tarefas = Tarefa.query.filter_by(
-            responsavel_id=usuario.id, 
+            responsavel_id=usuario.id,
             data_conclusao=None
         ).count()
 
-        templates = self.config.get_templates()
-        texto_base = templates.get('menu_principal', '📋 *Olá, {nome}*').replace('{total}', str(total_tarefas)).replace('{nome}', usuario.nome)
-
-        msg_menu = f"{texto_base}\n\n1️⃣ Ver Tarefas Pendentes ({total_tarefas})\n2️⃣ Meus Documentos\n\n_Responda com o número da opção._"
+        msg_menu = f"📋 *Olá, {usuario.nome}!*\n\n"
+        msg_menu += f"Você tem *{total_tarefas}* tarefa(s) pendente(s).\n\n"
+        msg_menu += "1️⃣ Ver Tarefas Pendentes\n"
+        msg_menu += "2️⃣ Meus Documentos\n\n"
+        msg_menu += "_Responda com o número da opção._"
 
         self.api.enviar_mensagem(remote_jid, msg_menu)
 
-    def _listar_tarefas(self, usuario, remote_jid):
-        """Lista tarefas"""
+    def _listar_tarefas(self, usuario, remote_jid, conversacao):
+        """Lista tarefas com numeração para seleção"""
         tarefas = Tarefa.query.filter_by(
-            responsavel_id=usuario.id, 
+            responsavel_id=usuario.id,
             data_conclusao=None
-        ).order_by(Tarefa.prazo.asc()).limit(5).all()
+        ).order_by(Tarefa.prazo.asc()).limit(10).all()
 
         if not tarefas:
-            self.api.enviar_mensagem(remote_jid, "✅ *Tudo limpo!* Você não possui tarefas pendentes.")
+            self.api.enviar_mensagem(remote_jid, "✅ *Tudo limpo!*\n\nVocê não possui tarefas pendentes.\n\n_Responda *menu* para voltar._")
+            conversacao.atualizar_estado('menu', {})
+            db.session.commit()
             return
 
-        msg = "📋 *Suas Tarefas Pendentes:*\n"
-        for t in tarefas:
+        # Guarda lista de tarefas no contexto
+        tarefas_ids = [t.id for t in tarefas]
+        conversacao.atualizar_estado('aguardando_selecao', {'tarefas_ids': tarefas_ids})
+        db.session.commit()
+
+        msg = "📋 *Suas Tarefas Pendentes:*\n\n"
+        for idx, t in enumerate(tarefas, 1):
             prazo = t.prazo.strftime('%d/%m') if t.prazo else 'S/ Prazo'
-            codigo = t.documento.codigo_definitivo or t.documento.codigo_provisorio or f"#{t.documento.id}"
-            msg += f"\n🔹 *{codigo}* - {t.tipo_tarefa}\n   📅 Prazo: {prazo}\n"
-        
-        msg += "\n_Acesse o sistema para ver detalhes._"
+            codigo = t.documento.codigo_definitivo or t.documento.codigo_provisorio or f"Doc #{t.documento.id}"
+            bloco_info = ""
+            metadata = t.get_metadata()
+            if metadata.get('bloco_id'):
+                bloco_info = f" [Bloco #{metadata.get('bloco_id')}]"
+            msg += f"*{idx}.* {codigo} - {t.tipo_tarefa}{bloco_info}\n"
+            msg += f"    📅 Prazo: {prazo}\n\n"
+
+        msg += "💬 *Responda o número da tarefa* para ver detalhes e assinar.\n"
+        msg += "_Ou responda *0* para voltar ao menu._"
         self.api.enviar_mensagem(remote_jid, msg)
+
+    def _processar_selecao_tarefa(self, usuario, remote_jid, texto, conversacao):
+        """Processa a seleção de uma tarefa pelo número"""
+        contexto = conversacao.get_contexto()
+        tarefas_ids = contexto.get('tarefas_ids', [])
+
+        try:
+            numero = int(texto.strip())
+            if numero < 1 or numero > len(tarefas_ids):
+                self.api.enviar_mensagem(remote_jid, f"❌ Opção inválida. Digite um número de 1 a {len(tarefas_ids)}.\n\n_Ou responda *0* para voltar._")
+                return
+
+            tarefa_id = tarefas_ids[numero - 1]
+            tarefa = Tarefa.query.get(tarefa_id)
+
+            if not tarefa:
+                self.api.enviar_mensagem(remote_jid, "❌ Tarefa não encontrada.\n\n_Responda *menu* para voltar._")
+                conversacao.atualizar_estado('menu', {})
+                db.session.commit()
+                return
+
+            self._mostrar_detalhes_tarefa(usuario, remote_jid, tarefa, conversacao)
+
+        except ValueError:
+            self.api.enviar_mensagem(remote_jid, "❌ Por favor, digite apenas o *número* da tarefa.\n\n_Ou responda *0* para voltar._")
+
+    def _mostrar_detalhes_tarefa(self, usuario, remote_jid, tarefa, conversacao):
+        """Mostra detalhes da tarefa e opções de ação"""
+        doc = tarefa.documento
+        codigo = doc.codigo_definitivo or doc.codigo_provisorio or f"Doc #{doc.id}"
+        prazo = tarefa.prazo.strftime('%d/%m/%Y') if tarefa.prazo else 'Sem prazo'
+        autor = doc.criador.nome if doc.criador else 'N/A'
+
+        # Atualiza contexto com a tarefa selecionada
+        conversacao.atualizar_estado('aguardando_acao', {
+            'tarefa_id': tarefa.id,
+            'documento_id': doc.id
+        })
+        db.session.commit()
+
+        msg = f"📄 *{codigo}*\n\n"
+        msg += f"📝 *Título:* {doc.titulo}\n"
+        msg += f"👤 *Autor:* {autor}\n"
+        msg += f"📋 *Tarefa:* {tarefa.tipo_tarefa}\n"
+        msg += f"⏰ *Prazo:* {prazo}\n\n"
+
+        if tarefa.descricao:
+            msg += f"💬 *Descrição:* {tarefa.descricao}\n\n"
+
+        msg += "━━━━━━━━━━━━━━━━━━━━━\n"
+        msg += "*O que deseja fazer?*\n\n"
+        msg += "1️⃣ *Aprovar e Assinar*\n"
+        msg += "2️⃣ *Reprovar*\n"
+        msg += "3️⃣ *Voltar às tarefas*\n"
+        msg += "0️⃣ *Menu principal*\n\n"
+        msg += "_Responda com o número da opção._"
+
+        self.api.enviar_mensagem(remote_jid, msg)
+
+    def _processar_acao_documento(self, usuario, remote_jid, texto, conversacao):
+        """Processa a ação escolhida para o documento"""
+        contexto = conversacao.get_contexto()
+        tarefa_id = contexto.get('tarefa_id')
+
+        texto_limpo = texto.strip().lower()
+
+        if texto_limpo in ['1', 'aprovar', 'assinar']:
+            # Pede a senha para confirmar assinatura
+            conversacao.atualizar_estado('aguardando_senha', {
+                'tarefa_id': tarefa_id,
+                'acao': 'aprovar'
+            })
+            db.session.commit()
+
+            msg = "🔒 *Confirmação de Assinatura*\n\n"
+            msg += "Digite sua *senha* para confirmar a aprovação.\n\n"
+            msg += "⚠️ _Sua senha será processada de forma segura._\n\n"
+            msg += "_Responda *0* para cancelar._"
+            self.api.enviar_mensagem(remote_jid, msg)
+
+        elif texto_limpo in ['2', 'reprovar']:
+            # Pede justificativa da reprovação
+            conversacao.atualizar_estado('aguardando_justificativa', {
+                'tarefa_id': tarefa_id,
+                'acao': 'reprovar'
+            })
+            db.session.commit()
+
+            msg = "📝 *Reprovação de Documento*\n\n"
+            msg += "Por favor, digite o *motivo da reprovação*.\n\n"
+            msg += "_Responda *0* para cancelar._"
+            self.api.enviar_mensagem(remote_jid, msg)
+
+        elif texto_limpo in ['3', 'voltar']:
+            # Volta para lista de tarefas
+            self._listar_tarefas(usuario, remote_jid, conversacao)
+
+        else:
+            self.api.enviar_mensagem(remote_jid, "❌ Opção inválida.\n\nEscolha: *1* (Aprovar), *2* (Reprovar), *3* (Voltar) ou *0* (Menu)")
+
+    def _processar_senha(self, usuario, remote_jid, texto, conversacao):
+        """Processa a senha para assinatura ou reprovação"""
+        contexto = conversacao.get_contexto()
+        tarefa_id = contexto.get('tarefa_id')
+        acao = contexto.get('acao', 'aprovar')
+        justificativa = contexto.get('justificativa', '')
+
+        # Valida senha do usuário
+        if not usuario.check_password(texto):
+            conversacao.incrementar_tentativa_senha()
+            db.session.commit()
+
+            if conversacao.esta_bloqueado():
+                self.api.enviar_mensagem(remote_jid, "🚫 *Conta temporariamente bloqueada*\n\nMuitas tentativas incorretas. Tente novamente em 30 minutos.")
+                return
+
+            tentativas_restantes = 3 - conversacao.tentativas_senha
+            self.api.enviar_mensagem(remote_jid, f"❌ *Senha incorreta!*\n\nTentativas restantes: {tentativas_restantes}\n\n_Responda *0* para cancelar._")
+            return
+
+        # Senha correta - processa ação
+        conversacao.resetar_tentativas()
+
+        tarefa = Tarefa.query.get(tarefa_id)
+        if not tarefa:
+            self.api.enviar_mensagem(remote_jid, "❌ Tarefa não encontrada.\n\n_Responda *menu* para voltar._")
+            conversacao.atualizar_estado('menu', {})
+            db.session.commit()
+            return
+
+        doc = tarefa.documento
+        codigo = doc.codigo_definitivo or doc.codigo_provisorio or f"Doc #{doc.id}"
+        timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
+
+        if acao == 'aprovar':
+            # Executa a assinatura (aprovação)
+            sucesso, mensagem = self._executar_assinatura(usuario, tarefa, 'Aprovado via WhatsApp')
+
+            if sucesso:
+                hash_confirmacao = hashlib.sha256(f"{usuario.id}{tarefa.id}{timestamp}".encode()).hexdigest()[:12].upper()
+
+                msg = "✅ *Assinatura Registrada com Sucesso!*\n\n"
+                msg += f"📄 *Documento:* {codigo}\n"
+                msg += f"⏰ *Data/Hora:* {timestamp}\n"
+                msg += f"🔐 *Hash:* {hash_confirmacao}\n\n"
+                msg += "_Responda *menu* para voltar ao início._"
+                self.api.enviar_mensagem(remote_jid, msg)
+            else:
+                self.api.enviar_mensagem(remote_jid, f"❌ *Erro ao assinar:* {mensagem}\n\n_Responda *menu* para voltar._")
+
+        elif acao == 'reprovar':
+            # Executa a reprovação
+            sucesso, mensagem = self._executar_reprovacao(usuario, tarefa, justificativa)
+
+            if sucesso:
+                msg = "❌ *Documento Reprovado*\n\n"
+                msg += f"📄 *Documento:* {codigo}\n"
+                msg += f"📝 *Motivo:* {justificativa}\n"
+                msg += f"⏰ *Data/Hora:* {timestamp}\n\n"
+                msg += "_Responda *menu* para voltar ao início._"
+                self.api.enviar_mensagem(remote_jid, msg)
+            else:
+                self.api.enviar_mensagem(remote_jid, f"❌ *Erro ao reprovar:* {mensagem}\n\n_Responda *menu* para voltar._")
+
+        conversacao.atualizar_estado('menu', {})
+        db.session.commit()
+
+    def _processar_justificativa(self, usuario, remote_jid, texto, conversacao):
+        """Processa justificativa de reprovação"""
+        contexto = conversacao.get_contexto()
+        tarefa_id = contexto.get('tarefa_id')
+
+        if len(texto.strip()) < 10:
+            self.api.enviar_mensagem(remote_jid, "❌ A justificativa deve ter pelo menos 10 caracteres.\n\n_Digite o motivo ou responda *0* para cancelar._")
+            return
+
+        tarefa = Tarefa.query.get(tarefa_id)
+        if not tarefa:
+            self.api.enviar_mensagem(remote_jid, "❌ Tarefa não encontrada.\n\n_Responda *menu* para voltar._")
+            conversacao.atualizar_estado('menu', {})
+            db.session.commit()
+            return
+
+        # Pede senha para confirmar reprovação
+        conversacao.atualizar_estado('aguardando_senha', {
+            'tarefa_id': tarefa_id,
+            'acao': 'reprovar',
+            'justificativa': texto.strip()
+        })
+        db.session.commit()
+
+        msg = "🔒 *Confirmação de Reprovação*\n\n"
+        msg += f"📝 *Motivo:* {texto.strip()}\n\n"
+        msg += "Digite sua *senha* para confirmar.\n\n"
+        msg += "_Responda *0* para cancelar._"
+        self.api.enviar_mensagem(remote_jid, msg)
+
+    def _executar_assinatura(self, usuario, tarefa, parecer):
+        """Executa a assinatura do documento"""
+        try:
+            metadata = tarefa.get_metadata()
+            bloco_id = metadata.get('bloco_id')
+            item_id = metadata.get('item_id')
+
+            if not bloco_id or not item_id:
+                # Tenta encontrar o item de assinatura pelo responsável
+                item = ItemBlocoAssinatura.query.join(BlocoAssinatura).filter(
+                    BlocoAssinatura.documento_id == tarefa.documento_id,
+                    ItemBlocoAssinatura.aprovador_id == usuario.id,
+                    ItemBlocoAssinatura.status == 'Pendente'
+                ).first()
+
+                if not item:
+                    return False, "Item de assinatura não encontrado"
+            else:
+                item = ItemBlocoAssinatura.query.get(item_id)
+                if not item or item.aprovador_id != usuario.id:
+                    return False, "Item de assinatura inválido"
+
+            # Gera hash da assinatura
+            timestamp = datetime.now().isoformat()
+            assinatura_hash = hashlib.sha256(
+                f"{usuario.id}:{tarefa.id}:{timestamp}:{parecer}".encode()
+            ).hexdigest()
+
+            # Aprova o item
+            item.aprovar(
+                parecer=parecer,
+                senha_hash=assinatura_hash,
+                ip_address='WhatsApp',
+                user_agent='WhatsApp Chatbot'
+            )
+
+            # Conclui a tarefa
+            tarefa.concluir(parecer=parecer, aprovado=True)
+
+            # Verifica se todos aprovaram para atualizar status do bloco
+            bloco = item.bloco
+            if bloco.todos_aprovaram():
+                bloco.status = 'Concluído'
+                bloco.data_conclusao = datetime.utcnow()
+
+                # Atualiza status do documento se necessário
+                doc = bloco.documento
+                if doc.status == 'Em Assinatura':
+                    doc.status = 'Assinado'
+
+            db.session.commit()
+            logger.info(f"Assinatura via WhatsApp: Usuario {usuario.id} assinou tarefa {tarefa.id}")
+            return True, "Assinatura registrada com sucesso"
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Erro ao executar assinatura via WhatsApp: {str(e)}", exc_info=True)
+            return False, str(e)
+
+    def _executar_reprovacao(self, usuario, tarefa, justificativa):
+        """Executa a reprovação do documento"""
+        try:
+            metadata = tarefa.get_metadata()
+            bloco_id = metadata.get('bloco_id')
+            item_id = metadata.get('item_id')
+
+            if not bloco_id or not item_id:
+                # Tenta encontrar o item de assinatura pelo responsável
+                item = ItemBlocoAssinatura.query.join(BlocoAssinatura).filter(
+                    BlocoAssinatura.documento_id == tarefa.documento_id,
+                    ItemBlocoAssinatura.aprovador_id == usuario.id,
+                    ItemBlocoAssinatura.status == 'Pendente'
+                ).first()
+
+                if not item:
+                    return False, "Item de assinatura não encontrado"
+            else:
+                item = ItemBlocoAssinatura.query.get(item_id)
+                if not item or item.aprovador_id != usuario.id:
+                    return False, "Item de assinatura inválido"
+
+            # Gera hash da reprovação
+            timestamp = datetime.now().isoformat()
+            reprovacao_hash = hashlib.sha256(
+                f"{usuario.id}:{tarefa.id}:{timestamp}:{justificativa}".encode()
+            ).hexdigest()
+
+            # Reprova o item
+            item.reprovar(
+                parecer=f"Reprovado via WhatsApp: {justificativa}",
+                senha_hash=reprovacao_hash,
+                ip_address='WhatsApp',
+                user_agent='WhatsApp Chatbot'
+            )
+
+            # Conclui a tarefa como reprovada
+            tarefa.concluir(parecer=justificativa, aprovado=False)
+
+            # Atualiza status do bloco
+            bloco = item.bloco
+            if bloco.algum_reprovou():
+                bloco.status = 'Reprovado'
+                bloco.data_conclusao = datetime.utcnow()
+
+                # Atualiza status do documento
+                doc = bloco.documento
+                if doc.status == 'Em Assinatura':
+                    doc.status = 'Em Ajustes'
+
+            db.session.commit()
+            logger.info(f"Reprovação via WhatsApp: Usuario {usuario.id} reprovou tarefa {tarefa.id}")
+            return True, "Reprovação registrada com sucesso"
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Erro ao executar reprovação via WhatsApp: {str(e)}", exc_info=True)
+            return False, str(e)
