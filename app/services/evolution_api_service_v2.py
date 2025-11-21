@@ -135,23 +135,22 @@ class EvolutionAPIv2:
         raise last_exception
 
     def _format_number(self, numero: str) -> str:
-        """
-        Formata número para Evolution API
+            """
+            Formata número para Evolution API (Apenas dígitos para V2)
+            Args:
+                numero: +5585999999999 ou 5585999999999
+            Returns:
+                5585999999999
+            """
+            # Remove tudo que não for dígito
+            if not numero:
+                return ""
+                
+            # Remove sufixos e prefixos comuns
+            numero_limpo = str(numero).replace('whatsapp:', '').replace('+', '').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
+            numero_limpo = numero_limpo.replace('@s.whatsapp.net', '').strip()
 
-        Args:
-            numero: +5585999999999 ou 5585999999999
-
-        Returns:
-            5585999999999@s.whatsapp.net
-        """
-        # Remove prefixos
-        numero_limpo = numero.replace('whatsapp:', '').replace('+', '').strip()
-
-        # Adiciona sufixo se não tiver
-        if not numero_limpo.endswith('@s.whatsapp.net'):
-            numero_limpo = f"{numero_limpo}@s.whatsapp.net"
-
-        return numero_limpo
+            return numero_limpo
 
     # ========================================================================
     # GESTÃO DE INSTÂNCIAS
