@@ -680,9 +680,12 @@ def tarefa_detalhe(id):
     codigo_sugerido = None
     if tarefa.tipo_tarefa == 'Validar e Codificar Documento':
         from app.services.workflow import WorkflowUGQ
+        # Usa abrangência do documento ou 'CHUFC' como padrão
+        abrangencia = tarefa.documento.abrangencia or 'CHUFC'
         codigo_sugerido = WorkflowUGQ.gerar_proximo_codigo(
             tarefa.documento.tipo_documento,
-            tarefa.documento.setor
+            tarefa.documento.setor,
+            abrangencia
         )
 
     return render_template('tarefa_detalhe.html', tarefa=tarefa, codigo_sugerido=codigo_sugerido)
