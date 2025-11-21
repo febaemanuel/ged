@@ -628,6 +628,22 @@ class WhatsAppChatbot:
         self.config = ConfiguracaoWhatsApp.get_config()
         self.service = EvolutionAPIService()
 
+    @staticmethod
+    def _normalizar_telefone(telefone):
+        """
+        Normaliza número de telefone removendo caracteres especiais
+
+        Args:
+            telefone: Número em qualquer formato
+
+        Returns:
+            Apenas dígitos (ex: 5585992231683)
+        """
+        if not telefone:
+            return ""
+        # Remove tudo que não é dígito
+        return ''.join(filter(str.isdigit, telefone))
+
     def processar_mensagem_recebida(self, webhook_data):
         """
         Processa mensagem recebida do webhook da Evolution API
@@ -702,10 +718,29 @@ class WhatsAppChatbot:
                 self.service.enviar_mensagem(telefone_limpo, msg)
                 return {'status': 'sent', 'message': 'Fora de horário'}
 
-            # Identifica usuário
-            usuario = Usuario.query.filter_by(telefone=telefone_limpo).first()
+            # Identifica usuário - busca flexível por número normalizado
+            # Normaliza o número recebido
+            numero_normalizado = self._normalizar_telefone(telefone_limpo)
+            logger.info(f"Buscando usuário com número normalizado: {numero_normalizado}")
+
+            # Busca todos os usuários com telefone
+            todos_usuarios = Usuario.query.filter(Usuario.telefone.isnot(None)).all()
+            usuario = None
+
+            for u in todos_usuarios:
+                telefone_db_normalizado = self._normalizar_telefone(u.telefone)
+                # Compara os últimos 11 dígitos (DDD + número) ou 10 dígitos
+                # Isso permite compatibilidade com números com ou sem código do país
+                if len(numero_normalizado) >= 10 and len(telefone_db_normalizado) >= 10:
+                    # Compara os últimos dígitos (sufixo)
+                    if numero_normalizado[-11:] == telefone_db_normalizado[-11:] or \
+                       numero_normalizado[-10:] == telefone_db_normalizado[-10:]:
+                        usuario = u
+                        logger.info(f"Usuário encontrado: {u.nome} (telefone: {u.telefone})")
+                        break
 
             if not usuario:
+                logger.warning(f"Número não cadastrado: {telefone_limpo} (normalizado: {numero_normalizado})")
                 templates = self.config.get_templates()
                 msg = templates['numero_nao_cadastrado']
                 self.service.enviar_mensagem(telefone_limpo, msg)
