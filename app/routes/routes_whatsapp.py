@@ -14,7 +14,8 @@ from flask import Blueprint, request, render_template, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from datetime import datetime
 from app.models import db, ConfiguracaoWhatsApp, LogWhatsApp, Usuario
-from app.services.evolution_api_service import WhatsAppChatbot, EvolutionAPIService
+from app.services.evolution_api_service_v2 import EvolutionAPIv2 as EvolutionAPIService
+from app.services.evolution_api_service import WhatsAppChatbot
 import logging
 
 logger = logging.getLogger(__name__)
@@ -120,7 +121,7 @@ def configuracao():
         'usuarios_whatsapp': usuarios_whatsapp
     }
 
-    return render_template('admin/whatsapp_config.html', config=config, stats=stats)
+    return render_template('admin/whatsapp_config_v2.html', config=config, stats=stats)
 
 
 @admin_bp.route('/config', methods=['POST'])
