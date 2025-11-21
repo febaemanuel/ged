@@ -1,0 +1,776 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração WhatsApp - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2>
+                        <i class="bi bi-whatsapp text-success"></i> Configuração WhatsApp
+                    </h2>
+                    <p class="text-muted mb-0">
+                        <small>Evolution API v2.x - Integração completa com chatbot inteligente</small>
+                    </p>
+                </div>
+                <a href="{{ url_for('view.dashboard') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    <i class="bi bi-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }}"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Alerta Importante -->
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <h5><i class="bi bi-info-circle"></i> Importante: API Key</h5>
+        <p class="mb-0">
+            A <strong>API Key</strong> é configurada no arquivo <code>.env</code> da Evolution API como <code>AUTHENTICATION_API_KEY</code>.<br>
+            <strong>Exemplo:</strong> Se no <code>.env</code> está <code>AUTHENTICATION_API_KEY=minhasenha123</code>, use <code>minhasenha123</code> aqui.
+        </p>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Estatísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <i class="bi bi-envelope-fill text-primary" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 mb-0">{{ stats.total_mensagens }}</h3>
+                    <small class="text-muted">Total de Mensagens</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i class="bi bi-send-fill text-success" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 mb-0">{{ stats.mensagens_enviadas }}</h3>
+                    <small class="text-muted">Mensagens Enviadas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <i class="bi bi-inbox-fill text-info" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 mb-0">{{ stats.mensagens_recebidas }}</h3>
+                    <small class="text-muted">Mensagens Recebidas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <i class="bi bi-people-fill text-warning" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 mb-0">{{ stats.usuarios_whatsapp }}</h3>
+                    <small class="text-muted">Usuários com WhatsApp</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Painel de Configuração -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-gear-fill"></i> Configurações da Evolution API
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('whatsapp_admin.salvar_configuracao') }}" id="formConfig">
+
+                        <!-- Status Ativo/Inativo -->
+                        <div class="alert alert-{% if config.ativo %}success{% else %}warning{% endif %} border-{% if config.ativo %}success{% else %}warning{% endif %}" id="alertStatus">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="ativo" name="ativo"
+                                       {% if config.ativo %}checked{% endif %}
+                                       style="width: 3.5em; height: 1.8em; cursor: pointer;">
+                                <label class="form-check-label fw-bold fs-5 ms-2" for="ativo" id="labelStatus" style="cursor: pointer;">
+                                    <i class="bi bi-{% if config.ativo %}check-circle-fill{% else %}exclamation-triangle-fill{% endif %}"></i>
+                                    WhatsApp {% if config.ativo %}ATIVADO{% else %}DESATIVADO{% endif %}
+                                </label>
+                            </div>
+                            <hr class="my-2">
+                            <small class="d-block" id="descricaoStatus">
+                                {% if config.ativo %}
+                                    ✓ WhatsApp está ativo e funcionando. O sistema enviará mensagens via WhatsApp.
+                                {% else %}
+                                    ⚠️ WhatsApp está desativado. Nenhuma mensagem será enviada. Ative para começar a usar.
+                                {% endif %}
+                            </small>
+                        </div>
+
+                        <!-- Credenciais -->
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-key-fill text-primary"></i> Credenciais da Evolution API
+                        </h6>
+
+                        <div class="mb-3">
+                            <label for="evolution_api_url" class="form-label fw-bold">
+                                URL da Evolution API *
+                                <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip"
+                                   title="URL base onde a Evolution API está rodando"></i>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                                <input type="text" class="form-control font-monospace"
+                                       id="evolution_api_url" name="evolution_api_url"
+                                       value="{{ config.evolution_api_url or '' }}"
+                                       placeholder="http://host.docker.internal:8080" required>
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-lightbulb"></i>
+                                Sem barra no final. Exemplo: <code>http://host.docker.internal:8080</code>
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="evolution_instance_name" class="form-label fw-bold">
+                                Nome da Instância *
+                                <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip"
+                                   title="Nome único para identificar esta instância WhatsApp"></i>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-tag"></i></span>
+                                <input type="text" class="form-control"
+                                       id="evolution_instance_name" name="evolution_instance_name"
+                                       value="{{ config.evolution_instance_name or '' }}"
+                                       placeholder="principal12" required pattern="[a-zA-Z0-9_]+">
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-lightbulb"></i>
+                                Use apenas letras, números e underscore (_)
+                            </small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="evolution_api_key" class="form-label fw-bold">
+                                API Key *
+                                <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip"
+                                   title="Chave de autenticação configurada na Evolution API"></i>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-shield-lock"></i></span>
+                                <input type="password" class="form-control font-monospace"
+                                       id="evolution_api_key" name="evolution_api_key"
+                                       value="{{ config.evolution_api_key or '' }}"
+                                       placeholder="••••••••••••••••••" required minlength="8">
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-lightbulb"></i>
+                                Valor de <code>AUTHENTICATION_API_KEY</code> no arquivo <code>.env</code> da Evolution API
+                            </small>
+                        </div>
+
+                        <!-- Funcionalidades -->
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-gear-wide-connected text-primary"></i> Funcionalidades
+                        </h6>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <div class="card border-primary h-100">
+                                    <div class="card-body">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="usar_para_notificacoes"
+                                                   name="usar_para_notificacoes" {% if config.usar_para_notificacoes %}checked{% endif %}>
+                                            <label class="form-check-label fw-bold" for="usar_para_notificacoes">
+                                                📲 Notificações
+                                            </label>
+                                        </div>
+                                        <small class="text-muted">Envia WhatsApp quando nova tarefa é atribuída</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-success h-100">
+                                    <div class="card-body">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="usar_para_assinaturas"
+                                                   name="usar_para_assinaturas" {% if config.usar_para_assinaturas %}checked{% endif %}>
+                                            <label class="form-check-label fw-bold" for="usar_para_assinaturas">
+                                                ✍️ Assinaturas
+                                            </label>
+                                        </div>
+                                        <small class="text-muted">Permite assinar documentos direto no WhatsApp</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-warning h-100">
+                                    <div class="card-body">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="usar_para_lembretes"
+                                                   name="usar_para_lembretes" {% if config.usar_para_lembretes %}checked{% endif %}>
+                                            <label class="form-check-label fw-bold" for="usar_para_lembretes">
+                                                ⏰ Lembretes
+                                            </label>
+                                        </div>
+                                        <small class="text-muted">Envia lembretes antes do prazo de tarefas</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Método de Confirmação -->
+                        <div class="mb-4">
+                            <label for="metodo_confirmacao" class="form-label fw-bold">
+                                Como enviar notificações?
+                            </label>
+                            <select class="form-select" id="metodo_confirmacao" name="metodo_confirmacao">
+                                <option value="email" {% if config.metodo_confirmacao == 'email' %}selected{% endif %}>
+                                    📧 Apenas E-mail
+                                </option>
+                                <option value="whatsapp" {% if config.metodo_confirmacao == 'whatsapp' %}selected{% endif %}>
+                                    📱 Apenas WhatsApp
+                                </option>
+                                <option value="ambos" {% if config.metodo_confirmacao == 'ambos' or not config.metodo_confirmacao %}selected{% endif %}>
+                                    📧📱 E-mail + WhatsApp (Recomendado)
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Segurança -->
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-shield-check text-primary"></i> Segurança
+                        </h6>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="exigir_2fa"
+                                           name="exigir_2fa" {% if config.exigir_2fa %}checked{% endif %}>
+                                    <label class="form-check-label" for="exigir_2fa">
+                                        🔐 Exigir 2FA
+                                        <small class="d-block text-muted">Código adicional além da senha</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="deletar_mensagens_sensiveis"
+                                           name="deletar_mensagens_sensiveis" {% if config.deletar_mensagens_sensiveis %}checked{% endif %}>
+                                    <label class="form-check-label" for="deletar_mensagens_sensiveis">
+                                        🗑️ Deletar Mensagens Sensíveis
+                                        <small class="d-block text-muted">Apaga automaticamente mensagens com senhas</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="timeout_sessao_minutos" class="form-label fw-bold">
+                                ⏱️ Timeout de Sessão (minutos)
+                            </label>
+                            <input type="number" class="form-control" id="timeout_sessao_minutos"
+                                   name="timeout_sessao_minutos" value="{{ config.timeout_sessao_minutos }}"
+                                   min="5" max="60">
+                            <small class="text-muted">Tempo máximo de inatividade antes de expirar conversa</small>
+                        </div>
+
+                        <!-- Horários de Funcionamento -->
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="bi bi-clock text-primary"></i> Horários de Funcionamento
+                        </h6>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="horario_inicio" class="form-label fw-bold">Horário de Início</label>
+                                <input type="time" class="form-control" id="horario_inicio"
+                                       name="horario_inicio" value="{{ config.horario_inicio }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="horario_fim" class="form-label fw-bold">Horário de Término</label>
+                                <input type="time" class="form-control" id="horario_fim"
+                                       name="horario_fim" value="{{ config.horario_fim }}">
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Dias da Semana</label>
+                            <div class="row">
+                                {% set dias_ativos = config.dias_semana.split(',') %}
+                                {% set dias = [('1', 'Seg'), ('2', 'Ter'), ('3', 'Qua'), ('4', 'Qui'), ('5', 'Sex'), ('6', 'Sáb'), ('7', 'Dom')] %}
+
+                                {% for valor, nome in dias %}
+                                <div class="col-6 col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="dias_semana"
+                                               value="{{ valor }}" id="dia_{{ valor }}"
+                                               {% if valor in dias_ativos %}checked{% endif %}>
+                                        <label class="form-check-label" for="dia_{{ valor }}">
+                                            {{ nome }}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <small class="text-muted">Chatbot só responde nesses dias e horários</small>
+                        </div>
+
+                        <!-- Botão Salvar -->
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-save"></i> Salvar Configurações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Painel Lateral -->
+        <div class="col-lg-4">
+
+            <!-- Status da Conexão -->
+            <div class="card shadow-sm mb-3" id="cardStatus">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-wifi"></i> Status da Conexão
+                    </h6>
+                </div>
+                <div class="card-body text-center" id="statusContainer">
+                    <div class="spinner-border text-secondary mb-2" role="status">
+                        <span class="visually-hidden">Verificando...</span>
+                    </div>
+                    <p class="text-muted mb-0">Verificando status...</p>
+                </div>
+            </div>
+
+            <!-- QR Code -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-qr-code"></i> Conectar WhatsApp
+                    </h6>
+                </div>
+                <div class="card-body text-center">
+                    <button type="button" class="btn btn-success w-100 mb-3" id="btnObterQRCode">
+                        <i class="bi bi-qr-code-scan"></i> Obter QR Code
+                    </button>
+
+                    <div id="qrcodeContainer" class="d-none">
+                        <div class="position-relative d-inline-block">
+                            <img id="qrcodeImage" src="" alt="QR Code"
+                                 class="img-fluid rounded mb-2"
+                                 style="max-width: 250px; border: 3px solid #198754;">
+                            <div class="position-absolute top-0 end-0 m-2">
+                                <span class="badge bg-success">
+                                    <i class="bi bi-arrow-clockwise"></i> <span id="qrcodeTimer">30</span>s
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="progress mb-2" style="height: 6px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                                 role="progressbar" id="qrcodeProgress" style="width: 100%"></div>
+                        </div>
+
+                        <div class="alert alert-info small mb-0">
+                            <strong>Como conectar:</strong><br>
+                            1. Abra o WhatsApp no celular<br>
+                            2. Configurações → Aparelhos conectados<br>
+                            3. Conectar um aparelho<br>
+                            4. Escaneie o QR Code acima
+                        </div>
+                    </div>
+
+                    <div id="statusConexao" class="mt-2"></div>
+                </div>
+            </div>
+
+            <!-- Teste de Envio -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-send-check"></i> Testar Envio
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form id="formTesteWhatsApp">
+                        <div class="mb-3">
+                            <label for="telefone_teste" class="form-label fw-bold">Número para Teste</label>
+                            <input type="text" class="form-control" id="telefone_teste"
+                                   name="telefone_teste" placeholder="+5585999999999" required>
+                            <small class="text-muted">Formato: +55 DDD número</small>
+                        </div>
+                        <button type="submit" class="btn btn-info w-100 text-white" id="btnTestar">
+                            <i class="bi bi-send"></i> Enviar Teste
+                        </button>
+                    </form>
+                    <div id="resultadoTeste" class="mt-3"></div>
+                </div>
+            </div>
+
+            <!-- Links Rápidos -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-link-45deg"></i> Links Úteis
+                    </h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('whatsapp_admin.logs') }}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-journal-text text-primary"></i> Ver Logs de Mensagens
+                    </a>
+                    <a href="{{ url_for('whatsapp_admin.templates') }}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-chat-square-text text-success"></i> Editar Templates
+                    </a>
+                    <a href="https://doc.evolution-api.com" target="_blank"
+                       class="list-group-item list-group-item-action">
+                        <i class="bi bi-book text-info"></i> Documentação Evolution API
+                    </a>
+                    <a href="/static/docs/EVOLUTION_API_V2_REFERENCE.md" target="_blank"
+                       class="list-group-item list-group-item-action">
+                        <i class="bi bi-file-text text-warning"></i> Referência Rápida API
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ====================================================================
+// VARIÁVEIS GLOBAIS
+// ====================================================================
+let qrcodeTimer = null;
+let qrcodeTimeLeft = 30;
+let autoRefreshQR = null;
+let statusCheckInterval = null;
+
+// ====================================================================
+// INICIALIZAÇÃO
+// ====================================================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializa tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Verifica status inicial
+    verificarStatus();
+
+    // Verifica status a cada 10 segundos
+    statusCheckInterval = setInterval(verificarStatus, 10000);
+
+    // Event listeners
+    document.getElementById('btnObterQRCode').addEventListener('click', obterQRCode);
+    document.getElementById('formTesteWhatsApp').addEventListener('submit', testarEnvio);
+    document.getElementById('formConfig').addEventListener('submit', validarFormulario);
+    document.getElementById('ativo').addEventListener('change', atualizarStatusVisual);
+    document.getElementById('togglePassword').addEventListener('click', togglePasswordVisibility);
+});
+
+// ====================================================================
+// VERIFICAR STATUS DA CONEXÃO
+// ====================================================================
+function verificarStatus() {
+    fetch('{{ url_for("whatsapp_admin.verificar_status") }}')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('statusContainer');
+            const card = document.getElementById('cardStatus');
+
+            if (data.conectado) {
+                card.querySelector('.card-header').className = 'card-header bg-success text-white';
+                container.innerHTML = `
+                    <div class="text-success mb-3">
+                        <i class="bi bi-check-circle-fill" style="font-size: 4rem;"></i>
+                    </div>
+                    <h5 class="text-success fw-bold mb-1">WhatsApp Conectado</h5>
+                    <p class="text-muted small mb-0">${data.mensagem || 'Pronto para enviar mensagens!'}</p>
+                `;
+
+                // Se estava tentando obter QR Code, para
+                if (autoRefreshQR) {
+                    clearInterval(autoRefreshQR);
+                    clearInterval(qrcodeTimer);
+                    document.getElementById('qrcodeContainer').classList.add('d-none');
+                    document.getElementById('statusConexao').innerHTML = `
+                        <div class="alert alert-success small mb-0">
+                            <i class="bi bi-check-circle"></i> Conectado com sucesso!
+                        </div>
+                    `;
+                }
+            } else {
+                card.querySelector('.card-header').className = 'card-header bg-warning text-dark';
+                container.innerHTML = `
+                    <div class="text-warning mb-3">
+                        <i class="bi bi-exclamation-triangle-fill" style="font-size: 4rem;"></i>
+                    </div>
+                    <h5 class="text-warning fw-bold mb-1">WhatsApp Desconectado</h5>
+                    <p class="text-muted small mb-0">${data.mensagem || 'Clique em "Obter QR Code"'}</p>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao verificar status:', error);
+        });
+}
+
+// ====================================================================
+// OBTER QR CODE
+// ====================================================================
+function obterQRCode() {
+    const btn = document.getElementById('btnObterQRCode');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Obtendo...';
+
+    // Limpa timers anteriores
+    if (qrcodeTimer) clearInterval(qrcodeTimer);
+    if (autoRefreshQR) clearInterval(autoRefreshQR);
+
+    fetch('{{ url_for("whatsapp_admin.obter_qrcode") }}')
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.detalhes || data.erro || 'Erro desconhecido');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.conectado) {
+                document.getElementById('qrcodeContainer').classList.add('d-none');
+                document.getElementById('statusConexao').innerHTML = `
+                    <div class="alert alert-success small">
+                        <i class="bi bi-check-circle"></i> <strong>${data.mensagem}</strong><br>
+                        <small>${data.info || 'Pronto para usar!'}</small>
+                    </div>
+                `;
+                verificarStatus();
+            } else if (data.qrcode) {
+                document.getElementById('qrcodeImage').src = data.qrcode;
+                document.getElementById('qrcodeContainer').classList.remove('d-none');
+                document.getElementById('statusConexao').innerHTML = '';
+
+                // Inicia timer
+                iniciarTimerQRCode();
+
+                // Auto-refresh a cada 25 segundos
+                autoRefreshQR = setInterval(() => {
+                    console.log('Auto-refresh QR Code...');
+                    obterQRCode();
+                }, 25000);
+            }
+        })
+        .catch(error => {
+            document.getElementById('qrcodeContainer').classList.add('d-none');
+            document.getElementById('statusConexao').innerHTML = `
+                <div class="alert alert-danger small">
+                    <i class="bi bi-x-circle"></i> <strong>Erro ao obter QR Code</strong><br>
+                    <small>${error.message}</small><br>
+                    <hr class="my-2">
+                    <small class="text-muted">
+                        <strong>Verifique:</strong><br>
+                        • Evolution API está rodando?<br>
+                        • URL está correta?<br>
+                        • API Key está correta?
+                    </small>
+                </div>
+            `;
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Atualizar QR Code';
+        });
+}
+
+function iniciarTimerQRCode() {
+    qrcodeTimeLeft = 30;
+    const timerSpan = document.getElementById('qrcodeTimer');
+    const progressBar = document.getElementById('qrcodeProgress');
+
+    if (qrcodeTimer) clearInterval(qrcodeTimer);
+
+    qrcodeTimer = setInterval(() => {
+        qrcodeTimeLeft--;
+        timerSpan.textContent = qrcodeTimeLeft;
+
+        const percent = (qrcodeTimeLeft / 30) * 100;
+        progressBar.style.width = percent + '%';
+
+        if (qrcodeTimeLeft <= 10) {
+            progressBar.classList.remove('bg-success');
+            progressBar.classList.add('bg-danger');
+        }
+
+        if (qrcodeTimeLeft <= 0) {
+            clearInterval(qrcodeTimer);
+        }
+    }, 1000);
+}
+
+// ====================================================================
+// TESTAR ENVIO
+// ====================================================================
+function testarEnvio(e) {
+    e.preventDefault();
+
+    const btnTestar = document.getElementById('btnTestar');
+    const resultadoDiv = document.getElementById('resultadoTeste');
+
+    btnTestar.disabled = true;
+    btnTestar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
+
+    const formData = new FormData(e.target);
+
+    fetch('{{ url_for("whatsapp_admin.testar_envio") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.sucesso) {
+            resultadoDiv.innerHTML = `
+                <div class="alert alert-success small mb-0">
+                    <i class="bi bi-check-circle"></i> ${data.mensagem}
+                </div>`;
+        } else {
+            resultadoDiv.innerHTML = `
+                <div class="alert alert-danger small mb-0">
+                    <i class="bi bi-x-circle"></i> ${data.erro}
+                </div>`;
+        }
+    })
+    .catch(error => {
+        resultadoDiv.innerHTML = `
+            <div class="alert alert-danger small mb-0">
+                <i class="bi bi-x-circle"></i> Erro: ${error}
+            </div>`;
+    })
+    .finally(() => {
+        btnTestar.disabled = false;
+        btnTestar.innerHTML = '<i class="bi bi-send"></i> Enviar Teste';
+    });
+}
+
+// ====================================================================
+// VALIDAÇÃO DE FORMULÁRIO
+// ====================================================================
+function validarFormulario(e) {
+    const url = document.getElementById('evolution_api_url').value.trim();
+    const instance = document.getElementById('evolution_instance_name').value.trim();
+    const apiKey = document.getElementById('evolution_api_key').value.trim();
+
+    // Valida URL
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        e.preventDefault();
+        alert('❌ A URL deve começar com http:// ou https://');
+        return false;
+    }
+
+    // Remove barra final
+    if (url.endsWith('/')) {
+        document.getElementById('evolution_api_url').value = url.slice(0, -1);
+    }
+
+    // Valida nome da instância
+    if (!/^[a-zA-Z0-9_]+$/.test(instance)) {
+        e.preventDefault();
+        alert('❌ O nome da instância deve conter apenas letras, números e underscore (_)');
+        return false;
+    }
+
+    // Valida API Key
+    if (apiKey.length < 8) {
+        e.preventDefault();
+        alert('❌ A API Key deve ter pelo menos 8 caracteres');
+        return false;
+    }
+
+    return true;
+}
+
+// ====================================================================
+// UTILITÁRIOS
+// ====================================================================
+function atualizarStatusVisual() {
+    const checkbox = document.getElementById('ativo');
+    const label = document.getElementById('labelStatus');
+    const alertDiv = document.getElementById('alertStatus');
+    const descricao = document.getElementById('descricaoStatus');
+
+    if (checkbox.checked) {
+        label.innerHTML = '<i class="bi bi-check-circle-fill"></i> WhatsApp ATIVADO';
+        alertDiv.className = 'alert alert-success border-success';
+        descricao.textContent = '✓ WhatsApp está ativo e funcionando. O sistema enviará mensagens via WhatsApp.';
+    } else {
+        label.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> WhatsApp DESATIVADO';
+        alertDiv.className = 'alert alert-warning border-warning';
+        descricao.textContent = '⚠️ WhatsApp está desativado. Nenhuma mensagem será enviada. Ative para começar a usar.';
+    }
+}
+
+function togglePasswordVisibility() {
+    const passwordField = document.getElementById('evolution_api_key');
+    const toggleBtn = document.getElementById('togglePassword');
+
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+        toggleBtn.innerHTML = '<i class="bi bi-eye-slash"></i>';
+    } else {
+        passwordField.type = 'password';
+        toggleBtn.innerHTML = '<i class="bi bi-eye"></i>';
+    }
+}
+
+// Limpa intervalos ao sair da página
+window.addEventListener('beforeunload', function() {
+    if (qrcodeTimer) clearInterval(qrcodeTimer);
+    if (autoRefreshQR) clearInterval(autoRefreshQR);
+    if (statusCheckInterval) clearInterval(statusCheckInterval);
+});
+</script>
+
+<style>
+.card {
+    transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.form-check-input:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.progress-bar {
+    transition: width 1s linear;
+}
+
+#qrcodeImage {
+    transition: opacity 0.3s ease;
+}
+
+#qrcodeImage:hover {
+    opacity: 0.9;
+}
+</style>
+{% endblock %}
