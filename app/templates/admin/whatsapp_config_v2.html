@@ -374,8 +374,8 @@
                     <div id="qrcodeContainer" class="d-none">
                         <div class="position-relative d-inline-block">
                             <img id="qrcodeImage" src="" alt="QR Code"
-                                 class="img-fluid rounded mb-2"
-                                 style="max-width: 250px; border: 3px solid #198754;">
+                                 class="mb-2"
+                                 style="max-width: 250px; width: 100%; height: auto; display: block; background: white; padding: 10px; border: 2px solid #dee2e6; border-radius: 8px;">
                             <div class="position-absolute top-0 end-0 m-2">
                                 <span class="badge bg-success">
                                     <i class="bi bi-arrow-clockwise"></i> <span id="qrcodeTimer">30</span>s
@@ -767,10 +767,15 @@ window.addEventListener('beforeunload', function() {
 
 #qrcodeImage {
     transition: opacity 0.3s ease;
+    filter: none !important;
+    -webkit-filter: none !important;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
 }
 
 #qrcodeImage:hover {
-    opacity: 0.9;
+    opacity: 0.95;
 }
 </style>
 {% endblock %}
