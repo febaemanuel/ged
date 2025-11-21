@@ -528,8 +528,16 @@ class WorkflowUGQ:
 
         log_debug(f"📊 Documento status: {documento.status}")
 
-        # Envia e-mails para os aprovadores
-        if EMAIL_ENABLED:
+        # Verifica método de confirmação configurado
+        metodo = 'ambos'  # Padrão
+        if WHATSAPP_ENABLED:
+            from app.models import ConfiguracaoWhatsApp
+            whatsapp_config = ConfiguracaoWhatsApp.get_config()
+            metodo = whatsapp_config.metodo_confirmacao or 'ambos'
+            log_debug(f"📬 Método de confirmação: {metodo}")
+
+        # Envia e-mails para os aprovadores (se configurado)
+        if EMAIL_ENABLED and metodo in ['email', 'ambos']:
             if modo == 'sequencial':
                 # Envia apenas para o primeiro aprovador
                 primeiro_item = ItemBlocoAssinatura.query.filter_by(
@@ -543,18 +551,65 @@ class WorkflowUGQ:
                         documento_titulo=documento.titulo,
                         documento_codigo=documento.codigo_definitivo
                     )
-                    log_debug(f"📧 E-mail enviado para primeiro aprovador: ID {primeiro_item.aprovador_id}")
+                    log_debug(f"📧 E-mail enviado para aprovador #1: ID {primeiro_item.aprovador_id}")
             elif modo == 'concomitante':
                 # Envia para todos os aprovadores
                 itens = ItemBlocoAssinatura.query.filter_by(bloco_id=bloco.id).all()
-                for item in itens:
+                for idx, item in enumerate(itens, 1):
                     EmailService.enviar_notificacao_tarefa(
                         usuario_id=item.aprovador_id,
                         tipo_tarefa='Assinar Documento',
                         documento_titulo=documento.titulo,
                         documento_codigo=documento.codigo_definitivo
                     )
-                    log_debug(f"📧 E-mail enviado para aprovador #{item.ordem}: ID {item.aprovador_id}")
+                    log_debug(f"📧 E-mail enviado para aprovador #{idx}: ID {item.aprovador_id}")
+
+        # Envia WhatsApp para os aprovadores (se configurado)
+        if WHATSAPP_ENABLED and metodo in ['whatsapp', 'ambos']:
+            whatsapp_service = WhatsAppService()
+            if whatsapp_service.esta_ativo():
+                if modo == 'sequencial':
+                    # Envia apenas para o primeiro aprovador
+                    primeiro_item = ItemBlocoAssinatura.query.filter_by(
+                        bloco_id=bloco.id,
+                        ordem=1
+                    ).first()
+                    if primeiro_item:
+                        # Cria tarefa temporária para enviar notificação
+                        tarefa_temp = Tarefa.query.filter_by(
+                            documento_id=documento.id,
+                            responsavel_id=primeiro_item.aprovador_id,
+                            concluida=False
+                        ).filter(
+                            Tarefa.tipo_tarefa.like(f'%Bloco #{bloco.id}%')
+                        ).first()
+
+                        if tarefa_temp:
+                            sucesso, resultado = whatsapp_service.enviar_notificacao_tarefa(primeiro_item.aprovador, tarefa_temp)
+                            if sucesso:
+                                log_debug(f"📱 WhatsApp enviado para aprovador #1: {primeiro_item.aprovador.telefone}")
+                            else:
+                                log_debug(f"⚠️ Falha ao enviar WhatsApp para aprovador #1: {resultado}")
+
+                elif modo == 'concomitante':
+                    # Envia para todos os aprovadores
+                    itens = ItemBlocoAssinatura.query.filter_by(bloco_id=bloco.id).all()
+                    for idx, item in enumerate(itens, 1):
+                        # Busca tarefa correspondente
+                        tarefa_item = Tarefa.query.filter_by(
+                            documento_id=documento.id,
+                            responsavel_id=item.aprovador_id,
+                            concluida=False
+                        ).filter(
+                            Tarefa.tipo_tarefa.like(f'%Bloco #{bloco.id}%')
+                        ).first()
+
+                        if tarefa_item:
+                            sucesso, resultado = whatsapp_service.enviar_notificacao_tarefa(item.aprovador, tarefa_item)
+                            if sucesso:
+                                log_debug(f"📱 WhatsApp enviado para aprovador #{idx}: {item.aprovador.telefone}")
+                            else:
+                                log_debug(f"⚠️ Falha ao enviar WhatsApp para aprovador #{idx}: {resultado}")
 
         log_debug("=" * 80)
 
