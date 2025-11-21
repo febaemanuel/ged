@@ -860,13 +860,16 @@ class WhatsAppChatbot:
         msg = "📋 *Suas Tarefas Pendentes:*\n\n"
         for idx, t in enumerate(tarefas, 1):
             prazo = t.prazo.strftime('%d/%m') if t.prazo else 'S/ Prazo'
-            codigo = t.documento.codigo_definitivo or t.documento.codigo_provisorio or f"Doc #{t.documento.id}"
+            doc = t.documento
+            codigo = doc.codigo_definitivo or doc.codigo_provisorio or f"Doc #{doc.id}"
+            # Título formatado: CODIGO - TITULO
+            titulo_formatado = f"{codigo} - {doc.titulo}" if doc.titulo else codigo
             bloco_info = ""
             metadata = t.get_metadata()
             if metadata.get('bloco_id'):
                 bloco_info = f" [Bloco #{metadata.get('bloco_id')}]"
-            msg += f"*{idx}.* {codigo} - {t.tipo_tarefa}{bloco_info}\n"
-            msg += f"    📅 Prazo: {prazo}\n\n"
+            msg += f"*{idx}.* {titulo_formatado}{bloco_info}\n"
+            msg += f"    📋 {t.tipo_tarefa} | 📅 Prazo: {prazo}\n\n"
 
         msg += "💬 *Responda o número da tarefa* para ver detalhes e assinar.\n"
         msg += "_Ou responda *0* para voltar ao menu._"
@@ -904,6 +907,9 @@ class WhatsAppChatbot:
         prazo = tarefa.prazo.strftime('%d/%m/%Y') if tarefa.prazo else 'Sem prazo'
         autor = doc.criador.nome if doc.criador else 'N/A'
 
+        # Título formatado: CODIGO - TITULO
+        titulo_formatado = f"{codigo} - {doc.titulo}" if doc.titulo else codigo
+
         # Atualiza contexto com a tarefa selecionada
         conversacao.atualizar_estado('aguardando_acao', {
             'tarefa_id': tarefa.id,
@@ -911,20 +917,17 @@ class WhatsAppChatbot:
         })
         db.session.commit()
 
-        msg = f"📄 *{codigo}*\n\n"
-        msg += f"📝 *Título:* {doc.titulo}\n"
+        msg = f"📄 *{titulo_formatado}*\n\n"
         msg += f"👤 *Autor:* {autor}\n"
         msg += f"📋 *Tarefa:* {tarefa.tipo_tarefa}\n"
         msg += f"⏰ *Prazo:* {prazo}\n\n"
-
-        if tarefa.descricao:
-            msg += f"💬 *Descrição:* {tarefa.descricao}\n\n"
 
         msg += "━━━━━━━━━━━━━━━━━━━━━\n"
         msg += "*O que deseja fazer?*\n\n"
         msg += "1️⃣ *Aprovar e Assinar*\n"
         msg += "2️⃣ *Reprovar*\n"
-        msg += "3️⃣ *Voltar às tarefas*\n"
+        msg += "3️⃣ *Ver Resumo do Documento*\n"
+        msg += "4️⃣ *Voltar às tarefas*\n"
         msg += "0️⃣ *Menu principal*\n\n"
         msg += "_Responda com o número da opção._"
 
@@ -967,12 +970,16 @@ class WhatsAppChatbot:
             msg += "_Responda *0* para cancelar._"
             self.api.enviar_mensagem(remote_jid, msg)
 
-        elif texto_limpo in ['3', 'voltar']:
+        elif texto_limpo in ['3', 'resumo']:
+            # Mostra resumo do documento
+            self._mostrar_resumo_documento(usuario, remote_jid, tarefa_id, conversacao)
+
+        elif texto_limpo in ['4', 'voltar']:
             # Volta para lista de tarefas
             self._listar_tarefas(usuario, remote_jid, conversacao)
 
         else:
-            self.api.enviar_mensagem(remote_jid, "❌ Opção inválida.\n\nEscolha: *1* (Aprovar), *2* (Reprovar), *3* (Voltar) ou *0* (Menu)")
+            self.api.enviar_mensagem(remote_jid, "❌ Opção inválida.\n\nEscolha: *1* (Aprovar), *2* (Reprovar), *3* (Resumo), *4* (Voltar) ou *0* (Menu)")
 
     def _ocultar_email(self, email):
         """Oculta parte do email para mostrar como dica"""
@@ -990,6 +997,41 @@ class WhatsAppChatbot:
             usuario_oculto = usuario[0] + '*' * (len(usuario) - 1)
 
         return f"{usuario_oculto}@{dominio}"
+
+    def _mostrar_resumo_documento(self, usuario, remote_jid, tarefa_id, conversacao):
+        """Mostra o resumo do documento gerado pela IA"""
+        tarefa = Tarefa.query.get(tarefa_id)
+        if not tarefa:
+            self.api.enviar_mensagem(remote_jid, "❌ Tarefa não encontrada.\n\n_Responda *menu* para voltar._")
+            return
+
+        doc = tarefa.documento
+        codigo = doc.codigo_definitivo or doc.codigo_provisorio or f"Doc #{doc.id}"
+        titulo_formatado = f"{codigo} - {doc.titulo}" if doc.titulo else codigo
+
+        # Obtém metadados do documento (resumo da IA)
+        metadados = doc.get_metadados()
+        resumo = metadados.get('resumo', '')
+        palavras_chave = metadados.get('palavras_chave', [])
+
+        msg = f"📄 *{titulo_formatado}*\n\n"
+        msg += "━━━━━━━━━━━━━━━━━━━━━\n"
+        msg += "🤖 *Resumo (IA):*\n\n"
+
+        if resumo:
+            # Limita o resumo para não ficar muito longo no WhatsApp
+            resumo_limitado = resumo[:800] + '...' if len(resumo) > 800 else resumo
+            msg += f"{resumo_limitado}\n\n"
+        else:
+            msg += "_Resumo não disponível para este documento._\n\n"
+
+        if palavras_chave:
+            msg += f"🏷️ *Palavras-chave:* {', '.join(palavras_chave[:5])}\n\n"
+
+        msg += "━━━━━━━━━━━━━━━━━━━━━\n"
+        msg += "_Responda *4* para voltar às opções ou *0* para o menu._"
+
+        self.api.enviar_mensagem(remote_jid, msg)
 
     def _processar_email(self, usuario, remote_jid, texto, conversacao):
         """Processa o email para confirmação de assinatura ou reprovação"""
@@ -1134,16 +1176,22 @@ class WhatsAppChatbot:
             # Conclui a tarefa
             tarefa.concluir(parecer=parecer, aprovado=True)
 
-            # Verifica se todos aprovaram para atualizar status do bloco
+            # Verifica se todos aprovaram para finalizar o bloco e criar tarefa de publicação
             bloco = item.bloco
             if bloco.todos_aprovaram():
-                bloco.status = 'Concluído'
-                bloco.data_conclusao = datetime.utcnow()
-
-                # Atualiza status do documento se necessário
-                doc = bloco.documento
-                if doc.status == 'Em Assinatura':
-                    doc.status = 'Assinado'
+                # Usa o workflow oficial para finalizar e criar tarefa de publicação
+                try:
+                    from app.services.workflow import WorkflowUGQ
+                    doc = bloco.documento
+                    WorkflowUGQ._finalizar_bloco_assinatura(bloco, doc)
+                    logger.info(f"Bloco finalizado e tarefa de publicação criada via WhatsApp")
+                except Exception as e:
+                    logger.error(f"Erro ao finalizar bloco via workflow: {str(e)}")
+                    # Fallback: atualiza manualmente
+                    bloco.status = 'Aprovado'
+                    bloco.data_conclusao = datetime.utcnow()
+                    doc = bloco.documento
+                    doc.status = 'Aprovado'
 
             db.session.commit()
             logger.info(f"Assinatura via WhatsApp: Usuario {usuario.id} assinou tarefa {tarefa.id}")
