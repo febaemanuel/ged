@@ -242,7 +242,6 @@ def documento_criar():
         tipo_documento = request.form.get('tipo_documento')
         setor = request.form.get('setor')
         descricao = request.form.get('descricao')
-        validade_anos = request.form.get('validade_anos', type=int)
         # NOVO WORKFLOW UGQ: Não precisa mais de chefia_imediata_id
         # O documento vai direto para o Triador UGQ
 
@@ -268,19 +267,20 @@ def documento_criar():
         arquivo.save(caminho_completo)
 
         # Criar documento
+        # VALIDADE: Sistema define automaticamente baseado no tipo (2 ou 4 anos)
         documento = Documento(
             titulo=titulo,
             tipo_documento=tipo_documento,
             setor=setor,
             descricao=descricao,
             arquivo_original=filename_final,
-            criador_id=current_user.id,
+            criador_id=current_user.id
             # WORKFLOW UGQ: Não precisa mais de chefia_imediata_id
-            validade_anos=validade_anos or 5
+            # VALIDADE: Será calculada automaticamente na publicação
         )
 
-        # Calcular data de vencimento (já configurado no modelo via validade_anos)
-        # Será calculado quando o documento for publicado
+        # Calcular data de vencimento será feito automaticamente na publicação
+        # baseado no tipo de documento (2 ou 4 anos)
 
         db.session.add(documento)
         db.session.commit()
@@ -369,9 +369,7 @@ def documento_editar(id):
         documento.tipo_documento = request.form.get('tipo_documento')
         documento.setor = request.form.get('setor')
         documento.descricao = request.form.get('descricao')
-        validade_anos = request.form.get('validade_anos', type=int)
-        if validade_anos:
-            documento.validade_anos = validade_anos
+        # VALIDADE: Calculada automaticamente baseado no tipo (2 ou 4 anos)
 
         # Atualiza chefia se fornecida
         chefia_imediata_id = request.form.get('chefia_imediata_id', type=int)
