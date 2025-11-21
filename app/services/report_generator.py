@@ -92,7 +92,7 @@ def gerar_relatorio_tarefas_atrasadas(tarefas, usuario_nome):
         data = [['ID', 'Tipo', 'Documento', 'Responsável', 'Prazo', 'Dias\nAtraso', 'Prioridade']]
 
         for t in tarefas:
-            prazo = datetime.fromisoformat(t['prazo']).strftime('%d/%m/%Y')
+            prazo = datetime.fromisoformat(t['prazo']).strftime('%d/%m/%Y') if t.get('prazo') else 'N/A'
             data.append([
                 str(t['id']),
                 t['tipo_tarefa'],
@@ -358,14 +358,14 @@ def gerar_relatorio_geral(dados, usuario_nome):
         elements.append(Spacer(1, 0.3 * cm))
 
         recentes_data = [['ID', 'Título', 'Tipo', 'Status', 'Criador', 'Data']]
-        for doc in dados['documentos_recentes']:
-            data_criacao = datetime.fromisoformat(doc['data_criacao']).strftime('%d/%m/%Y')
+        for documento in dados['documentos_recentes']:
+            data_criacao = datetime.fromisoformat(documento['data_criacao']).strftime('%d/%m/%Y') if documento.get('data_criacao') else 'N/A'
             recentes_data.append([
-                str(doc['id']),
-                doc['titulo'][:30] + '...' if len(doc['titulo']) > 30 else doc['titulo'],
-                doc['tipo'] or 'N/A',
-                doc['status'],
-                doc['criador'][:15] + '...' if len(doc['criador']) > 15 else doc['criador'],
+                str(documento['id']),
+                documento['titulo'][:30] + '...' if len(documento['titulo']) > 30 else documento['titulo'],
+                documento['tipo'] or 'N/A',
+                documento['status'],
+                documento['criador'][:15] + '...' if len(documento['criador']) > 15 else documento['criador'],
                 data_criacao
             ])
 

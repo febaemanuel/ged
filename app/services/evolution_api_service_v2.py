@@ -1419,7 +1419,7 @@ class WhatsAppChatbot:
 
                 # Gera código usando o workflow
                 try:
-                    codigo = WorkflowUGQ._gerar_codigo_definitivo(tipo, setor, 'CHUFC')
+                    codigo = WorkflowUGQ.gerar_proximo_codigo(tipo, setor, 'CHUFC')
                     doc.codigo_definitivo = codigo
                     logger.info(f"[WHATSAPP] Código gerado automaticamente: {codigo}")
                 except Exception as e:
@@ -1432,8 +1432,14 @@ class WhatsAppChatbot:
             if not doc.versao:
                 doc.versao = 'v1.0'
 
-            # Chama o workflow para codificar
-            WorkflowUGQ.validador_codifica_documento(tarefa, doc.codigo_definitivo, doc.versao)
+            # Chama o workflow para codificar (com todos os parâmetros obrigatórios)
+            WorkflowUGQ.validador_codifica_documento(
+                tarefa,
+                doc.codigo_definitivo,
+                doc.versao,
+                'Validado via WhatsApp',  # observacoes_validacao
+                doc.abrangencia or 'CHUFC'  # abrangencia
+            )
 
             db.session.commit()
             logger.info(f"Validação via WhatsApp: Usuario {usuario.id} validou documento {doc.id}")

@@ -296,11 +296,6 @@ class Documento(db.Model):
         """Verifica se o documento pode ser publicado"""
         return self.status == 'Aprovado'
 
-    @property
-    def codigo(self):
-        """Retorna o código do documento (definitivo se existir, senão provisório)"""
-        return self.codigo_definitivo or self.codigo_provisorio
-
     def get_caminho_arquivo(self):
         """Retorna o caminho completo do arquivo original"""
         if not self.arquivo_original:
