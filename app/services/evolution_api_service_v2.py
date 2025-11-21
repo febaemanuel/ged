@@ -762,7 +762,7 @@ class WhatsAppChatbot:
     def _enviar_menu_principal(self, usuario, remote_jid):
         """Envia o menu principal"""
         total_tarefas = Tarefa.query.filter_by(
-            usuario_responsavel_id=usuario.id, 
+            responsavel_id=usuario.id, 
             data_conclusao=None
         ).count()
 
@@ -776,7 +776,7 @@ class WhatsAppChatbot:
     def _listar_tarefas(self, usuario, remote_jid):
         """Lista tarefas"""
         tarefas = Tarefa.query.filter_by(
-            usuario_responsavel_id=usuario.id, 
+            responsavel_id=usuario.id, 
             data_conclusao=None
         ).order_by(Tarefa.prazo.asc()).limit(5).all()
 
