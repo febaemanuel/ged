@@ -1011,22 +1011,38 @@ class WhatsAppChatbot:
 
         # Obtém metadados do documento (resumo da IA)
         metadados = doc.get_metadados()
-        resumo = metadados.get('resumo', '')
-        palavras_chave = metadados.get('palavras_chave', [])
+        resumo_obj = metadados.get('resumo', '')
+
+        # O resumo pode ser um objeto ou string direta
+        if isinstance(resumo_obj, dict):
+            resumo_texto = resumo_obj.get('resumo', '')
+            palavras_chave = resumo_obj.get('palavras_chave', [])
+            topicos = resumo_obj.get('topicos_principais', [])
+        else:
+            resumo_texto = resumo_obj if isinstance(resumo_obj, str) else ''
+            palavras_chave = metadados.get('palavras_chave', [])
+            topicos = metadados.get('topicos_principais', [])
 
         msg = f"📄 *{titulo_formatado}*\n\n"
         msg += "━━━━━━━━━━━━━━━━━━━━━\n"
         msg += "🤖 *Resumo (IA):*\n\n"
 
-        if resumo:
+        if resumo_texto:
             # Limita o resumo para não ficar muito longo no WhatsApp
-            resumo_limitado = resumo[:800] + '...' if len(resumo) > 800 else resumo
+            resumo_limitado = resumo_texto[:800] + '...' if len(resumo_texto) > 800 else resumo_texto
             msg += f"{resumo_limitado}\n\n"
         else:
             msg += "_Resumo não disponível para este documento._\n\n"
 
         if palavras_chave:
-            msg += f"🏷️ *Palavras-chave:* {', '.join(palavras_chave[:5])}\n\n"
+            if isinstance(palavras_chave, list):
+                msg += f"🏷️ *Palavras-chave:* {', '.join(palavras_chave[:5])}\n\n"
+            else:
+                msg += f"🏷️ *Palavras-chave:* {palavras_chave}\n\n"
+
+        if topicos:
+            if isinstance(topicos, list):
+                msg += f"📋 *Tópicos:* {', '.join(topicos[:3])}\n\n"
 
         msg += "━━━━━━━━━━━━━━━━━━━━━\n"
         msg += "_Responda *4* para voltar às opções ou *0* para o menu._"
