@@ -9,60 +9,14 @@ from datetime import datetime
 import logging
 
 from app import db
-from app.models.models import Usuario, Documento, Tarefa, ListaMestra
-from config import Config
+from app.models.models import (
+    Usuario, Documento, Tarefa, ListaMestra,
+    Abrangencia, TipoDocumento, Setor, PerfilPermissao
+)
 
 logger = logging.getLogger(__name__)
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
-
-# Valores padrão para garantir compatibilidade
-ABRANGENCIAS_DEFAULT = ['CHUFC', 'HUWC', 'MEAC']
-TIPOS_DOCUMENTO_DEFAULT = ['POP', 'Manual', 'Protocolo', 'Política', 'Regimento', 'Regulamento']
-TIPOS_VALIDADE_4_ANOS_DEFAULT = ['Política', 'Regimento', 'Regulamento']
-SETORES_DEFAULT = {
-    'CHUFC': ['Administração', 'Qualidade', 'Tecnologia da Informação', 'Gestão de Pessoas'],
-    'HUWC': ['Administração', 'Enfermagem', 'Farmácia', 'Laboratório', 'UTI'],
-    'MEAC': ['Administração', 'Enfermagem', 'Neonatologia', 'Obstetrícia']
-}
-
-
-def get_abrangencias():
-    """Retorna lista de abrangências (com fallback)"""
-    return getattr(Config, 'ABRANGENCIAS', ABRANGENCIAS_DEFAULT)
-
-
-def get_tipos_documento():
-    """Retorna tipos de documento (com fallback)"""
-    return getattr(Config, 'TIPOS_DOCUMENTO', TIPOS_DOCUMENTO_DEFAULT)
-
-
-def get_tipos_validade_4_anos():
-    """Retorna tipos com validade de 4 anos (com fallback)"""
-    return getattr(Config, 'TIPOS_VALIDADE_4_ANOS', TIPOS_VALIDADE_4_ANOS_DEFAULT)
-
-
-def get_setores_por_abrangencia(abrangencia):
-    """Retorna setores de uma abrangência (com fallback)"""
-    if hasattr(Config, 'get_setores_por_abrangencia'):
-        return Config.get_setores_por_abrangencia(abrangencia)
-    elif hasattr(Config, 'SETORES_POR_ABRANGENCIA'):
-        return Config.SETORES_POR_ABRANGENCIA.get(abrangencia, [])
-    return SETORES_DEFAULT.get(abrangencia, [])
-
-
-def get_all_setores():
-    """Retorna todos os setores com suas abrangências"""
-    if hasattr(Config, 'SETORES_POR_ABRANGENCIA'):
-        setores_dict = Config.SETORES_POR_ABRANGENCIA
-    else:
-        setores_dict = SETORES_DEFAULT
-
-    todos = []
-    for abrang, setores in setores_dict.items():
-        for setor in setores:
-            todos.append({'setor': setor, 'abrangencia': abrang})
-    return sorted(todos, key=lambda x: (x['setor'], x['abrangencia']))
 
 
 def admin_required(f):
@@ -78,9 +32,10 @@ def admin_required(f):
 
 
 # ============================================================================
-# PÁGINA ÚNICA DE CONFIGURAÇÕES
+# PÁGINA PRINCIPAL DE CONFIGURAÇÕES
 # ============================================================================
 
+@admin_bp.route('/')
 @admin_bp.route('/configuracoes')
 @login_required
 @admin_required
@@ -102,367 +57,408 @@ def configuracoes():
     ).group_by(Usuario.perfil).all()
     stats['perfis'] = dict(perfis_count)
 
-    # Contagem por status de documento
-    status_count = db.session.query(
-        Documento.status, db.func.count(Documento.id)
-    ).group_by(Documento.status).all()
-    stats['status_documentos'] = dict(status_count)
-
-    # Contagem por abrangência
-    abrangencia_count = db.session.query(
-        Documento.abrangencia, db.func.count(Documento.id)
-    ).filter(Documento.abrangencia != None).group_by(Documento.abrangencia).all()
-    stats['abrangencias'] = dict(abrangencia_count)
-
-    # Dados de abrangências
-    abrangencias_info = []
-    for abrang in get_abrangencias():
-        setores = get_setores_por_abrangencia(abrang)
-        docs_count = Documento.query.filter_by(abrangencia=abrang).count()
-        abrangencias_info.append({
-            'nome': abrang,
-            'setores': setores,
-            'total_setores': len(setores),
-            'total_documentos': docs_count,
-        })
-
-    # Dados de tipos de documento
-    tipos_info = []
-    tipos_validade_4 = get_tipos_validade_4_anos()
-    for tipo in get_tipos_documento():
-        count = Documento.query.filter_by(tipo_documento=tipo).count()
-        validade = 4 if tipo in tipos_validade_4 else 2
-        tipos_info.append({
-            'nome': tipo,
-            'total': count,
-            'validade_anos': validade
-        })
-
-    # Dados de setores
-    setores_info = []
-    for abrang in get_abrangencias():
-        for setor in get_setores_por_abrangencia(abrang):
-            docs_count = Documento.query.filter_by(setor=setor, abrangencia=abrang).count()
-            users_count = Usuario.query.filter_by(setor=setor).count()
-            setores_info.append({
-                'nome': setor,
-                'abrangencia': abrang,
-                'total_documentos': docs_count,
-                'total_usuarios': users_count
-            })
-    setores_info.sort(key=lambda x: (x['abrangencia'], x['nome']))
-
-    # Dados de permissões
-    perfis = [
-        {
-            'nome': 'comum',
-            'descricao': 'Usuário comum',
-            'permissoes': ['Criar documentos', 'Executar tarefas', 'Ver repositório']
-        },
-        {
-            'nome': 'gerente',
-            'descricao': 'Gerente de setor',
-            'permissoes': ['Tudo de comum', 'Aprovar documentos', 'Usar IA']
-        },
-        {
-            'nome': 'qualidade_triador',
-            'descricao': 'Triador UGQ',
-            'permissoes': ['Triagem', 'Verificar duplicidade', 'Devolver documentos']
-        },
-        {
-            'nome': 'qualidade_validador',
-            'descricao': 'Validador UGQ',
-            'permissoes': ['Validar', 'Codificar', 'Criar blocos', 'Publicar']
-        },
-        {
-            'nome': 'administrador',
-            'descricao': 'Administrador',
-            'permissoes': ['Acesso total', 'Gerenciar usuários', 'Configurações']
-        }
-    ]
-    for perfil in perfis:
-        perfil['total_usuarios'] = Usuario.query.filter_by(perfil=perfil['nome']).count()
-
-    # Usuários
+    # Dados do banco
+    abrangencias = Abrangencia.query.order_by(Abrangencia.ordem).all()
+    tipos = TipoDocumento.query.order_by(TipoDocumento.ordem).all()
+    setores = Setor.query.order_by(Setor.nome).all()
+    perfis = PerfilPermissao.query.order_by(PerfilPermissao.nivel).all()
     usuarios = Usuario.query.order_by(Usuario.nome).all()
 
     return render_template('admin/configuracoes.html',
                           stats=stats,
-                          abrangencias=abrangencias_info,
-                          tipos=tipos_info,
-                          setores=setores_info,
+                          abrangencias=abrangencias,
+                          tipos=tipos,
+                          setores=setores,
                           perfis=perfis,
-                          usuarios=usuarios,
-                          abrangencias_list=get_abrangencias())
+                          usuarios=usuarios)
 
 
 # ============================================================================
-# PAINEL PRINCIPAL DE ADMINISTRAÇÃO (redireciona para configurações)
+# CRUD - ABRANGÊNCIAS
 # ============================================================================
 
-@admin_bp.route('/')
+@admin_bp.route('/abrangencia/criar', methods=['POST'])
 @login_required
 @admin_required
-def painel():
-    """Redireciona para página de configurações"""
+def abrangencia_criar():
+    """Criar nova abrangência"""
+    codigo = request.form.get('codigo', '').upper().strip()
+    nome = request.form.get('nome', '').strip()
+    descricao = request.form.get('descricao', '').strip()
+    cor = request.form.get('cor', '#2563eb')
+    icone = request.form.get('icone', 'bi-building')
+
+    if not codigo or not nome:
+        flash('Código e nome são obrigatórios', 'danger')
+        return redirect(url_for('admin.configuracoes'))
+
+    # Verifica se já existe
+    if Abrangencia.query.filter_by(codigo=codigo).first():
+        flash(f'Abrangência {codigo} já existe', 'danger')
+        return redirect(url_for('admin.configuracoes'))
+
+    # Calcula ordem
+    max_ordem = db.session.query(db.func.max(Abrangencia.ordem)).scalar() or 0
+
+    abrangencia = Abrangencia(
+        codigo=codigo,
+        nome=nome,
+        descricao=descricao,
+        cor=cor,
+        icone=icone,
+        ordem=max_ordem + 1
+    )
+    db.session.add(abrangencia)
+    db.session.commit()
+
+    flash(f'Abrangência {codigo} criada com sucesso!', 'success')
+    return redirect(url_for('admin.configuracoes'))
+
+
+@admin_bp.route('/abrangencia/<int:id>/editar', methods=['POST'])
+@login_required
+@admin_required
+def abrangencia_editar(id):
+    """Editar abrangência"""
+    abrangencia = Abrangencia.query.get_or_404(id)
+
+    abrangencia.codigo = request.form.get('codigo', abrangencia.codigo).upper().strip()
+    abrangencia.nome = request.form.get('nome', abrangencia.nome).strip()
+    abrangencia.descricao = request.form.get('descricao', '').strip()
+    abrangencia.cor = request.form.get('cor', abrangencia.cor)
+    abrangencia.icone = request.form.get('icone', abrangencia.icone)
+    abrangencia.ativo = request.form.get('ativo') == 'on'
+
+    db.session.commit()
+    flash(f'Abrangência {abrangencia.codigo} atualizada!', 'success')
+    return redirect(url_for('admin.configuracoes'))
+
+
+@admin_bp.route('/abrangencia/<int:id>/excluir', methods=['POST'])
+@login_required
+@admin_required
+def abrangencia_excluir(id):
+    """Excluir abrangência"""
+    abrangencia = Abrangencia.query.get_or_404(id)
+
+    # Verifica se tem setores vinculados
+    if abrangencia.setores.count() > 0:
+        flash(f'Não é possível excluir. Existem {abrangencia.setores.count()} setores vinculados.', 'danger')
+        return redirect(url_for('admin.configuracoes'))
+
+    db.session.delete(abrangencia)
+    db.session.commit()
+    flash('Abrangência excluída!', 'success')
     return redirect(url_for('admin.configuracoes'))
 
 
 # ============================================================================
-# GESTÃO DE ABRANGÊNCIAS
+# CRUD - TIPOS DE DOCUMENTO
 # ============================================================================
 
-@admin_bp.route('/abrangencias')
+@admin_bp.route('/tipo-documento/criar', methods=['POST'])
 @login_required
 @admin_required
-def abrangencias():
-    """Gestão de abrangências"""
-    abrangencias_info = []
-    for abrang in get_abrangencias():
-        setores = get_setores_por_abrangencia(abrang)
-        docs_count = Documento.query.filter_by(abrangencia=abrang).count()
-        docs_publicados = Documento.query.filter_by(abrangencia=abrang, status='Publicado').count()
-        abrangencias_info.append({
-            'nome': abrang,
-            'setores': setores,
-            'total_setores': len(setores),
-            'total_documentos': docs_count,
-            'docs_publicados': docs_publicados
-        })
+def tipo_documento_criar():
+    """Criar novo tipo de documento"""
+    codigo = request.form.get('codigo', '').upper().strip()
+    nome = request.form.get('nome', '').strip()
+    descricao = request.form.get('descricao', '').strip()
+    validade_anos = request.form.get('validade_anos', 2, type=int)
+    prefixo_codigo = request.form.get('prefixo_codigo', '').upper().strip()
 
-    return render_template('admin/abrangencias.html', abrangencias=abrangencias_info)
+    if not codigo or not nome:
+        flash('Código e nome são obrigatórios', 'danger')
+        return redirect(url_for('admin.configuracoes'))
 
+    if TipoDocumento.query.filter_by(codigo=codigo).first():
+        flash(f'Tipo {codigo} já existe', 'danger')
+        return redirect(url_for('admin.configuracoes'))
 
-# ============================================================================
-# GESTÃO DE TIPOS DE DOCUMENTO
-# ============================================================================
+    max_ordem = db.session.query(db.func.max(TipoDocumento.ordem)).scalar() or 0
 
-@admin_bp.route('/tipos-documento')
-@login_required
-@admin_required
-def tipos_documento():
-    """Gestão de tipos de documento"""
-    tipos_info = []
-    tipos_validade_4 = get_tipos_validade_4_anos()
-    for tipo in get_tipos_documento():
-        count = Documento.query.filter_by(tipo_documento=tipo).count()
-        publicados = Documento.query.filter_by(tipo_documento=tipo, status='Publicado').count()
-        validade = 4 if tipo in tipos_validade_4 else 2
-        tipos_info.append({
-            'nome': tipo,
-            'total': count,
-            'publicados': publicados,
-            'validade_anos': validade
-        })
-
-    return render_template('admin/tipos_documento.html', tipos=tipos_info)
-
-
-# ============================================================================
-# GESTÃO DE SETORES
-# ============================================================================
-
-@admin_bp.route('/setores')
-@login_required
-@admin_required
-def setores():
-    """Gestão de setores"""
-    setores_info = []
-
-    for abrang in get_abrangencias():
-        for setor in get_setores_por_abrangencia(abrang):
-            docs_count = Documento.query.filter_by(setor=setor, abrangencia=abrang).count()
-            users_count = Usuario.query.filter_by(setor=setor).count()
-            setores_info.append({
-                'nome': setor,
-                'abrangencia': abrang,
-                'total_documentos': docs_count,
-                'total_usuarios': users_count
-            })
-
-    setores_info.sort(key=lambda x: (x['abrangencia'], x['nome']))
-
-    return render_template('admin/setores.html', setores=setores_info, abrangencias=get_abrangencias())
-
-
-# ============================================================================
-# GESTÃO DE PERMISSÕES
-# ============================================================================
-
-@admin_bp.route('/permissoes')
-@login_required
-@admin_required
-def permissoes():
-    """Gestão de permissões por perfil"""
-    perfis = [
-        {
-            'nome': 'comum',
-            'descricao': 'Usuário comum - Cria documentos e executa tarefas atribuídas',
-            'permissoes': [
-                'Criar documentos',
-                'Editar próprios documentos (se em status inicial)',
-                'Executar tarefas atribuídas',
-                'Visualizar documentos publicados',
-                'Acessar repositório público'
-            ]
-        },
-        {
-            'nome': 'gerente',
-            'descricao': 'Gerente - Gerencia documentos e equipe do setor',
-            'permissoes': [
-                'Todas permissões de comum',
-                'Aprovar documentos como assinante',
-                'Visualizar tarefas do setor',
-                'Usar funções de IA',
-                'Criar tarefas para equipe'
-            ]
-        },
-        {
-            'nome': 'qualidade_triador',
-            'descricao': 'Triador UGQ - Faz triagem inicial de documentos',
-            'permissoes': [
-                'Receber documentos para triagem',
-                'Verificar duplicidade na Lista Mestra',
-                'Verificar formatação EBSERH',
-                'Aprovar ou devolver documentos',
-                'Editar documentos em triagem',
-                'Definir abrangência de documentos'
-            ]
-        },
-        {
-            'nome': 'qualidade_validador',
-            'descricao': 'Validador UGQ - Valida, codifica e publica documentos',
-            'permissoes': [
-                'Receber documentos triados',
-                'Codificar documentos (código definitivo)',
-                'Criar blocos de assinatura',
-                'Gerenciar aprovadores',
-                'Publicar documentos aprovados',
-                'Editar documentos em validação',
-                'Alterar status de documentos',
-                'Definir abrangência e setor'
-            ]
-        },
-        {
-            'nome': 'responsavel_interno',
-            'descricao': 'Responsável Interno - Gerencia fluxos específicos',
-            'permissoes': [
-                'Todas permissões de gerente',
-                'Gerenciar fluxos de documentos específicos',
-                'Aprovar documentos como responsável'
-            ]
-        },
-        {
-            'nome': 'administrador',
-            'descricao': 'Administrador - Controle total do sistema',
-            'permissoes': [
-                'Todas as permissões do sistema',
-                'Gerenciar usuários',
-                'Gerenciar configurações',
-                'Alterar qualquer documento',
-                'Acessar painel administrativo',
-                'Excluir documentos e usuários',
-                'Configurar WhatsApp',
-                'Visualizar logs e auditoria'
-            ]
-        }
-    ]
-
-    for perfil in perfis:
-        perfil['total_usuarios'] = Usuario.query.filter_by(perfil=perfil['nome']).count()
-
-    return render_template('admin/permissoes.html', perfis=perfis)
-
-
-# ============================================================================
-# LISTA MESTRA
-# ============================================================================
-
-@admin_bp.route('/lista-mestra')
-@login_required
-@admin_required
-def lista_mestra():
-    """Visualização da Lista Mestra de documentos"""
-    page = request.args.get('page', 1, type=int)
-    per_page = 50
-
-    abrangencia = request.args.get('abrangencia')
-    tipo = request.args.get('tipo')
-    setor = request.args.get('setor')
-    status = request.args.get('status')
-
-    query = ListaMestra.query
-
-    if abrangencia:
-        query = query.filter_by(abrangencia=abrangencia)
-    if tipo:
-        query = query.filter_by(tipo=tipo)
-    if setor:
-        query = query.filter_by(setor=setor)
-    if status:
-        query = query.filter_by(status=status)
-
-    registros = query.order_by(ListaMestra.codigo).paginate(
-        page=page, per_page=per_page, error_out=False
+    tipo = TipoDocumento(
+        codigo=codigo,
+        nome=nome,
+        descricao=descricao,
+        validade_anos=validade_anos,
+        prefixo_codigo=prefixo_codigo or codigo[:3],
+        ordem=max_ordem + 1
     )
+    db.session.add(tipo)
+    db.session.commit()
 
-    return render_template('admin/lista_mestra.html',
-                          registros=registros,
-                          abrangencias=get_abrangencias(),
-                          tipos=get_tipos_documento())
+    flash(f'Tipo {codigo} criado com sucesso!', 'success')
+    return redirect(url_for('admin.configuracoes'))
+
+
+@admin_bp.route('/tipo-documento/<int:id>/editar', methods=['POST'])
+@login_required
+@admin_required
+def tipo_documento_editar(id):
+    """Editar tipo de documento"""
+    tipo = TipoDocumento.query.get_or_404(id)
+
+    tipo.codigo = request.form.get('codigo', tipo.codigo).upper().strip()
+    tipo.nome = request.form.get('nome', tipo.nome).strip()
+    tipo.descricao = request.form.get('descricao', '').strip()
+    tipo.validade_anos = request.form.get('validade_anos', tipo.validade_anos, type=int)
+    tipo.prefixo_codigo = request.form.get('prefixo_codigo', tipo.prefixo_codigo).upper().strip()
+    tipo.ativo = request.form.get('ativo') == 'on'
+
+    db.session.commit()
+    flash(f'Tipo {tipo.codigo} atualizado!', 'success')
+    return redirect(url_for('admin.configuracoes'))
+
+
+@admin_bp.route('/tipo-documento/<int:id>/excluir', methods=['POST'])
+@login_required
+@admin_required
+def tipo_documento_excluir(id):
+    """Excluir tipo de documento"""
+    tipo = TipoDocumento.query.get_or_404(id)
+    db.session.delete(tipo)
+    db.session.commit()
+    flash('Tipo de documento excluído!', 'success')
+    return redirect(url_for('admin.configuracoes'))
 
 
 # ============================================================================
-# APIs DE ADMINISTRAÇÃO
+# CRUD - SETORES
+# ============================================================================
+
+@admin_bp.route('/setor/criar', methods=['POST'])
+@login_required
+@admin_required
+def setor_criar():
+    """Criar novo setor"""
+    nome = request.form.get('nome', '').strip()
+    abrangencia_id = request.form.get('abrangencia_id', type=int)
+    descricao = request.form.get('descricao', '').strip()
+    sigla = request.form.get('sigla', '').upper().strip()
+    responsavel = request.form.get('responsavel', '').strip()
+    email = request.form.get('email', '').strip()
+    telefone = request.form.get('telefone', '').strip()
+
+    if not nome or not abrangencia_id:
+        flash('Nome e abrangência são obrigatórios', 'danger')
+        return redirect(url_for('admin.configuracoes'))
+
+    setor = Setor(
+        nome=nome,
+        abrangencia_id=abrangencia_id,
+        descricao=descricao,
+        sigla=sigla,
+        responsavel=responsavel,
+        email=email,
+        telefone=telefone
+    )
+    db.session.add(setor)
+    db.session.commit()
+
+    flash(f'Setor {nome} criado com sucesso!', 'success')
+    return redirect(url_for('admin.configuracoes'))
+
+
+@admin_bp.route('/setor/<int:id>/editar', methods=['POST'])
+@login_required
+@admin_required
+def setor_editar(id):
+    """Editar setor"""
+    setor = Setor.query.get_or_404(id)
+
+    setor.nome = request.form.get('nome', setor.nome).strip()
+    setor.abrangencia_id = request.form.get('abrangencia_id', setor.abrangencia_id, type=int)
+    setor.descricao = request.form.get('descricao', '').strip()
+    setor.sigla = request.form.get('sigla', '').upper().strip()
+    setor.responsavel = request.form.get('responsavel', '').strip()
+    setor.email = request.form.get('email', '').strip()
+    setor.telefone = request.form.get('telefone', '').strip()
+    setor.ativo = request.form.get('ativo') == 'on'
+
+    db.session.commit()
+    flash(f'Setor {setor.nome} atualizado!', 'success')
+    return redirect(url_for('admin.configuracoes'))
+
+
+@admin_bp.route('/setor/<int:id>/excluir', methods=['POST'])
+@login_required
+@admin_required
+def setor_excluir(id):
+    """Excluir setor"""
+    setor = Setor.query.get_or_404(id)
+    db.session.delete(setor)
+    db.session.commit()
+    flash('Setor excluído!', 'success')
+    return redirect(url_for('admin.configuracoes'))
+
+
+# ============================================================================
+# CRUD - PERFIS/PERMISSÕES
+# ============================================================================
+
+@admin_bp.route('/perfil/criar', methods=['POST'])
+@login_required
+@admin_required
+def perfil_criar():
+    """Criar novo perfil"""
+    codigo = request.form.get('codigo', '').lower().strip()
+    nome = request.form.get('nome', '').strip()
+    descricao = request.form.get('descricao', '').strip()
+    cor = request.form.get('cor', '#6b7280')
+    nivel = request.form.get('nivel', 0, type=int)
+    permissoes = request.form.getlist('permissoes')
+
+    if not codigo or not nome:
+        flash('Código e nome são obrigatórios', 'danger')
+        return redirect(url_for('admin.configuracoes'))
+
+    if PerfilPermissao.query.filter_by(codigo=codigo).first():
+        flash(f'Perfil {codigo} já existe', 'danger')
+        return redirect(url_for('admin.configuracoes'))
+
+    perfil = PerfilPermissao(
+        codigo=codigo,
+        nome=nome,
+        descricao=descricao,
+        cor=cor,
+        nivel=nivel
+    )
+    perfil.set_permissoes(permissoes)
+    db.session.add(perfil)
+    db.session.commit()
+
+    flash(f'Perfil {nome} criado com sucesso!', 'success')
+    return redirect(url_for('admin.configuracoes'))
+
+
+@admin_bp.route('/perfil/<int:id>/editar', methods=['POST'])
+@login_required
+@admin_required
+def perfil_editar(id):
+    """Editar perfil"""
+    perfil = PerfilPermissao.query.get_or_404(id)
+
+    perfil.codigo = request.form.get('codigo', perfil.codigo).lower().strip()
+    perfil.nome = request.form.get('nome', perfil.nome).strip()
+    perfil.descricao = request.form.get('descricao', '').strip()
+    perfil.cor = request.form.get('cor', perfil.cor)
+    perfil.nivel = request.form.get('nivel', perfil.nivel, type=int)
+    perfil.ativo = request.form.get('ativo') == 'on'
+
+    permissoes = request.form.getlist('permissoes')
+    perfil.set_permissoes(permissoes)
+
+    db.session.commit()
+    flash(f'Perfil {perfil.nome} atualizado!', 'success')
+    return redirect(url_for('admin.configuracoes'))
+
+
+@admin_bp.route('/perfil/<int:id>/excluir', methods=['POST'])
+@login_required
+@admin_required
+def perfil_excluir(id):
+    """Excluir perfil"""
+    perfil = PerfilPermissao.query.get_or_404(id)
+    db.session.delete(perfil)
+    db.session.commit()
+    flash('Perfil excluído!', 'success')
+    return redirect(url_for('admin.configuracoes'))
+
+
+# ============================================================================
+# INICIALIZAR DADOS PADRÃO
+# ============================================================================
+
+@admin_bp.route('/inicializar-dados', methods=['POST'])
+@login_required
+@admin_required
+def inicializar_dados():
+    """Inicializa dados padrão no banco"""
+    try:
+        # Abrangências padrão
+        abrangencias_padrao = [
+            {'codigo': 'CHUFC', 'nome': 'Complexo Hospitalar Universitário da UFC', 'cor': '#2563eb', 'icone': 'bi-building'},
+            {'codigo': 'HUWC', 'nome': 'Hospital Universitário Walter Cantídio', 'cor': '#059669', 'icone': 'bi-hospital'},
+            {'codigo': 'MEAC', 'nome': 'Maternidade Escola Assis Chateaubriand', 'cor': '#d97706', 'icone': 'bi-heart'},
+        ]
+        for i, a in enumerate(abrangencias_padrao):
+            if not Abrangencia.query.filter_by(codigo=a['codigo']).first():
+                db.session.add(Abrangencia(ordem=i, **a))
+
+        # Tipos de documento padrão
+        tipos_padrao = [
+            {'codigo': 'POP', 'nome': 'Procedimento Operacional Padrão', 'validade_anos': 2, 'prefixo_codigo': 'POP'},
+            {'codigo': 'MAN', 'nome': 'Manual', 'validade_anos': 2, 'prefixo_codigo': 'MAN'},
+            {'codigo': 'PROT', 'nome': 'Protocolo', 'validade_anos': 2, 'prefixo_codigo': 'PRT'},
+            {'codigo': 'POL', 'nome': 'Política', 'validade_anos': 4, 'prefixo_codigo': 'POL'},
+            {'codigo': 'REG', 'nome': 'Regimento', 'validade_anos': 4, 'prefixo_codigo': 'REG'},
+            {'codigo': 'REGUL', 'nome': 'Regulamento', 'validade_anos': 4, 'prefixo_codigo': 'RGL'},
+        ]
+        for i, t in enumerate(tipos_padrao):
+            if not TipoDocumento.query.filter_by(codigo=t['codigo']).first():
+                db.session.add(TipoDocumento(ordem=i, **t))
+
+        # Perfis padrão
+        perfis_padrao = [
+            {'codigo': 'comum', 'nome': 'Usuário Comum', 'nivel': 1, 'cor': '#6b7280',
+             'descricao': 'Cria documentos e executa tarefas'},
+            {'codigo': 'gerente', 'nome': 'Gerente', 'nivel': 2, 'cor': '#ca8a04',
+             'descricao': 'Gerencia documentos e equipe do setor'},
+            {'codigo': 'qualidade_triador', 'nome': 'Triador UGQ', 'nivel': 3, 'cor': '#2563eb',
+             'descricao': 'Faz triagem inicial de documentos'},
+            {'codigo': 'qualidade_validador', 'nome': 'Validador UGQ', 'nivel': 4, 'cor': '#16a34a',
+             'descricao': 'Valida, codifica e publica documentos'},
+            {'codigo': 'administrador', 'nome': 'Administrador', 'nivel': 10, 'cor': '#dc2626',
+             'descricao': 'Controle total do sistema'},
+        ]
+        for p in perfis_padrao:
+            if not PerfilPermissao.query.filter_by(codigo=p['codigo']).first():
+                db.session.add(PerfilPermissao(**p))
+
+        db.session.commit()
+        flash('Dados padrão inicializados com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao inicializar dados: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.configuracoes'))
+
+
+# ============================================================================
+# APIs
 # ============================================================================
 
 @admin_bp.route('/api/setores')
 @login_required
 def api_setores():
     """API para obter setores por abrangência"""
-    abrangencia = request.args.get('abrangencia', 'CHUFC')
-    setores = get_setores_por_abrangencia(abrangencia)
-    return jsonify({'setores': setores, 'abrangencia': abrangencia})
+    abrangencia_id = request.args.get('abrangencia_id', type=int)
+    abrangencia_codigo = request.args.get('abrangencia')
 
+    if abrangencia_id:
+        setores = Setor.query.filter_by(abrangencia_id=abrangencia_id, ativo=True).order_by(Setor.nome).all()
+    elif abrangencia_codigo:
+        abrang = Abrangencia.query.filter_by(codigo=abrangencia_codigo).first()
+        if abrang:
+            setores = Setor.query.filter_by(abrangencia_id=abrang.id, ativo=True).order_by(Setor.nome).all()
+        else:
+            setores = []
+    else:
+        setores = Setor.query.filter_by(ativo=True).order_by(Setor.nome).all()
 
-@admin_bp.route('/api/stats')
-@login_required
-@admin_required
-def api_stats():
-    """API para estatísticas do sistema"""
-    stats = {
-        'usuarios': {
-            'total': Usuario.query.count(),
-            'ativos': Usuario.query.filter_by(ativo=True).count(),
-        },
-        'documentos': {
-            'total': Documento.query.count(),
-            'publicados': Documento.query.filter_by(status='Publicado').count(),
-            'em_fluxo': Documento.query.filter(Documento.status.notin_(['Publicado', 'Cancelado', 'Obsoleto'])).count(),
-        },
-        'tarefas': {
-            'pendentes': Tarefa.query.filter_by(concluida=False).count(),
-            'concluidas_mes': Tarefa.query.filter(
-                Tarefa.concluida == True,
-                Tarefa.data_conclusao >= datetime.utcnow().replace(day=1)
-            ).count(),
-        }
-    }
-    return jsonify(stats)
+    return jsonify({
+        'setores': [{'id': s.id, 'nome': s.nome, 'sigla': s.sigla} for s in setores]
+    })
 
 
 @admin_bp.route('/api/abrangencias')
 @login_required
 def api_abrangencias():
-    """API para obter abrangências disponíveis"""
-    abrangencias = get_abrangencias()
-    setores_dict = {}
-    for abrang in abrangencias:
-        setores_dict[abrang] = get_setores_por_abrangencia(abrang)
-
+    """API para obter abrangências"""
+    abrangencias = Abrangencia.query.filter_by(ativo=True).order_by(Abrangencia.ordem).all()
     return jsonify({
-        'abrangencias': abrangencias,
-        'setores_por_abrangencia': setores_dict
+        'abrangencias': [{'id': a.id, 'codigo': a.codigo, 'nome': a.nome, 'cor': a.cor} for a in abrangencias]
     })
 
 
@@ -470,11 +466,7 @@ def api_abrangencias():
 @login_required
 def api_tipos_documento():
     """API para obter tipos de documento"""
-    tipos = []
-    tipos_validade_4 = get_tipos_validade_4_anos()
-    for tipo in get_tipos_documento():
-        tipos.append({
-            'nome': tipo,
-            'validade_anos': 4 if tipo in tipos_validade_4 else 2
-        })
-    return jsonify({'tipos': tipos})
+    tipos = TipoDocumento.query.filter_by(ativo=True).order_by(TipoDocumento.ordem).all()
+    return jsonify({
+        'tipos': [{'id': t.id, 'codigo': t.codigo, 'nome': t.nome, 'validade_anos': t.validade_anos} for t in tipos]
+    })

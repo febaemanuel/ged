@@ -29,9 +29,6 @@
     background: var(--primary-color);
     color: white;
 }
-.config-tabs .nav-link:hover:not(.active) {
-    background: var(--gray-100);
-}
 .config-section {
     background: white;
     border-radius: 12px;
@@ -52,74 +49,23 @@
     border-radius: 10px;
     background: var(--gray-50);
 }
-.stat-mini .number {
-    font-size: 1.8rem;
-    font-weight: 700;
-    line-height: 1;
-}
-.stat-mini .label {
-    font-size: 0.8rem;
-    color: var(--gray-500);
-    margin-top: 5px;
-}
-.abrang-card {
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 15px;
-}
-.abrang-card .header {
-    padding: 15px;
-    color: white;
-}
-.abrang-card .header.chufc { background: #2563eb; }
-.abrang-card .header.huwc { background: #059669; }
-.abrang-card .header.meac { background: #d97706; }
-.abrang-card .body {
-    padding: 15px;
+.stat-mini .number { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+.stat-mini .label { font-size: 0.8rem; color: var(--gray-500); margin-top: 5px; }
+.item-card {
     background: var(--gray-50);
-}
-.tipo-item, .setor-item {
-    padding: 10px 15px;
-    background: white;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border: 1px solid var(--gray-200);
-}
-.perfil-card {
     border-radius: 10px;
     padding: 15px;
     margin-bottom: 10px;
+    border-left: 4px solid var(--primary-color);
 }
-.perfil-card.admin { background: #fef2f2; border-left: 4px solid #dc2626; }
-.perfil-card.validador { background: #f0fdf4; border-left: 4px solid #16a34a; }
-.perfil-card.triador { background: #eff6ff; border-left: 4px solid #2563eb; }
-.perfil-card.gerente { background: #fefce8; border-left: 4px solid #ca8a04; }
-.perfil-card.comum { background: #f9fafb; border-left: 4px solid #6b7280; }
-.user-table {
-    max-height: 400px;
-    overflow-y: auto;
-}
-.quick-action {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 15px;
-    border-radius: 8px;
-    background: var(--gray-50);
-    margin-bottom: 10px;
-    text-decoration: none;
-    color: var(--gray-700);
-    transition: all 0.2s;
-}
-.quick-action:hover {
-    background: var(--primary-color);
-    color: white;
-}
-.quick-action i {
-    font-size: 1.3rem;
+.item-card.inactive { opacity: 0.6; border-left-color: var(--gray-400); }
+.item-actions { display: flex; gap: 5px; }
+.color-badge {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    display: inline-block;
+    vertical-align: middle;
 }
 </style>
 {% endblock %}
@@ -131,322 +77,402 @@
         <div class="row align-items-center">
             <div class="col-md-8">
                 <h2 class="mb-2"><i class="bi bi-gear-fill"></i> Configurações do Sistema</h2>
-                <p class="mb-0 opacity-75">Gerencie usuários, abrangências, tipos de documento, setores e permissões</p>
+                <p class="mb-0 opacity-75">Gerencie abrangências, tipos de documento, setores e permissões</p>
             </div>
             <div class="col-md-4 text-end">
-                <span class="badge bg-success fs-6"><i class="bi bi-shield-check"></i> Administrador</span>
+                <form action="{{ url_for('admin.inicializar_dados') }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-light btn-sm" onclick="return confirm('Inicializar dados padrão?')">
+                        <i class="bi bi-database-add"></i> Inicializar Dados Padrão
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 
-    <!-- Estatísticas Rápidas -->
+    <!-- Estatísticas -->
     <div class="row mb-4">
         <div class="col-md-2 col-sm-4 col-6 mb-2">
-            <div class="stat-mini">
-                <div class="number text-primary">{{ stats.total_usuarios }}</div>
-                <div class="label">Usuários</div>
-            </div>
+            <div class="stat-mini"><div class="number text-primary">{{ stats.total_usuarios }}</div><div class="label">Usuários</div></div>
         </div>
         <div class="col-md-2 col-sm-4 col-6 mb-2">
-            <div class="stat-mini">
-                <div class="number text-success">{{ stats.total_documentos }}</div>
-                <div class="label">Documentos</div>
-            </div>
+            <div class="stat-mini"><div class="number text-success">{{ stats.total_documentos }}</div><div class="label">Documentos</div></div>
         </div>
         <div class="col-md-2 col-sm-4 col-6 mb-2">
-            <div class="stat-mini">
-                <div class="number text-info">{{ stats.documentos_publicados }}</div>
-                <div class="label">Publicados</div>
-            </div>
+            <div class="stat-mini"><div class="number text-info">{{ abrangencias|length }}</div><div class="label">Abrangências</div></div>
         </div>
         <div class="col-md-2 col-sm-4 col-6 mb-2">
-            <div class="stat-mini">
-                <div class="number text-warning">{{ stats.documentos_em_fluxo }}</div>
-                <div class="label">Em Fluxo</div>
-            </div>
+            <div class="stat-mini"><div class="number text-warning">{{ tipos|length }}</div><div class="label">Tipos Doc</div></div>
         </div>
         <div class="col-md-2 col-sm-4 col-6 mb-2">
-            <div class="stat-mini">
-                <div class="number text-danger">{{ stats.tarefas_pendentes }}</div>
-                <div class="label">Tarefas</div>
-            </div>
+            <div class="stat-mini"><div class="number text-secondary">{{ setores|length }}</div><div class="label">Setores</div></div>
         </div>
         <div class="col-md-2 col-sm-4 col-6 mb-2">
-            <div class="stat-mini">
-                <div class="number text-secondary">{{ stats.usuarios_ativos }}</div>
-                <div class="label">Ativos</div>
-            </div>
+            <div class="stat-mini"><div class="number text-danger">{{ perfis|length }}</div><div class="label">Perfis</div></div>
         </div>
     </div>
 
-    <!-- Tabs de Navegação -->
+    <!-- Tabs -->
     <div class="config-tabs">
         <ul class="nav nav-pills" id="configTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="usuarios-tab" data-bs-toggle="tab" data-bs-target="#usuarios" type="button">
-                    <i class="bi bi-people"></i> Usuários
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="abrangencias-tab" data-bs-toggle="tab" data-bs-target="#abrangencias" type="button">
-                    <i class="bi bi-globe"></i> Abrangências
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tipos-tab" data-bs-toggle="tab" data-bs-target="#tipos" type="button">
-                    <i class="bi bi-file-earmark"></i> Tipos de Documento
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="setores-tab" data-bs-toggle="tab" data-bs-target="#setores" type="button">
-                    <i class="bi bi-building"></i> Setores
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="permissoes-tab" data-bs-toggle="tab" data-bs-target="#permissoes" type="button">
-                    <i class="bi bi-key"></i> Permissões
-                </button>
-            </li>
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#abrangencias"><i class="bi bi-globe"></i> Abrangências</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tipos"><i class="bi bi-file-earmark"></i> Tipos de Documento</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#setores"><i class="bi bi-building"></i> Setores</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#perfisList"><i class="bi bi-key"></i> Perfis</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#usuarios"><i class="bi bi-people"></i> Usuários</button></li>
         </ul>
     </div>
 
-    <!-- Conteúdo das Tabs -->
-    <div class="tab-content" id="configTabsContent">
-
-        <!-- Tab: Usuários -->
-        <div class="tab-pane fade show active" id="usuarios" role="tabpanel">
+    <div class="tab-content">
+        <!-- ABRANGÊNCIAS -->
+        <div class="tab-pane fade show active" id="abrangencias">
             <div class="config-section">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0"><i class="bi bi-people"></i> Gestão de Usuários</h5>
-                    <a href="{{ url_for('view.usuarios') }}" class="btn btn-primary btn-sm">
-                        <i class="bi bi-plus-circle"></i> Gerenciar Usuários
-                    </a>
+                    <h5 class="mb-0"><i class="bi bi-globe"></i> Abrangências</h5>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAbrangencia">
+                        <i class="bi bi-plus"></i> Nova Abrangência
+                    </button>
                 </div>
-
-                <div class="row mb-4">
-                    {% for perfil, count in stats.perfis.items() %}
-                    <div class="col-md-2 col-sm-4 col-6 mb-2">
-                        <div class="text-center p-2 rounded bg-light">
-                            <div class="fw-bold fs-5">{{ count }}</div>
-                            <small class="text-muted">{{ perfil|replace('_', ' ')|title }}</small>
+                <div class="row">
+                    {% for a in abrangencias %}
+                    <div class="col-lg-4 col-md-6 mb-3">
+                        <div class="item-card {{ 'inactive' if not a.ativo }}" style="border-left-color: {{ a.cor }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1"><i class="{{ a.icone }}"></i> {{ a.codigo }}</h6>
+                                    <small class="text-muted">{{ a.nome }}</small>
+                                    <div class="mt-1">
+                                        <span class="color-badge" style="background: {{ a.cor }}"></span>
+                                        <small class="ms-1">{{ a.setores.count() }} setores</small>
+                                    </div>
+                                </div>
+                                <div class="item-actions">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="editarAbrangencia({{ a.id }}, '{{ a.codigo }}', '{{ a.nome }}', '{{ a.descricao or '' }}', '{{ a.cor }}', '{{ a.icone }}', {{ 'true' if a.ativo else 'false' }})">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <form action="{{ url_for('admin.abrangencia_excluir', id=a.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Excluir?')"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    {% else %}
+                    <div class="col-12 text-center text-muted py-4">Nenhuma abrangência cadastrada. Clique em "Inicializar Dados Padrão" ou adicione manualmente.</div>
                     {% endfor %}
                 </div>
+            </div>
+        </div>
 
-                <div class="user-table">
+        <!-- TIPOS DE DOCUMENTO -->
+        <div class="tab-pane fade" id="tipos">
+            <div class="config-section">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark"></i> Tipos de Documento</h5>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTipo">
+                        <i class="bi bi-plus"></i> Novo Tipo
+                    </button>
+                </div>
+                <div class="row">
+                    {% for t in tipos %}
+                    <div class="col-lg-4 col-md-6 mb-3">
+                        <div class="item-card {{ 'inactive' if not t.ativo }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ t.codigo }}</h6>
+                                    <small class="text-muted">{{ t.nome }}</small>
+                                    <div class="mt-1">
+                                        <span class="badge bg-{{ 'warning' if t.validade_anos == 4 else 'info' }}">{{ t.validade_anos }} anos</span>
+                                        <small class="ms-1">Prefixo: {{ t.prefixo_codigo }}</small>
+                                    </div>
+                                </div>
+                                <div class="item-actions">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="editarTipo({{ t.id }}, '{{ t.codigo }}', '{{ t.nome }}', '{{ t.descricao or '' }}', {{ t.validade_anos }}, '{{ t.prefixo_codigo }}', {{ 'true' if t.ativo else 'false' }})">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <form action="{{ url_for('admin.tipo_documento_excluir', id=t.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Excluir?')"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-12 text-center text-muted py-4">Nenhum tipo cadastrado.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- SETORES -->
+        <div class="tab-pane fade" id="setores">
+            <div class="config-section">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="bi bi-building"></i> Setores</h5>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalSetor">
+                        <i class="bi bi-plus"></i> Novo Setor
+                    </button>
+                </div>
+                <div class="table-responsive" style="max-height: 500px;">
                     <table class="table table-hover table-sm">
-                        <thead class="table-light">
+                        <thead class="table-light sticky-top">
                             <tr>
                                 <th>Nome</th>
-                                <th>Email</th>
-                                <th>Perfil</th>
-                                <th>Setor</th>
+                                <th>Abrangência</th>
+                                <th>Sigla</th>
                                 <th>Status</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for user in usuarios[:20] %}
-                            <tr>
-                                <td>{{ user.nome }}</td>
-                                <td><small>{{ user.email }}</small></td>
-                                <td><span class="badge bg-secondary">{{ user.perfil }}</span></td>
-                                <td><small>{{ user.setor or '-' }}</small></td>
+                            {% for s in setores %}
+                            <tr class="{{ 'text-muted' if not s.ativo }}">
+                                <td>{{ s.nome }}</td>
+                                <td><span class="badge" style="background: {{ s.abrangencia_rel.cor if s.abrangencia_rel else '#6b7280' }}">{{ s.abrangencia_rel.codigo if s.abrangencia_rel else '-' }}</span></td>
+                                <td>{{ s.sigla or '-' }}</td>
+                                <td>{% if s.ativo %}<span class="badge bg-success">Ativo</span>{% else %}<span class="badge bg-secondary">Inativo</span>{% endif %}</td>
                                 <td>
-                                    {% if user.ativo %}
-                                    <span class="badge bg-success">Ativo</span>
-                                    {% else %}
-                                    <span class="badge bg-danger">Inativo</span>
-                                    {% endif %}
+                                    <button class="btn btn-outline-primary btn-sm" onclick="editarSetor({{ s.id }}, '{{ s.nome }}', {{ s.abrangencia_id }}, '{{ s.descricao or '' }}', '{{ s.sigla or '' }}', '{{ s.responsavel or '' }}', '{{ s.email or '' }}', '{{ s.telefone or '' }}', {{ 'true' if s.ativo else 'false' }})">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <form action="{{ url_for('admin.setor_excluir', id=s.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Excluir?')"><i class="bi bi-trash"></i></button>
+                                    </form>
                                 </td>
                             </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="text-center text-muted py-4">Nenhum setor cadastrado.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                    {% if usuarios|length > 20 %}
-                    <div class="text-center">
-                        <a href="{{ url_for('view.usuarios') }}" class="btn btn-outline-primary btn-sm">
-                            Ver todos os {{ usuarios|length }} usuários
-                        </a>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- Tab: Abrangências -->
-        <div class="tab-pane fade" id="abrangencias" role="tabpanel">
+        <!-- PERFIS -->
+        <div class="tab-pane fade" id="perfisList">
             <div class="config-section">
-                <h5><i class="bi bi-globe"></i> Abrangências do Complexo Hospitalar</h5>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="bi bi-key"></i> Perfis de Permissão</h5>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalPerfil">
+                        <i class="bi bi-plus"></i> Novo Perfil
+                    </button>
+                </div>
                 <div class="row">
-                    {% for abrang in abrangencias %}
-                    <div class="col-lg-4 mb-3">
-                        <div class="abrang-card">
-                            <div class="header {{ abrang.nome|lower }}">
-                                <h6 class="mb-0">
-                                    {% if abrang.nome == 'CHUFC' %}<i class="bi bi-building"></i>
-                                    {% elif abrang.nome == 'HUWC' %}<i class="bi bi-hospital"></i>
-                                    {% elif abrang.nome == 'MEAC' %}<i class="bi bi-heart"></i>
-                                    {% endif %}
-                                    {{ abrang.nome }}
-                                </h6>
-                            </div>
-                            <div class="body">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span><i class="bi bi-folder"></i> Setores:</span>
-                                    <strong>{{ abrang.total_setores }}</strong>
-                                </div>
-                                <div class="d-flex justify-content-between">
-                                    <span><i class="bi bi-file-text"></i> Documentos:</span>
-                                    <strong>{{ abrang.total_documentos }}</strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                <div class="alert alert-info mt-3 mb-0">
-                    <i class="bi bi-info-circle"></i> Abrangências são configuradas no arquivo <code>config.py</code>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab: Tipos de Documento -->
-        <div class="tab-pane fade" id="tipos" role="tabpanel">
-            <div class="config-section">
-                <h5><i class="bi bi-file-earmark"></i> Tipos de Documento</h5>
-                <div class="row">
-                    {% for tipo in tipos %}
-                    <div class="col-lg-4 col-md-6 mb-2">
-                        <div class="tipo-item">
-                            <div>
-                                <strong>{{ tipo.nome }}</strong>
-                                <small class="d-block text-muted">Validade: {{ tipo.validade_anos }} anos</small>
-                            </div>
-                            <span class="badge bg-primary rounded-pill">{{ tipo.total }}</span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                <div class="alert alert-warning mt-3 mb-0">
-                    <i class="bi bi-clock"></i> <strong>Regras EBSERH:</strong>
-                    POP/Manual/Protocolo = 2 anos | Política/Regimento/Regulamento = 4 anos
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab: Setores -->
-        <div class="tab-pane fade" id="setores" role="tabpanel">
-            <div class="config-section">
-                <h5><i class="bi bi-building"></i> Setores por Abrangência</h5>
-
-                <div class="mb-3">
-                    <select class="form-select" id="filterSetorAbrang" onchange="filterSetoresByAbrang()">
-                        <option value="">Todas as abrangências</option>
-                        {% for abrang in abrangencias_list %}
-                        <option value="{{ abrang }}">{{ abrang }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="row" id="setoresList">
-                    {% for setor in setores[:30] %}
-                    <div class="col-lg-4 col-md-6 mb-2 setor-row" data-abrang="{{ setor.abrangencia }}">
-                        <div class="setor-item">
-                            <div>
-                                <strong>{{ setor.nome }}</strong>
-                                <small class="d-block">
-                                    <span class="badge bg-{{ 'primary' if setor.abrangencia == 'CHUFC' else 'success' if setor.abrangencia == 'HUWC' else 'warning' }}">
-                                        {{ setor.abrangencia }}
-                                    </span>
-                                </small>
-                            </div>
-                            <div class="text-end">
-                                <small class="text-muted">{{ setor.total_documentos }} docs</small>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% if setores|length > 30 %}
-                <div class="text-center mt-2">
-                    <small class="text-muted">Mostrando 30 de {{ setores|length }} setores</small>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Tab: Permissões -->
-        <div class="tab-pane fade" id="permissoes" role="tabpanel">
-            <div class="config-section">
-                <h5><i class="bi bi-key"></i> Controle de Permissões por Perfil</h5>
-                <div class="row">
-                    {% for perfil in perfis %}
+                    {% for p in perfis %}
                     <div class="col-lg-6 mb-3">
-                        <div class="perfil-card {{ 'admin' if perfil.nome == 'administrador' else 'validador' if perfil.nome == 'qualidade_validador' else 'triador' if perfil.nome == 'qualidade_triador' else 'gerente' if perfil.nome == 'gerente' else 'comum' }}">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="item-card {{ 'inactive' if not p.ativo }}" style="border-left-color: {{ p.cor }}">
+                            <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="mb-0">{{ perfil.nome|replace('_', ' ')|title }}</h6>
-                                    <small class="text-muted">{{ perfil.descricao }}</small>
+                                    <h6 class="mb-1"><span class="badge" style="background: {{ p.cor }}">{{ p.codigo }}</span> {{ p.nome }}</h6>
+                                    <small class="text-muted">{{ p.descricao or '-' }}</small>
+                                    <div class="mt-1"><small>Nível: {{ p.nivel }} | Usuários: {{ stats.perfis.get(p.codigo, 0) }}</small></div>
                                 </div>
-                                <span class="badge bg-secondary">{{ perfil.total_usuarios }} usuários</span>
-                            </div>
-                            <div class="mt-2">
-                                {% for perm in perfil.permissoes %}
-                                <small class="d-block"><i class="bi bi-check text-success"></i> {{ perm }}</small>
-                                {% endfor %}
+                                <div class="item-actions">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="editarPerfil({{ p.id }}, '{{ p.codigo }}', '{{ p.nome }}', '{{ p.descricao or '' }}', '{{ p.cor }}', {{ p.nivel }}, {{ 'true' if p.ativo else 'false' }})">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <form action="{{ url_for('admin.perfil_excluir', id=p.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Excluir?')"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>
+                    {% else %}
+                    <div class="col-12 text-center text-muted py-4">Nenhum perfil cadastrado.</div>
                     {% endfor %}
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Ações Rápidas -->
-    <div class="config-section">
-        <h5><i class="bi bi-lightning"></i> Ações Rápidas</h5>
-        <div class="row">
-            <div class="col-md-3 col-sm-6">
-                <a href="{{ url_for('view.usuarios') }}" class="quick-action">
-                    <i class="bi bi-person-plus text-primary"></i>
-                    <span>Criar Usuário</span>
-                </a>
-            </div>
-            <div class="col-md-3 col-sm-6">
-                <a href="{{ url_for('view.templates_admin') }}" class="quick-action">
-                    <i class="bi bi-file-earmark-code text-success"></i>
-                    <span>Templates</span>
-                </a>
-            </div>
-            <div class="col-md-3 col-sm-6">
-                <a href="{{ url_for('admin.lista_mestra') }}" class="quick-action">
-                    <i class="bi bi-list-columns text-info"></i>
-                    <span>Lista Mestra</span>
-                </a>
-            </div>
-            <div class="col-md-3 col-sm-6">
-                <a href="{{ url_for('view.dashboard') }}" class="quick-action">
-                    <i class="bi bi-house text-secondary"></i>
-                    <span>Voltar ao Dashboard</span>
-                </a>
+        <!-- USUÁRIOS -->
+        <div class="tab-pane fade" id="usuarios">
+            <div class="config-section">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="bi bi-people"></i> Usuários</h5>
+                    <a href="{{ url_for('view.usuarios') }}" class="btn btn-primary btn-sm"><i class="bi bi-gear"></i> Gerenciar Usuários</a>
+                </div>
+                <div class="table-responsive" style="max-height: 400px;">
+                    <table class="table table-hover table-sm">
+                        <thead class="table-light sticky-top"><tr><th>Nome</th><th>Email</th><th>Perfil</th><th>Setor</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {% for u in usuarios[:30] %}
+                            <tr><td>{{ u.nome }}</td><td><small>{{ u.email }}</small></td><td><span class="badge bg-secondary">{{ u.perfil }}</span></td><td>{{ u.setor or '-' }}</td><td>{% if u.ativo %}<span class="badge bg-success">Ativo</span>{% else %}<span class="badge bg-danger">Inativo</span>{% endif %}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Modal Abrangência -->
+<div class="modal fade" id="modalAbrangencia" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="formAbrangencia" method="POST" action="{{ url_for('admin.abrangencia_criar') }}">
+                <div class="modal-header"><h5 class="modal-title" id="tituloModalAbrangencia">Nova Abrangência</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" id="abrangencia_id" name="id">
+                    <div class="mb-3"><label class="form-label">Código *</label><input type="text" class="form-control" id="abrangencia_codigo" name="codigo" required maxlength="20" placeholder="Ex: CHUFC"></div>
+                    <div class="mb-3"><label class="form-label">Nome *</label><input type="text" class="form-control" id="abrangencia_nome" name="nome" required placeholder="Nome completo"></div>
+                    <div class="mb-3"><label class="form-label">Descrição</label><textarea class="form-control" id="abrangencia_descricao" name="descricao" rows="2"></textarea></div>
+                    <div class="row">
+                        <div class="col-6 mb-3"><label class="form-label">Cor</label><input type="color" class="form-control form-control-color w-100" id="abrangencia_cor" name="cor" value="#2563eb"></div>
+                        <div class="col-6 mb-3"><label class="form-label">Ícone</label><input type="text" class="form-control" id="abrangencia_icone" name="icone" value="bi-building" placeholder="bi-building"></div>
+                    </div>
+                    <div class="form-check"><input type="checkbox" class="form-check-input" id="abrangencia_ativo" name="ativo" checked><label class="form-check-label">Ativo</label></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Salvar</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tipo -->
+<div class="modal fade" id="modalTipo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="formTipo" method="POST" action="{{ url_for('admin.tipo_documento_criar') }}">
+                <div class="modal-header"><h5 class="modal-title" id="tituloModalTipo">Novo Tipo de Documento</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" id="tipo_id" name="id">
+                    <div class="mb-3"><label class="form-label">Código *</label><input type="text" class="form-control" id="tipo_codigo" name="codigo" required maxlength="20" placeholder="Ex: POP"></div>
+                    <div class="mb-3"><label class="form-label">Nome *</label><input type="text" class="form-control" id="tipo_nome" name="nome" required placeholder="Nome completo"></div>
+                    <div class="mb-3"><label class="form-label">Descrição</label><textarea class="form-control" id="tipo_descricao" name="descricao" rows="2"></textarea></div>
+                    <div class="row">
+                        <div class="col-6 mb-3"><label class="form-label">Validade (anos)</label><input type="number" class="form-control" id="tipo_validade" name="validade_anos" value="2" min="1" max="10"></div>
+                        <div class="col-6 mb-3"><label class="form-label">Prefixo Código</label><input type="text" class="form-control" id="tipo_prefixo" name="prefixo_codigo" maxlength="10" placeholder="Ex: POP"></div>
+                    </div>
+                    <div class="form-check"><input type="checkbox" class="form-check-input" id="tipo_ativo" name="ativo" checked><label class="form-check-label">Ativo</label></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Salvar</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Setor -->
+<div class="modal fade" id="modalSetor" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="formSetor" method="POST" action="{{ url_for('admin.setor_criar') }}">
+                <div class="modal-header"><h5 class="modal-title" id="tituloModalSetor">Novo Setor</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" id="setor_id" name="id">
+                    <div class="mb-3"><label class="form-label">Nome *</label><input type="text" class="form-control" id="setor_nome" name="nome" required placeholder="Nome do setor"></div>
+                    <div class="mb-3">
+                        <label class="form-label">Abrangência *</label>
+                        <select class="form-select" id="setor_abrangencia" name="abrangencia_id" required>
+                            <option value="">Selecione...</option>
+                            {% for a in abrangencias %}
+                            <option value="{{ a.id }}">{{ a.codigo }} - {{ a.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3"><label class="form-label">Sigla</label><input type="text" class="form-control" id="setor_sigla" name="sigla" maxlength="20" placeholder="Sigla opcional"></div>
+                    <div class="mb-3"><label class="form-label">Responsável</label><input type="text" class="form-control" id="setor_responsavel" name="responsavel" placeholder="Nome do responsável"></div>
+                    <div class="row">
+                        <div class="col-6 mb-3"><label class="form-label">Email</label><input type="email" class="form-control" id="setor_email" name="email"></div>
+                        <div class="col-6 mb-3"><label class="form-label">Telefone</label><input type="text" class="form-control" id="setor_telefone" name="telefone"></div>
+                    </div>
+                    <div class="form-check"><input type="checkbox" class="form-check-input" id="setor_ativo" name="ativo" checked><label class="form-check-label">Ativo</label></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Salvar</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Perfil -->
+<div class="modal fade" id="modalPerfil" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="formPerfil" method="POST" action="{{ url_for('admin.perfil_criar') }}">
+                <div class="modal-header"><h5 class="modal-title" id="tituloModalPerfil">Novo Perfil</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" id="perfil_id" name="id">
+                    <div class="mb-3"><label class="form-label">Código *</label><input type="text" class="form-control" id="perfil_codigo" name="codigo" required placeholder="Ex: gerente"></div>
+                    <div class="mb-3"><label class="form-label">Nome *</label><input type="text" class="form-control" id="perfil_nome" name="nome" required placeholder="Nome do perfil"></div>
+                    <div class="mb-3"><label class="form-label">Descrição</label><textarea class="form-control" id="perfil_descricao" name="descricao" rows="2"></textarea></div>
+                    <div class="row">
+                        <div class="col-6 mb-3"><label class="form-label">Cor</label><input type="color" class="form-control form-control-color w-100" id="perfil_cor" name="cor" value="#6b7280"></div>
+                        <div class="col-6 mb-3"><label class="form-label">Nível</label><input type="number" class="form-control" id="perfil_nivel" name="nivel" value="1" min="0" max="100"></div>
+                    </div>
+                    <div class="form-check"><input type="checkbox" class="form-check-input" id="perfil_ativo" name="ativo" checked><label class="form-check-label">Ativo</label></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Salvar</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
-function filterSetoresByAbrang() {
-    const filter = document.getElementById('filterSetorAbrang').value;
-    const rows = document.querySelectorAll('.setor-row');
-    rows.forEach(row => {
-        if (!filter || row.dataset.abrang === filter) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
+function editarAbrangencia(id, codigo, nome, descricao, cor, icone, ativo) {
+    document.getElementById('tituloModalAbrangencia').textContent = 'Editar Abrangência';
+    document.getElementById('formAbrangencia').action = '/admin/abrangencia/' + id + '/editar';
+    document.getElementById('abrangencia_id').value = id;
+    document.getElementById('abrangencia_codigo').value = codigo;
+    document.getElementById('abrangencia_nome').value = nome;
+    document.getElementById('abrangencia_descricao').value = descricao;
+    document.getElementById('abrangencia_cor').value = cor;
+    document.getElementById('abrangencia_icone').value = icone;
+    document.getElementById('abrangencia_ativo').checked = ativo;
+    new bootstrap.Modal(document.getElementById('modalAbrangencia')).show();
+}
+
+function editarTipo(id, codigo, nome, descricao, validade, prefixo, ativo) {
+    document.getElementById('tituloModalTipo').textContent = 'Editar Tipo de Documento';
+    document.getElementById('formTipo').action = '/admin/tipo-documento/' + id + '/editar';
+    document.getElementById('tipo_id').value = id;
+    document.getElementById('tipo_codigo').value = codigo;
+    document.getElementById('tipo_nome').value = nome;
+    document.getElementById('tipo_descricao').value = descricao;
+    document.getElementById('tipo_validade').value = validade;
+    document.getElementById('tipo_prefixo').value = prefixo;
+    document.getElementById('tipo_ativo').checked = ativo;
+    new bootstrap.Modal(document.getElementById('modalTipo')).show();
+}
+
+function editarSetor(id, nome, abrangencia_id, descricao, sigla, responsavel, email, telefone, ativo) {
+    document.getElementById('tituloModalSetor').textContent = 'Editar Setor';
+    document.getElementById('formSetor').action = '/admin/setor/' + id + '/editar';
+    document.getElementById('setor_id').value = id;
+    document.getElementById('setor_nome').value = nome;
+    document.getElementById('setor_abrangencia').value = abrangencia_id;
+    document.getElementById('setor_sigla').value = sigla;
+    document.getElementById('setor_responsavel').value = responsavel;
+    document.getElementById('setor_email').value = email;
+    document.getElementById('setor_telefone').value = telefone;
+    document.getElementById('setor_ativo').checked = ativo;
+    new bootstrap.Modal(document.getElementById('modalSetor')).show();
+}
+
+function editarPerfil(id, codigo, nome, descricao, cor, nivel, ativo) {
+    document.getElementById('tituloModalPerfil').textContent = 'Editar Perfil';
+    document.getElementById('formPerfil').action = '/admin/perfil/' + id + '/editar';
+    document.getElementById('perfil_id').value = id;
+    document.getElementById('perfil_codigo').value = codigo;
+    document.getElementById('perfil_nome').value = nome;
+    document.getElementById('perfil_descricao').value = descricao;
+    document.getElementById('perfil_cor').value = cor;
+    document.getElementById('perfil_nivel').value = nivel;
+    document.getElementById('perfil_ativo').checked = ativo;
+    new bootstrap.Modal(document.getElementById('modalPerfil')).show();
+}
+
+// Reset modals on close
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('hidden.bs.modal', function() {
+        const form = this.querySelector('form');
+        if (form) {
+            form.reset();
+            form.action = form.action.replace(/\/\d+\/editar/, '/criar');
+            const titulo = this.querySelector('.modal-title');
+            if (titulo) titulo.textContent = titulo.textContent.replace('Editar', 'Nov');
         }
     });
-}
+});
 </script>
 {% endblock %}

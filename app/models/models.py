@@ -1155,3 +1155,161 @@ class LogWhatsApp(db.Model):
 
     def __repr__(self):
         return f'<LogWhatsApp {self.direcao} - {self.telefone}>'
+
+
+# ============================================================================
+# MODELOS - CONFIGURAÇÕES DO SISTEMA (EDITÁVEIS)
+# ============================================================================
+
+
+class Abrangencia(db.Model):
+    """
+    Abrangências do Complexo Hospitalar (CHUFC, HUWC, MEAC)
+    Editável pelo administrador
+    """
+    __tablename__ = 'abrangencias'
+
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(20), unique=True, nullable=False)  # CHUFC, HUWC, MEAC
+    nome = db.Column(db.String(200), nullable=False)  # Nome completo
+    descricao = db.Column(db.Text)
+    cor = db.Column(db.String(20), default='#2563eb')  # Cor para exibição
+    icone = db.Column(db.String(50), default='bi-building')  # Ícone Bootstrap
+    ativo = db.Column(db.Boolean, default=True)
+    ordem = db.Column(db.Integer, default=0)  # Ordem de exibição
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relacionamentos
+    setores = db.relationship('Setor', backref='abrangencia_rel', lazy='dynamic')
+
+    @classmethod
+    def get_all_active(cls):
+        """Retorna todas as abrangências ativas ordenadas"""
+        return cls.query.filter_by(ativo=True).order_by(cls.ordem).all()
+
+    @classmethod
+    def get_by_codigo(cls, codigo):
+        """Busca abrangência pelo código"""
+        return cls.query.filter_by(codigo=codigo).first()
+
+    def __repr__(self):
+        return f'<Abrangencia {self.codigo}>'
+
+
+class TipoDocumento(db.Model):
+    """
+    Tipos de documento (POP, Manual, Protocolo, etc)
+    Editável pelo administrador
+    """
+    __tablename__ = 'tipos_documento'
+
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(20), unique=True, nullable=False)  # POP, MAN, PROT
+    nome = db.Column(db.String(100), nullable=False)  # Nome completo
+    descricao = db.Column(db.Text)
+    validade_anos = db.Column(db.Integer, default=2)  # Validade padrão em anos
+    prefixo_codigo = db.Column(db.String(10))  # Prefixo para código definitivo
+    ativo = db.Column(db.Boolean, default=True)
+    ordem = db.Column(db.Integer, default=0)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @classmethod
+    def get_all_active(cls):
+        """Retorna todos os tipos ativos ordenados"""
+        return cls.query.filter_by(ativo=True).order_by(cls.ordem).all()
+
+    @classmethod
+    def get_by_codigo(cls, codigo):
+        """Busca tipo pelo código"""
+        return cls.query.filter_by(codigo=codigo).first()
+
+    def __repr__(self):
+        return f'<TipoDocumento {self.codigo}>'
+
+
+class Setor(db.Model):
+    """
+    Setores/Departamentos por abrangência
+    Editável pelo administrador
+    """
+    __tablename__ = 'setores'
+
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(200), nullable=False)
+    abrangencia_id = db.Column(db.Integer, db.ForeignKey('abrangencias.id'), nullable=False)
+    descricao = db.Column(db.Text)
+    sigla = db.Column(db.String(20))  # Sigla opcional
+    responsavel = db.Column(db.String(200))  # Nome do responsável
+    email = db.Column(db.String(200))  # Email de contato
+    telefone = db.Column(db.String(50))
+    ativo = db.Column(db.Boolean, default=True)
+    ordem = db.Column(db.Integer, default=0)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @classmethod
+    def get_by_abrangencia(cls, abrangencia_id):
+        """Retorna setores de uma abrangência"""
+        return cls.query.filter_by(abrangencia_id=abrangencia_id, ativo=True).order_by(cls.nome).all()
+
+    @classmethod
+    def get_all_active(cls):
+        """Retorna todos os setores ativos"""
+        return cls.query.filter_by(ativo=True).order_by(cls.nome).all()
+
+    def __repr__(self):
+        return f'<Setor {self.nome}>'
+
+
+class PerfilPermissao(db.Model):
+    """
+    Perfis de usuário e suas permissões
+    Editável pelo administrador
+    """
+    __tablename__ = 'perfis_permissao'
+
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(50), unique=True, nullable=False)  # comum, gerente, admin
+    nome = db.Column(db.String(100), nullable=False)  # Nome amigável
+    descricao = db.Column(db.Text)
+    cor = db.Column(db.String(20), default='#6b7280')  # Cor para badge
+    nivel = db.Column(db.Integer, default=0)  # Nível hierárquico (maior = mais permissões)
+    ativo = db.Column(db.Boolean, default=True)
+
+    # Permissões (JSON com lista de permissões)
+    permissoes_json = db.Column(db.Text)
+
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def get_permissoes(self):
+        """Retorna lista de permissões"""
+        if self.permissoes_json:
+            try:
+                return json.loads(self.permissoes_json)
+            except:
+                return []
+        return []
+
+    def set_permissoes(self, permissoes):
+        """Define permissões a partir de lista"""
+        self.permissoes_json = json.dumps(permissoes, ensure_ascii=False)
+
+    def tem_permissao(self, permissao):
+        """Verifica se perfil tem determinada permissão"""
+        return permissao in self.get_permissoes()
+
+    @classmethod
+    def get_all_active(cls):
+        """Retorna todos os perfis ativos ordenados por nível"""
+        return cls.query.filter_by(ativo=True).order_by(cls.nivel).all()
+
+    @classmethod
+    def get_by_codigo(cls, codigo):
+        """Busca perfil pelo código"""
+        return cls.query.filter_by(codigo=codigo).first()
+
+    def __repr__(self):
+        return f'<PerfilPermissao {self.codigo}>'
