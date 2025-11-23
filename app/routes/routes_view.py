@@ -378,6 +378,30 @@ def documento_editar(id):
         documento.descricao = request.form.get('descricao')
         # VALIDADE: Calculada automaticamente baseado no tipo (2 ou 4 anos)
 
+        # Campos avançados (apenas admin/triador/validador)
+        if current_user.is_admin() or current_user.is_triador_ugq() or current_user.is_validador_ugq():
+            abrangencia = request.form.get('abrangencia')
+            if abrangencia:
+                documento.abrangencia = abrangencia
+
+        # Campos de operações avançadas (apenas admin/validador)
+        if current_user.is_admin() or current_user.is_validador_ugq():
+            status = request.form.get('status')
+            if status:
+                documento.status = status
+
+            versao = request.form.get('versao')
+            if versao:
+                documento.versao = versao
+
+            codigo_definitivo = request.form.get('codigo_definitivo')
+            if codigo_definitivo:
+                documento.codigo_definitivo = codigo_definitivo
+
+            autores = request.form.get('autores')
+            if autores:
+                documento.autores = autores
+
         # Atualiza chefia se fornecida
         chefia_imediata_id = request.form.get('chefia_imediata_id', type=int)
         if chefia_imediata_id:
@@ -448,7 +472,16 @@ def documento_editar(id):
         Usuario.ativo == True
     ).order_by(Usuario.nome).all()
 
-    return render_template('documento_editar.html', documento=documento, gerentes=gerentes)
+    # Lista de setores baseada na abrangência atual do documento ou todos
+    abrangencia_doc = documento.abrangencia or 'CHUFC'
+    setores = Config.get_setores_por_abrangencia(abrangencia_doc)
+
+    # Se o setor atual não está na lista, adiciona
+    if documento.setor and documento.setor not in setores:
+        setores.append(documento.setor)
+        setores.sort()
+
+    return render_template('documento_editar.html', documento=documento, gerentes=gerentes, setores=setores)
 
 
 @view_bp.route('/documento/<int:id>/download')

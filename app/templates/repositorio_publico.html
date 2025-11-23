@@ -900,6 +900,7 @@ let currentSetor = null;
 let currentTipo = null;
 let currentSearch = '';
 let currentAbrangencia = 'TODOS';
+let currentSetorAbrangencia = null; // Abrangência do setor selecionado
 let allDocuments = [];
 let hierarchyData = null;
 let searchTimeout = null;
@@ -954,6 +955,7 @@ function selectAbrangencia(abrangencia, reload = true) {
     if (reload) {
         currentSetor = null;
         currentTipo = null;
+        currentSetorAbrangencia = null; // Reset abrangência do setor
         updateBreadcrumbs();
         renderHierarchyForAbrangencia();
         resetAndLoadDocuments();
@@ -1060,8 +1062,6 @@ function toggleSetor(setor, abrangencia, event) {
     }
 }
 
-let currentSetorAbrangencia = null;
-
 function filterByTipo(setor, tipo, abrangencia) {
     currentSetor = setor;
     currentTipo = tipo;
@@ -1097,6 +1097,7 @@ function resetAndLoadDocuments() {
 function clearFilters() {
     currentSetor = null;
     currentTipo = null;
+    currentSetorAbrangencia = null; // Reset abrangência do setor
     currentSearch = '';
     currentPage = 1;
     allDocuments = [];
@@ -1113,9 +1114,16 @@ function updateBreadcrumbs() {
     const sep1 = document.querySelector('.breadcrumb-separator');
     const sep2 = document.getElementById('breadcrumb-sep-tipo');
 
+    // Usa a abrangência do setor se disponível, senão usa a global
+    const abrangenciaAtual = currentSetorAbrangencia || currentAbrangencia;
+
     if (currentSetor) {
-        setorBread.innerHTML = `<a href="#" class="breadcrumb-link" onclick="filterBySetor('${currentSetor}'); return false;">${currentSetor}</a>`;
-        setorBread.style.display = 'block';
+        const abrangBadge = abrangenciaAtual && abrangenciaAtual !== 'TODOS'
+            ? `<span class="badge ms-2 ${getAbrangenciaBadgeClass(abrangenciaAtual)}">${abrangenciaAtual}</span>`
+            : '';
+        setorBread.innerHTML = `<a href="#" class="breadcrumb-link" onclick="filterBySetor('${currentSetor}', '${abrangenciaAtual}'); return false;">${currentSetor}</a>${abrangBadge}`;
+        setorBread.style.display = 'flex';
+        setorBread.style.alignItems = 'center';
         sep1.style.display = 'inline';
     } else {
         setorBread.style.display = 'none';

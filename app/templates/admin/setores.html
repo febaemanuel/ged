@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Gestão de Setores - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.painel') }}">Administração</a></li>
+            <li class="breadcrumb-item active">Setores</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-building"></i> Gestão de Setores</h3>
+        <div>
+            <select class="form-select" id="filterAbrangencia" onchange="filterSetores()">
+                <option value="">Todas as abrangências</option>
+                {% for abrang in abrangencias %}
+                <option value="{{ abrang }}">{{ abrang }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="tabelaSetores">
+                    <thead>
+                        <tr>
+                            <th>Setor</th>
+                            <th>Abrangência</th>
+                            <th class="text-center">Documentos</th>
+                            <th class="text-center">Usuários</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for setor in setores %}
+                        <tr data-abrangencia="{{ setor.abrangencia }}">
+                            <td><i class="bi bi-folder text-primary"></i> {{ setor.nome }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'primary' if setor.abrangencia == 'CHUFC' else 'success' if setor.abrangencia == 'HUWC' else 'warning' }}">
+                                    {{ setor.abrangencia }}
+                                </span>
+                            </td>
+                            <td class="text-center">{{ setor.total_documentos }}</td>
+                            <td class="text-center">{{ setor.total_usuarios }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterSetores() {
+    const filter = document.getElementById('filterAbrangencia').value;
+    const rows = document.querySelectorAll('#tabelaSetores tbody tr');
+    rows.forEach(row => {
+        if (!filter || row.dataset.abrangencia === filter) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}
