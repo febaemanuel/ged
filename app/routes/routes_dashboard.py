@@ -21,7 +21,7 @@ from app.services.report_generator import (
     gerar_relatorio_geral
 )
 
-bp = Blueprint('dashboard', __name__)
+bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
 
 
 @bp.route('/', methods=['GET'])

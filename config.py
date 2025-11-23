@@ -131,6 +131,138 @@ class Config:
     # Tipos que têm validade de 4 anos (os demais têm 2 anos)
     TIPOS_VALIDADE_4_ANOS = [TIPO_POLITICA, TIPO_REGIMENTO, TIPO_REGULAMENTO]
 
+    # =========================================================================
+    # ABRANGÊNCIAS E SETORES - COMPLEXO HOSPITALAR UFC
+    # =========================================================================
+
+    # Abrangências do Complexo Hospitalar
+    ABRANGENCIA_CHUFC = 'CHUFC'   # Complexo Hospitalar Universitário da UFC
+    ABRANGENCIA_HUWC = 'HUWC'     # Hospital Universitário Walter Cantídio
+    ABRANGENCIA_MEAC = 'MEAC'     # Maternidade Escola Assis Chateaubriand
+
+    ABRANGENCIAS = [ABRANGENCIA_CHUFC, ABRANGENCIA_HUWC, ABRANGENCIA_MEAC]
+
+    # Setores por abrangência (exemplo - adicione mais conforme necessário)
+    SETORES_POR_ABRANGENCIA = {
+        ABRANGENCIA_CHUFC: [
+            'Administração',
+            'Assessoria de Comunicação',
+            'Auditoria',
+            'Comissões',
+            'Contabilidade',
+            'Contratos',
+            'Diretoria Geral',
+            'Farmácia',
+            'Financeiro',
+            'Gestão de Pessoas',
+            'Governança',
+            'Informática',
+            'Logística',
+            'Operações',
+            'Ouvidoria',
+            'Patrimônio',
+            'Planejamento',
+            'Qualidade',
+            'Recursos Humanos',
+            'Secretaria Geral',
+            'Segurança',
+            'Tecnologia da Informação',
+            'Transporte',
+            'Unidade de Gestão da Qualidade',
+        ],
+        ABRANGENCIA_HUWC: [
+            'Administração',
+            'Ambulatório',
+            'Banco de Sangue',
+            'Bloco Cirúrgico',
+            'Cardiologia',
+            'Centro Cirúrgico',
+            'Cirurgia Geral',
+            'Clínica Médica',
+            'CME',
+            'Dermatologia',
+            'Diretoria',
+            'Emergência',
+            'Endocrinologia',
+            'Enfermagem',
+            'Farmácia',
+            'Fisioterapia',
+            'Gastroenterologia',
+            'Geriatria',
+            'Hematologia',
+            'Hemoterapia',
+            'Hotelaria Hospitalar',
+            'Imagenologia',
+            'Infectologia',
+            'Laboratório',
+            'Nefrologia',
+            'Neurologia',
+            'Nutrição',
+            'Oftalmologia',
+            'Oncologia',
+            'Ortopedia',
+            'Otorrinolaringologia',
+            'Pediatria',
+            'Pneumologia',
+            'Pronto Socorro',
+            'Psicologia',
+            'Qualidade',
+            'Radiologia',
+            'Reumatologia',
+            'Serviço Social',
+            'Transplante',
+            'Urologia',
+            'UTI',
+        ],
+        ABRANGENCIA_MEAC: [
+            'Administração',
+            'Aleitamento Materno',
+            'Ambulatório',
+            'Banco de Leite',
+            'Bloco Cirúrgico',
+            'Centro Cirúrgico',
+            'Centro Obstétrico',
+            'CME',
+            'Diretoria',
+            'Enfermagem',
+            'Farmácia',
+            'Fisioterapia',
+            'Ginecologia',
+            'Hotelaria Hospitalar',
+            'Laboratório',
+            'Mastologia',
+            'Medicina Fetal',
+            'Neonatologia',
+            'Nutrição',
+            'Obstetrícia',
+            'Patologia',
+            'Planejamento Familiar',
+            'Psicologia',
+            'Qualidade',
+            'Radiologia',
+            'Reprodução Humana',
+            'Serviço Social',
+            'UCI Neonatal',
+            'UTI Materna',
+            'UTI Neonatal',
+        ],
+    }
+
+    # Lista completa de todos os setores (para uso geral)
+    @classmethod
+    def get_todos_setores(cls):
+        """Retorna lista de todos os setores com suas abrangências"""
+        todos = []
+        for abrang, setores in cls.SETORES_POR_ABRANGENCIA.items():
+            for setor in setores:
+                todos.append({'setor': setor, 'abrangencia': abrang})
+        return sorted(todos, key=lambda x: (x['setor'], x['abrangencia']))
+
+    @classmethod
+    def get_setores_por_abrangencia(cls, abrangencia):
+        """Retorna setores de uma abrangência específica"""
+        return cls.SETORES_POR_ABRANGENCIA.get(abrangencia, [])
+
     # Tipos de tarefas - WORKFLOW UGQ OFICIAL EBSERH
     # ETAPA 0 - Autor
     TAREFA_DOCUMENTO_RECEBIDO = 'Documento Recebido'                        # Novo - Triador UGQ
