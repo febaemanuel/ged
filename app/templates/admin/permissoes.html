@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Gestão de Permissões - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.painel') }}">Administração</a></li>
+            <li class="breadcrumb-item active">Permissões</li>
+        </ol>
+    </nav>
+
+    <h3 class="mb-4"><i class="bi bi-key"></i> Controle de Permissões por Perfil</h3>
+
+    <div class="row">
+        {% for perfil in perfis %}
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center
+                    {% if perfil.nome == 'administrador' %}bg-danger text-white
+                    {% elif perfil.nome == 'qualidade_validador' %}bg-success text-white
+                    {% elif perfil.nome == 'qualidade_triador' %}bg-info text-white
+                    {% elif perfil.nome == 'gerente' %}bg-primary text-white
+                    {% else %}bg-secondary text-white{% endif %}">
+                    <h5 class="mb-0">
+                        {% if perfil.nome == 'administrador' %}<i class="bi bi-shield-lock"></i>
+                        {% elif perfil.nome == 'qualidade_validador' %}<i class="bi bi-patch-check"></i>
+                        {% elif perfil.nome == 'qualidade_triador' %}<i class="bi bi-funnel"></i>
+                        {% elif perfil.nome == 'gerente' %}<i class="bi bi-person-badge"></i>
+                        {% else %}<i class="bi bi-person"></i>{% endif %}
+                        {{ perfil.nome | replace('_', ' ') | title }}
+                    </h5>
+                    <span class="badge bg-light text-dark">{{ perfil.total_usuarios }} usuários</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">{{ perfil.descricao }}</p>
+                    <h6><i class="bi bi-check2-all"></i> Permissões:</h6>
+                    <ul class="list-unstyled">
+                        {% for perm in perfil.permissoes %}
+                        <li class="mb-1"><i class="bi bi-check-circle text-success"></i> {{ perm }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

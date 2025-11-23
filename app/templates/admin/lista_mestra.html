@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Lista Mestra - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.painel') }}">Administração</a></li>
+            <li class="breadcrumb-item active">Lista Mestra</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-list-columns"></i> Lista Mestra de Documentos</h3>
+        <span class="badge bg-primary fs-6">{{ registros.total }} registros</span>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <select name="abrangencia" class="form-select">
+                        <option value="">Todas abrangências</option>
+                        {% for abrang in abrangencias %}
+                        <option value="{{ abrang }}" {% if request.args.get('abrangencia') == abrang %}selected{% endif %}>{{ abrang }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="tipo" class="form-select">
+                        <option value="">Todos os tipos</option>
+                        {% for tipo in tipos %}
+                        <option value="{{ tipo }}" {% if request.args.get('tipo') == tipo %}selected{% endif %}>{{ tipo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" name="setor" class="form-control" placeholder="Filtrar por setor" value="{{ request.args.get('setor', '') }}">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Filtrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Título</th>
+                            <th>Tipo</th>
+                            <th>Setor</th>
+                            <th>Abrangência</th>
+                            <th>Versão</th>
+                            <th>Status</th>
+                            <th>Publicação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reg in registros.items %}
+                        <tr>
+                            <td><strong>{{ reg.codigo }}</strong></td>
+                            <td>{{ reg.titulo[:50] }}{% if reg.titulo|length > 50 %}...{% endif %}</td>
+                            <td><span class="badge bg-secondary">{{ reg.tipo }}</span></td>
+                            <td>{{ reg.setor }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'primary' if reg.abrangencia == 'CHUFC' else 'success' if reg.abrangencia == 'HUWC' else 'warning' }}">
+                                    {{ reg.abrangencia }}
+                                </span>
+                            </td>
+                            <td>{{ reg.versao }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if reg.status == 'VIGENTE' else 'info' }}">{{ reg.status }}</span>
+                            </td>
+                            <td>{{ reg.data_publicacao.strftime('%d/%m/%Y') if reg.data_publicacao else '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">Nenhum registro encontrado</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginação -->
+            {% if registros.pages > 1 %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% for page in registros.iter_pages() %}
+                        {% if page %}
+                        <li class="page-item {% if page == registros.page %}active{% endif %}">
+                            <a class="page-link" href="?page={{ page }}&abrangencia={{ request.args.get('abrangencia', '') }}&tipo={{ request.args.get('tipo', '') }}&setor={{ request.args.get('setor', '') }}">{{ page }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

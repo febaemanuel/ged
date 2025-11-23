@@ -12,7 +12,7 @@
 }
 
 .repo-sidebar {
-    width: 280px;
+    width: 340px;
     flex-shrink: 0;
     background: white;
     border-radius: 12px;
@@ -63,26 +63,31 @@
 }
 
 .abrangencia-tabs {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     margin-bottom: 8px;
 }
 
 .abrangencia-tab {
-    padding: 8px 4px;
+    padding: 8px 6px;
     border: 2px solid transparent;
     background: white;
     border-radius: 8px;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 2px;
     color: var(--gray-600);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 60px;
 }
 
 .abrangencia-tab:hover {
@@ -757,15 +762,11 @@ mark {
                     <button class="abrangencia-tab active" data-abrangencia="TODOS" onclick="selectAbrangencia('TODOS')">
                         <i class="bi bi-globe"></i> Todos
                     </button>
-                    <button class="abrangencia-tab" data-abrangencia="CHUFC" onclick="selectAbrangencia('CHUFC')">
-                        CHUFC
+                    {% for abrang in abrangencias %}
+                    <button class="abrangencia-tab" data-abrangencia="{{ abrang.codigo }}" data-cor="{{ abrang.cor or '#2563eb' }}" onclick="selectAbrangencia('{{ abrang.codigo }}')">
+                        {{ abrang.codigo }}
                     </button>
-                    <button class="abrangencia-tab" data-abrangencia="HUWC" onclick="selectAbrangencia('HUWC')">
-                        HUWC
-                    </button>
-                    <button class="abrangencia-tab" data-abrangencia="MEAC" onclick="selectAbrangencia('MEAC')">
-                        MEAC
-                    </button>
+                    {% endfor %}
                 </div>
                 <div class="abrangencia-info" id="abrangencia-info">
                     <small class="text-muted">Mostrando: <strong id="abrangencia-atual">Todas as abrangências</strong></small>
@@ -900,17 +901,18 @@ let currentSetor = null;
 let currentTipo = null;
 let currentSearch = '';
 let currentAbrangencia = 'TODOS';
+let currentSetorAbrangencia = null; // Abrangência do setor selecionado
 let allDocuments = [];
 let hierarchyData = null;
 let searchTimeout = null;
 let favorites = JSON.parse(localStorage.getItem('repo_favorites') || '[]');
 
-// Nomes das abrangências
+// Nomes das abrangências (carregados do banco de dados)
 const ABRANGENCIA_NOMES = {
     'TODOS': 'Todas as abrangências',
-    'CHUFC': 'CHUFC - Complexo Hospitalar',
-    'HUWC': 'HUWC - Hospital Walter Cantídio',
-    'MEAC': 'MEAC - Maternidade Escola'
+    {% for abrang in abrangencias %}
+    '{{ abrang.codigo }}': '{{ abrang.codigo }} - {{ abrang.nome }}',
+    {% endfor %}
 };
 
 // ===== INICIALIZAÇÃO =====
@@ -942,8 +944,16 @@ function selectAbrangencia(abrangencia, reload = true) {
     // Atualiza visual dos tabs
     document.querySelectorAll('.abrangencia-tab').forEach(tab => {
         tab.classList.remove('active');
+        tab.style.background = '';
+        tab.style.borderColor = '';
+        tab.style.color = '';
         if (tab.dataset.abrangencia === abrangencia) {
             tab.classList.add('active');
+            // Aplica cor do banco de dados
+            const cor = tab.dataset.cor || '#2563eb';
+            tab.style.background = cor;
+            tab.style.borderColor = cor;
+            tab.style.color = 'white';
         }
     });
 
@@ -954,6 +964,7 @@ function selectAbrangencia(abrangencia, reload = true) {
     if (reload) {
         currentSetor = null;
         currentTipo = null;
+        currentSetorAbrangencia = null; // Reset abrangência do setor
         updateBreadcrumbs();
         renderHierarchyForAbrangencia();
         resetAndLoadDocuments();
@@ -1060,8 +1071,6 @@ function toggleSetor(setor, abrangencia, event) {
     }
 }
 
-let currentSetorAbrangencia = null;
-
 function filterByTipo(setor, tipo, abrangencia) {
     currentSetor = setor;
     currentTipo = tipo;
@@ -1097,6 +1106,7 @@ function resetAndLoadDocuments() {
 function clearFilters() {
     currentSetor = null;
     currentTipo = null;
+    currentSetorAbrangencia = null; // Reset abrangência do setor
     currentSearch = '';
     currentPage = 1;
     allDocuments = [];
@@ -1113,9 +1123,16 @@ function updateBreadcrumbs() {
     const sep1 = document.querySelector('.breadcrumb-separator');
     const sep2 = document.getElementById('breadcrumb-sep-tipo');
 
+    // Usa a abrangência do setor se disponível, senão usa a global
+    const abrangenciaAtual = currentSetorAbrangencia || currentAbrangencia;
+
     if (currentSetor) {
-        setorBread.innerHTML = `<a href="#" class="breadcrumb-link" onclick="filterBySetor('${currentSetor}'); return false;">${currentSetor}</a>`;
-        setorBread.style.display = 'block';
+        const abrangBadge = abrangenciaAtual && abrangenciaAtual !== 'TODOS'
+            ? `<span class="badge ms-2 ${getAbrangenciaBadgeClass(abrangenciaAtual)}">${abrangenciaAtual}</span>`
+            : '';
+        setorBread.innerHTML = `<a href="#" class="breadcrumb-link" onclick="filterBySetor('${currentSetor}', '${abrangenciaAtual}'); return false;">${currentSetor}</a>${abrangBadge}`;
+        setorBread.style.display = 'flex';
+        setorBread.style.alignItems = 'center';
         sep1.style.display = 'inline';
     } else {
         setorBread.style.display = 'none';
@@ -1381,14 +1398,30 @@ function createListHTML(doc) {
     `;
 }
 
-// ===== FUNÇÃO AUXILIAR: BADGE DE ABRANGÊNCIA =====
+/// ===== FUNÇÃO AUXILIAR: BADGE DE ABRANGÊNCIA =====
+// Cores carregadas do banco de dados
+const ABRANGENCIA_CORES = {
+    {% for abrang in abrangencias %}
+    '{{ abrang.codigo }}': '{{ abrang.cor or '#2563eb' }}',
+    {% endfor %}
+};
+
 function getAbrangenciaBadgeClass(abrangencia) {
+    // Fallback para classes Bootstrap padrão
     const classes = {
         'CHUFC': 'bg-primary',
         'HUWC': 'bg-success',
         'MEAC': 'bg-warning text-dark'
     };
     return classes[abrangencia] || 'bg-secondary';
+}
+
+function getAbrangenciaStyle(abrangencia) {
+    const cor = ABRANGENCIA_CORES[abrangencia];
+    if (cor) {
+        return `background-color: ${cor}; color: white;`;
+    }
+    return '';
 }
 
 // ===== FASE 2: VIEW MODES =====

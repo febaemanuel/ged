@@ -357,7 +357,12 @@ def documento_criar():
         Usuario.ativo == True
     ).order_by(Usuario.nome).all()
 
-    return render_template('documento_criar.html', gerentes=gerentes)
+    # Busca tipos de documento e setores do banco
+    from app.models.models import TipoDocumento, Setor
+    tipos_documento = TipoDocumento.query.filter_by(ativo=True).order_by(TipoDocumento.codigo).all()
+    setores = Setor.query.filter_by(ativo=True).order_by(Setor.nome).all()
+
+    return render_template('documento_criar.html', gerentes=gerentes, tipos_documento=tipos_documento, setores=setores)
 
 
 @view_bp.route('/documento/<int:id>/editar', methods=['GET', 'POST'])
@@ -377,6 +382,30 @@ def documento_editar(id):
         documento.setor = request.form.get('setor')
         documento.descricao = request.form.get('descricao')
         # VALIDADE: Calculada automaticamente baseado no tipo (2 ou 4 anos)
+
+        # Campos avançados (apenas admin/triador/validador)
+        if current_user.is_admin() or current_user.is_triador_ugq() or current_user.is_validador_ugq():
+            abrangencia = request.form.get('abrangencia')
+            if abrangencia:
+                documento.abrangencia = abrangencia
+
+        # Campos de operações avançadas (apenas admin/validador)
+        if current_user.is_admin() or current_user.is_validador_ugq():
+            status = request.form.get('status')
+            if status:
+                documento.status = status
+
+            versao = request.form.get('versao')
+            if versao:
+                documento.versao = versao
+
+            codigo_definitivo = request.form.get('codigo_definitivo')
+            if codigo_definitivo:
+                documento.codigo_definitivo = codigo_definitivo
+
+            autores = request.form.get('autores')
+            if autores:
+                documento.autores = autores
 
         # Atualiza chefia se fornecida
         chefia_imediata_id = request.form.get('chefia_imediata_id', type=int)
@@ -448,7 +477,19 @@ def documento_editar(id):
         Usuario.ativo == True
     ).order_by(Usuario.nome).all()
 
-    return render_template('documento_editar.html', documento=documento, gerentes=gerentes)
+    # Busca dados do banco
+    from app.models.models import TipoDocumento, Setor, Abrangencia
+    tipos_documento = TipoDocumento.query.filter_by(ativo=True).order_by(TipoDocumento.codigo).all()
+    abrangencias = Abrangencia.query.filter_by(ativo=True).order_by(Abrangencia.ordem).all()
+    setores_db = Setor.query.filter_by(ativo=True).order_by(Setor.nome).all()
+    setores = [s.nome for s in setores_db]
+
+    # Se o setor atual não está na lista, adiciona
+    if documento.setor and documento.setor not in setores:
+        setores.append(documento.setor)
+        setores.sort()
+
+    return render_template('documento_editar.html', documento=documento, gerentes=gerentes, setores=setores, tipos_documento=tipos_documento, abrangencias=abrangencias)
 
 
 @view_bp.route('/documento/<int:id>/download')
@@ -1107,7 +1148,11 @@ def repositorio_publico():
         page=page, per_page=per_page, error_out=False
     )
 
-    return render_template('repositorio_publico.html', documentos=documentos)
+    # Busca abrangências do banco
+    from app.models.models import Abrangencia
+    abrangencias = Abrangencia.query.filter_by(ativo=True).order_by(Abrangencia.ordem).all()
+
+    return render_template('repositorio_publico.html', documentos=documentos, abrangencias=abrangencias)
 
 
 @view_bp.route('/setor/<setor_nome>')

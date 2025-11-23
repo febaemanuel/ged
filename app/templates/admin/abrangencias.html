@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Gestão de Abrangências - Sistema GED{% endblock %}
+
+{% block extra_css %}
+<style>
+.abrangencia-card {
+    border-radius: 12px;
+    overflow: hidden;
+    transition: transform 0.2s;
+}
+.abrangencia-card:hover {
+    transform: translateY(-5px);
+}
+.abrangencia-header {
+    padding: 25px;
+    color: white;
+}
+.abrangencia-header.chufc { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); }
+.abrangencia-header.huwc { background: linear-gradient(135deg, #059669 0%, #047857 100%); }
+.abrangencia-header.meac { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
+.setor-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+.setor-item {
+    padding: 8px 15px;
+    border-bottom: 1px solid var(--gray-100);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.setor-item:hover {
+    background: var(--gray-50);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.painel') }}">Administração</a></li>
+            <li class="breadcrumb-item active">Abrangências</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-globe"></i> Gestão de Abrangências</h3>
+        <span class="badge bg-primary fs-6">{{ abrangencias|length }} unidades</span>
+    </div>
+
+    <div class="row">
+        {% for abrang in abrangencias %}
+        <div class="col-lg-4 mb-4">
+            <div class="card abrangencia-card shadow-sm">
+                <div class="abrangencia-header {{ abrang.nome|lower }}">
+                    <h4 class="mb-1">
+                        {% if abrang.nome == 'CHUFC' %}
+                        <i class="bi bi-building"></i>
+                        {% elif abrang.nome == 'HUWC' %}
+                        <i class="bi bi-hospital"></i>
+                        {% elif abrang.nome == 'MEAC' %}
+                        <i class="bi bi-heart"></i>
+                        {% endif %}
+                        {{ abrang.nome }}
+                    </h4>
+                    <p class="mb-0 opacity-75">
+                        {% if abrang.nome == 'CHUFC' %}Complexo Hospitalar Universitário da UFC
+                        {% elif abrang.nome == 'HUWC' %}Hospital Universitário Walter Cantídio
+                        {% elif abrang.nome == 'MEAC' %}Maternidade Escola Assis Chateaubriand
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="fw-bold fs-4 text-primary">{{ abrang.total_setores }}</div>
+                            <small class="text-muted">Setores</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="fw-bold fs-4 text-success">{{ abrang.total_documentos }}</div>
+                            <small class="text-muted">Documentos</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="fw-bold fs-4 text-info">{{ abrang.docs_publicados }}</div>
+                            <small class="text-muted">Publicados</small>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h6 class="mb-3"><i class="bi bi-list"></i> Setores ({{ abrang.total_setores }})</h6>
+                    <div class="setor-list">
+                        {% for setor in abrang.setores %}
+                        <div class="setor-item">
+                            <span><i class="bi bi-folder text-muted"></i> {{ setor }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> <strong>Nota:</strong>
+        As abrangências e setores são configurados no arquivo <code>config.py</code>.
+        Para adicionar novos setores, edite a constante <code>SETORES_POR_ABRANGENCIA</code>.
+    </div>
+</div>
+{% endblock %}

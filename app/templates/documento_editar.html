@@ -2,6 +2,73 @@
 
 {% block title %}Editar Documento - Sistema GED{% endblock %}
 
+{% block extra_css %}
+<style>
+.edit-section {
+    background: var(--gray-50);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.edit-section h6 {
+    color: var(--gray-700);
+    font-weight: 600;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary-light);
+}
+.abrangencia-select {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.abrangencia-option {
+    padding: 10px 20px;
+    border: 2px solid var(--gray-300);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+}
+.abrangencia-option:hover {
+    border-color: var(--primary-color);
+}
+.abrangencia-option.selected {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: white;
+}
+.abrangencia-option.chufc.selected {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+.abrangencia-option.huwc.selected {
+    background: #059669;
+    border-color: #059669;
+}
+.abrangencia-option.meac.selected {
+    background: #d97706;
+    border-color: #d97706;
+}
+.admin-only-section {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.admin-only-section h6 {
+    color: #856404;
+}
+.status-badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <nav aria-label="breadcrumb" class="mb-4">
@@ -13,55 +80,140 @@
         </ol>
     </nav>
 
-    <div class="row justify-content-center">
-        <div class="col-md-8">
+    <div class="row">
+        <div class="col-lg-8">
             <div class="card">
-                <div class="card-header bg-warning text-dark">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="bi bi-pencil"></i> Editar Documento</h5>
+                    <span class="status-badge bg-{{ 'success' if documento.status == 'Publicado' else 'info' if documento.status == 'Em Validação' else 'secondary' }}">
+                        {{ documento.status }}
+                    </span>
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('view.documento_editar', id=documento.id) }}" enctype="multipart/form-data" id="formDocumento">
-                        <div class="mb-3">
-                            <label for="titulo" class="form-label">Título *</label>
-                            <input type="text" class="form-control" id="titulo" name="titulo" value="{{ documento.titulo }}" required>
-                        </div>
 
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="tipo_documento" class="form-label">Tipo de Documento *</label>
-                                <select class="form-select" id="tipo_documento" name="tipo_documento" required>
-                                    <option value="">Selecione...</option>
-                                    <option value="POP" {% if documento.tipo_documento == 'POP' %}selected{% endif %}>POP - Procedimento Operacional Padrão</option>
-                                    <option value="Manual" {% if documento.tipo_documento == 'Manual' %}selected{% endif %}>Manual</option>
-                                    <option value="Protocolo" {% if documento.tipo_documento == 'Protocolo' %}selected{% endif %}>Protocolo</option>
-                                </select>
+                        <!-- Seção: Informações Básicas -->
+                        <div class="edit-section">
+                            <h6><i class="bi bi-info-circle"></i> Informações Básicas</h6>
+
+                            <div class="mb-3">
+                                <label for="titulo" class="form-label">Título *</label>
+                                <input type="text" class="form-control" id="titulo" name="titulo" value="{{ documento.titulo }}" required>
                             </div>
-                            <div class="col-md-6">
-                                <label for="setor" class="form-label">Setor *</label>
-                                <input type="text" class="form-control" id="setor" name="setor" value="{{ documento.setor }}" required>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="tipo_documento" class="form-label">Tipo de Documento *</label>
+                                    <select class="form-select" id="tipo_documento" name="tipo_documento" required>
+                                        <option value="">Selecione...</option>
+                                        {% for tipo in tipos_documento %}
+                                        <option value="{{ tipo.codigo }}" {% if documento.tipo_documento == tipo.codigo %}selected{% endif %}>{{ tipo.codigo }} - {{ tipo.nome }}</option>
+                                        {% endfor %}
+                                        {% if documento.tipo_documento and documento.tipo_documento not in tipos_documento|map(attribute='codigo')|list %}
+                                        <option value="{{ documento.tipo_documento }}" selected>{{ documento.tipo_documento }}</option>
+                                        {% endif %}
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        <i class="bi bi-clock"></i> A validade será calculada conforme configuração do tipo de documento
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="setor" class="form-label">Setor *</label>
+                                    <select class="form-select" id="setor" name="setor" required>
+                                        <option value="">Selecione...</option>
+                                        {% for setor_item in setores %}
+                                        <option value="{{ setor_item }}" {% if documento.setor == setor_item %}selected{% endif %}>{{ setor_item }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="descricao" class="form-label">Descrição</label>
+                                <textarea class="form-control" id="descricao" name="descricao" rows="3">{{ documento.descricao or '' }}</textarea>
+                                <small class="form-text text-muted">Breve descrição do documento</small>
                             </div>
                         </div>
 
-                        <!-- WORKFLOW UGQ: Campo chefia_imediata_id REMOVIDO -->
-                        <!-- No Workflow UGQ, não é mais necessário selecionar chefia -->
+                        <!-- Seção: Abrangência (Admin/Triador/Validador) -->
+                        {% if current_user.is_admin() or current_user.is_triador_ugq() or current_user.is_validador_ugq() %}
+                        <div class="admin-only-section">
+                            <h6><i class="bi bi-globe"></i> Abrangência (Área de Cobertura)</h6>
+                            <p class="text-muted small mb-3">Define em qual unidade do Complexo Hospitalar o documento será aplicado.</p>
 
-                        <div class="mb-3">
-                            <label for="descricao" class="form-label">Descrição</label>
-                            <textarea class="form-control" id="descricao" name="descricao" rows="3">{{ documento.descricao or '' }}</textarea>
-                            <small class="form-text text-muted">Breve descrição do documento</small>
+                            <div class="abrangencia-select">
+                                {% for abrang in abrangencias %}
+                                <div class="abrangencia-option {{ abrang.codigo|lower }} {% if documento.abrangencia == abrang.codigo %}selected{% endif %}"
+                                     data-value="{{ abrang.codigo }}" onclick="selectAbrangenciaEdit('{{ abrang.codigo }}', this)">
+                                    <i class="{{ abrang.icone or 'bi bi-building' }}"></i> {{ abrang.codigo }}
+                                    <small class="d-block text-muted mt-1">{{ abrang.nome }}</small>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <input type="hidden" id="abrangencia" name="abrangencia" value="{{ documento.abrangencia or '' }}">
                         </div>
+                        {% endif %}
 
-                        <!-- VALIDADE AUTOMÁTICA: Sistema define automaticamente baseado no tipo -->
-                        <!-- 2 anos para: POP, Manual, Protocolo -->
-                        <!-- 4 anos para: Política, Regimento, Regulamento -->
+                        <!-- Seção: Status e Operações (Admin/Validador) -->
+                        {% if current_user.is_admin() or current_user.is_validador_ugq() %}
+                        <div class="admin-only-section">
+                            <h6><i class="bi bi-gear"></i> Operações Avançadas (Apenas Admin/Validador)</h6>
 
-                        <div class="mb-4">
-                            <label for="arquivo" class="form-label">Substituir Arquivo (opcional)</label>
-                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".doc,.docx,.odt,.pdf">
-                            <small class="form-text text-muted">
-                                Arquivo atual: <strong>{{ documento.arquivo_original }}</strong><br>
-                                Deixe em branco para manter o arquivo atual. Formatos aceitos: .doc, .docx, .odt, .pdf (máx. 16MB)
-                            </small>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="status" class="form-label">Status do Documento</label>
+                                    <select class="form-select" id="status" name="status">
+                                        <option value="Novo" {% if documento.status == 'Novo' %}selected{% endif %}>Novo</option>
+                                        <option value="Em Análise" {% if documento.status == 'Em Análise' %}selected{% endif %}>Em Análise</option>
+                                        <option value="Em Triagem" {% if documento.status == 'Em Triagem' %}selected{% endif %}>Em Triagem</option>
+                                        <option value="Em Validação" {% if documento.status == 'Em Validação' %}selected{% endif %}>Em Validação</option>
+                                        <option value="Validado" {% if documento.status == 'Validado' %}selected{% endif %}>Validado</option>
+                                        <option value="Em Aprovação" {% if documento.status == 'Em Aprovação' %}selected{% endif %}>Em Aprovação</option>
+                                        <option value="Aprovado" {% if documento.status == 'Aprovado' %}selected{% endif %}>Aprovado</option>
+                                        <option value="Publicado" {% if documento.status == 'Publicado' %}selected{% endif %}>Publicado</option>
+                                        <option value="Em Correção" {% if documento.status == 'Em Correção' %}selected{% endif %}>Em Correção</option>
+                                        <option value="Em Ajustes" {% if documento.status == 'Em Ajustes' %}selected{% endif %}>Em Ajustes</option>
+                                        <option value="Cancelado" {% if documento.status == 'Cancelado' %}selected{% endif %}>Cancelado</option>
+                                        <option value="Obsoleto" {% if documento.status == 'Obsoleto' %}selected{% endif %}>Obsoleto</option>
+                                    </select>
+                                    <small class="form-text text-danger">
+                                        <i class="bi bi-exclamation-triangle"></i> Alterar status manualmente pode afetar o fluxo de aprovação!
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="versao" class="form-label">Versão</label>
+                                    <input type="text" class="form-control" id="versao" name="versao" value="{{ documento.versao or 'v1.0' }}">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="codigo_definitivo" class="form-label">Código Definitivo</label>
+                                    <input type="text" class="form-control" id="codigo_definitivo" name="codigo_definitivo"
+                                           value="{{ documento.codigo_definitivo or '' }}" placeholder="Ex: POP-HUWC-001">
+                                    <small class="form-text text-muted">Código oficial do documento na Lista Mestra</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="autores" class="form-label">Autores</label>
+                                    <input type="text" class="form-control" id="autores" name="autores"
+                                           value="{{ documento.autores or '' }}" placeholder="Nome dos autores separados por vírgula">
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Seção: Arquivo -->
+                        <div class="edit-section">
+                            <h6><i class="bi bi-file-earmark"></i> Arquivo do Documento</h6>
+
+                            <div class="mb-3">
+                                <label for="arquivo" class="form-label">Substituir Arquivo (opcional)</label>
+                                <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".doc,.docx,.odt,.pdf">
+                                <small class="form-text text-muted">
+                                    <i class="bi bi-file-earmark-check"></i> Arquivo atual: <strong>{{ documento.arquivo_original }}</strong><br>
+                                    Deixe em branco para manter o arquivo atual. Formatos aceitos: .doc, .docx, .odt, .pdf (máx. 16MB)
+                                </small>
+                            </div>
                         </div>
 
                         <div class="alert alert-warning">
@@ -85,12 +237,93 @@
                 </div>
             </div>
         </div>
+
+        <!-- Sidebar com informações do documento -->
+        <div class="col-lg-4">
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Informações</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><strong>Código Único:</strong><br>{{ documento.codigo_unico }}</p>
+                    <p class="mb-2"><strong>Código Provisório:</strong><br>{{ documento.codigo_provisorio or '-' }}</p>
+                    <p class="mb-2"><strong>Código Definitivo:</strong><br>{{ documento.codigo_definitivo or '-' }}</p>
+                    <hr>
+                    <p class="mb-2"><strong>Criador:</strong><br>{{ documento.criador.nome }}</p>
+                    <p class="mb-2"><strong>Data de Criação:</strong><br>{{ documento.data_criacao.strftime('%d/%m/%Y %H:%M') }}</p>
+                    {% if documento.data_publicacao %}
+                    <p class="mb-2"><strong>Data de Publicação:</strong><br>{{ documento.data_publicacao.strftime('%d/%m/%Y') }}</p>
+                    {% endif %}
+                    {% if documento.data_vencimento %}
+                    <p class="mb-0"><strong>Vencimento:</strong><br>{{ documento.data_vencimento.strftime('%d/%m/%Y') }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if current_user.is_admin() or current_user.is_validador_ugq() %}
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="mb-0"><i class="bi bi-shield-exclamation"></i> Ações de Emergência</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">Use com cuidado. Estas ações podem afetar o fluxo do documento.</p>
+                    <a href="{{ url_for('view.documento_detalhe', id=documento.id) }}?reprocessar_ia=1"
+                       class="btn btn-outline-warning btn-sm w-100 mb-2"
+                       onclick="return confirm('Reprocessar o documento com IA?')">
+                        <i class="bi bi-robot"></i> Reprocessar com IA
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+// Seleciona abrangência
+function selectAbrangenciaEdit(value, element) {
+    // Remove seleção anterior
+    document.querySelectorAll('.abrangencia-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+
+    // Adiciona seleção atual
+    element.classList.add('selected');
+
+    // Atualiza input hidden
+    document.getElementById('abrangencia').value = value;
+
+    // Atualiza lista de setores baseado na abrangência
+    updateSetoresPorAbrangencia(value);
+}
+
+// Atualiza setores por abrangência
+function updateSetoresPorAbrangencia(abrangencia) {
+    const setorSelect = document.getElementById('setor');
+    const currentSetor = setorSelect.value;
+
+    // Busca setores via API
+    fetch(`/api/admin/setores?abrangencia=${abrangencia}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.setores) {
+                setorSelect.innerHTML = '<option value="">Selecione...</option>';
+                data.setores.forEach(setor => {
+                    const option = document.createElement('option');
+                    option.value = setor;
+                    option.textContent = setor;
+                    if (setor === currentSetor) {
+                        option.selected = true;
+                    }
+                    setorSelect.appendChild(option);
+                });
+            }
+        })
+        .catch(err => console.error('Erro ao carregar setores:', err));
+}
+
 document.getElementById('formDocumento').addEventListener('submit', function() {
     document.getElementById('btnSalvar').disabled = true;
     document.getElementById('btnSalvar').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Salvando...';

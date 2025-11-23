@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Tipos de Documento - Sistema GED{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.painel') }}">Administração</a></li>
+            <li class="breadcrumb-item active">Tipos de Documento</li>
+        </ol>
+    </nav>
+
+    <h3 class="mb-4"><i class="bi bi-file-earmark-ruled"></i> Tipos de Documento</h3>
+
+    <div class="row">
+        {% for tipo in tipos %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-{{ 'warning' if tipo.validade_anos == 4 else 'primary' }} text-{{ 'dark' if tipo.validade_anos == 4 else 'white' }}">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark"></i> {{ tipo.nome }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="fw-bold fs-3">{{ tipo.total }}</div>
+                            <small class="text-muted">Total</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="fw-bold fs-3 text-success">{{ tipo.publicados }}</div>
+                            <small class="text-muted">Publicados</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <span class="badge bg-{{ 'warning' if tipo.validade_anos == 4 else 'info' }} fs-6">
+                            <i class="bi bi-clock"></i> Validade: {{ tipo.validade_anos }} anos
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> <strong>Regras de Validade EBSERH:</strong>
+        <ul class="mb-0 mt-2">
+            <li><strong>2 anos:</strong> POP, Manual, Protocolo</li>
+            <li><strong>4 anos:</strong> Política, Regimento, Regulamento</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
