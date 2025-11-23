@@ -110,7 +110,11 @@ def dashboard_executivo():
         flash('Sem permissão para acessar o Dashboard Executivo', 'error')
         return redirect(url_for('view.dashboard'))
 
-    return render_template('dashboard_executivo.html')
+    # Busca tipos do banco
+    from app.models.models import TipoDocumento
+    tipos_documento = TipoDocumento.query.filter_by(ativo=True).order_by(TipoDocumento.ordem).all()
+
+    return render_template('dashboard_executivo.html', tipos_documento=tipos_documento)
 
 
 # ============================================================================
@@ -149,7 +153,11 @@ def documentos():
         page=page, per_page=per_page, error_out=False
     )
 
-    return render_template('documentos.html', documentos=documentos)
+    # Busca tipos do banco
+    from app.models.models import TipoDocumento
+    tipos_documento = TipoDocumento.query.filter_by(ativo=True).order_by(TipoDocumento.ordem).all()
+
+    return render_template('documentos.html', documentos=documentos, tipos_documento=tipos_documento)
 
 
 @view_bp.route('/documento/<int:id>')
@@ -1169,8 +1177,9 @@ def setor_view(setor_nome):
     from urllib.parse import unquote
     setor_nome = unquote(setor_nome)
 
-    # Opções de tipos de documento
-    tipos_documento = Config.TIPOS_DOCUMENTO
+    # Busca tipos de documento do banco
+    from app.models.models import TipoDocumento
+    tipos_documento = TipoDocumento.query.filter_by(ativo=True).order_by(TipoDocumento.ordem).all()
 
     return render_template(
         'setor_dashboard.html',

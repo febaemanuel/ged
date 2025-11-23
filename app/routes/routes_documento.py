@@ -196,7 +196,10 @@ def criar_documento():
     if not titulo or not tipo_documento:
         return jsonify({'erro': 'Título e tipo de documento são obrigatórios'}), 400
 
-    if tipo_documento not in current_app.config['TIPOS_DOCUMENTO']:
+    # Valida tipo de documento no banco
+    from app.models.models import TipoDocumento as TipoDoc
+    tipo_valido = TipoDoc.query.filter_by(codigo=tipo_documento, ativo=True).first()
+    if not tipo_valido:
         return jsonify({'erro': 'Tipo de documento inválido'}), 400
 
     # Salva arquivo
@@ -261,8 +264,12 @@ def atualizar_documento(id):
         documento.descricao = data['descricao']
     if 'setor' in data:
         documento.setor = data['setor']
-    if 'tipo_documento' in data and data['tipo_documento'] in current_app.config['TIPOS_DOCUMENTO']:
-        documento.tipo_documento = data['tipo_documento']
+    if 'tipo_documento' in data:
+        # Valida tipo no banco
+        from app.models.models import TipoDocumento as TipoDoc
+        tipo_valido = TipoDoc.query.filter_by(codigo=data['tipo_documento'], ativo=True).first()
+        if tipo_valido:
+            documento.tipo_documento = data['tipo_documento']
 
     # Marcar como nova versão (apenas triador/validador)
     if 'versao_anterior_id' in data:
