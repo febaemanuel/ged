@@ -91,7 +91,10 @@ def criar_template():
     if not nome:
         return jsonify({'erro': 'Nome é obrigatório'}), 400
 
-    if tipo_documento not in Config.TIPOS_DOCUMENTO:
+    # Valida tipo no banco
+    from app.models.models import TipoDocumento
+    tipo_valido = TipoDocumento.query.filter_by(codigo=tipo_documento, ativo=True).first()
+    if not tipo_valido:
         return jsonify({'erro': 'Tipo de documento inválido'}), 400
 
     # Upload do arquivo template
@@ -201,7 +204,9 @@ def atualizar_template(template_id):
         template.descricao = data['descricao']
 
     if 'tipo_documento' in data:
-        if data['tipo_documento'] not in Config.TIPOS_DOCUMENTO:
+        from app.models.models import TipoDocumento
+        tipo_valido = TipoDocumento.query.filter_by(codigo=data['tipo_documento'], ativo=True).first()
+        if not tipo_valido:
             return jsonify({'erro': 'Tipo de documento inválido'}), 400
         template.tipo_documento = data['tipo_documento']
 

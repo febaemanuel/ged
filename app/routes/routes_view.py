@@ -1169,8 +1169,9 @@ def setor_view(setor_nome):
     from urllib.parse import unquote
     setor_nome = unquote(setor_nome)
 
-    # Opções de tipos de documento
-    tipos_documento = Config.TIPOS_DOCUMENTO
+    # Busca tipos de documento do banco
+    from app.models.models import TipoDocumento
+    tipos_documento = TipoDocumento.query.filter_by(ativo=True).order_by(TipoDocumento.ordem).all()
 
     return render_template(
         'setor_dashboard.html',

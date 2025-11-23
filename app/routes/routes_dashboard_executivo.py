@@ -150,7 +150,12 @@ def documentos_por_tipo():
 
     resultado = {}
 
-    for tipo in Config.TIPOS_DOCUMENTO:
+    # Busca tipos do banco
+    from app.models.models import TipoDocumento
+    tipos = TipoDocumento.query.filter_by(ativo=True).all()
+    tipos_codigos = [t.codigo for t in tipos]
+
+    for tipo in tipos_codigos:
         query = Documento.query.filter_by(tipo_documento=tipo)
 
         if status:
@@ -197,11 +202,13 @@ def documentos_vencidos():
         Documento.data_vencimento < agora
     ).order_by(Documento.data_vencimento.asc()).all()
 
-    # Agrupa por tipo
+    # Agrupa por tipo (busca do banco)
+    from app.models.models import TipoDocumento
+    tipos_db = TipoDocumento.query.filter_by(ativo=True).all()
     por_tipo = {}
-    for tipo in Config.TIPOS_DOCUMENTO:
-        docs_tipo = [d for d in docs if d.tipo_documento == tipo]
-        por_tipo[tipo] = len(docs_tipo)
+    for tipo in tipos_db:
+        docs_tipo = [d for d in docs if d.tipo_documento == tipo.codigo]
+        por_tipo[tipo.codigo] = len(docs_tipo)
 
     return jsonify({
         'total': len(docs),
@@ -246,11 +253,13 @@ def documentos_vencendo():
         Documento.status == Config.STATUS_VIGENTE
     ).order_by(Documento.data_vencimento.asc()).all()
 
-    # Agrupa por tipo
+    # Agrupa por tipo (busca do banco)
+    from app.models.models import TipoDocumento
+    tipos_db = TipoDocumento.query.filter_by(ativo=True).all()
     por_tipo = {}
-    for tipo in Config.TIPOS_DOCUMENTO:
-        docs_tipo = [d for d in docs if d.tipo_documento == tipo]
-        por_tipo[tipo] = len(docs_tipo)
+    for tipo in tipos_db:
+        docs_tipo = [d for d in docs if d.tipo_documento == tipo.codigo]
+        por_tipo[tipo.codigo] = len(docs_tipo)
 
     return jsonify({
         'dias_limite': dias,

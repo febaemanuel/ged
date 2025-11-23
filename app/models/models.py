@@ -1205,11 +1205,10 @@ class TipoDocumento(db.Model):
     __tablename__ = 'tipos_documento'
 
     id = db.Column(db.Integer, primary_key=True)
-    codigo = db.Column(db.String(20), unique=True, nullable=False)  # POP, MAN, PROT
+    codigo = db.Column(db.String(20), unique=True, nullable=False)  # POP, MAN, PROT (já é a abreviação)
     nome = db.Column(db.String(100), nullable=False)  # Nome completo
     descricao = db.Column(db.Text)
     validade_anos = db.Column(db.Integer, default=2)  # Validade padrão em anos
-    prefixo_codigo = db.Column(db.String(10))  # Prefixo para código definitivo
     ativo = db.Column(db.Boolean, default=True)
     ordem = db.Column(db.Integer, default=0)
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
@@ -1275,7 +1274,6 @@ class PerfilPermissao(db.Model):
     nome = db.Column(db.String(100), nullable=False)  # Nome amigável
     descricao = db.Column(db.Text)
     cor = db.Column(db.String(20), default='#6b7280')  # Cor para badge
-    nivel = db.Column(db.Integer, default=0)  # Nível hierárquico (maior = mais permissões)
     ativo = db.Column(db.Boolean, default=True)
 
     # Permissões (JSON com lista de permissões)

@@ -182,11 +182,10 @@
                                     <small class="text-muted">{{ t.nome }}</small>
                                     <div class="mt-1">
                                         <span class="badge bg-{{ 'warning' if t.validade_anos == 4 else 'info' }}">{{ t.validade_anos }} anos</span>
-                                        <small class="ms-1">Prefixo: {{ t.prefixo_codigo }}</small>
                                     </div>
                                 </div>
                                 <div class="item-actions">
-                                    <button class="btn btn-outline-primary btn-sm" onclick="editarTipo({{ t.id }}, '{{ t.codigo }}', '{{ t.nome }}', '{{ t.descricao or '' }}', {{ t.validade_anos }}, '{{ t.prefixo_codigo }}', {{ 'true' if t.ativo else 'false' }})">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="editarTipo({{ t.id }}, '{{ t.codigo }}', '{{ t.nome }}', '{{ t.descricao or '' }}', {{ t.validade_anos }}, {{ 'true' if t.ativo else 'false' }})">
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form action="{{ url_for('admin.tipo_documento_excluir', id=t.id) }}" method="POST" class="d-inline">
@@ -265,10 +264,10 @@
                                 <div>
                                     <h6 class="mb-1"><span class="badge" style="background: {{ p.cor }}">{{ p.codigo }}</span> {{ p.nome }}</h6>
                                     <small class="text-muted">{{ p.descricao or '-' }}</small>
-                                    <div class="mt-1"><small>Nível: {{ p.nivel }} | Usuários: {{ stats.perfis.get(p.codigo, 0) }}</small></div>
+                                    <div class="mt-1"><small>Usuários: {{ stats.perfis.get(p.codigo, 0) }}</small></div>
                                 </div>
                                 <div class="item-actions">
-                                    <button class="btn btn-outline-primary btn-sm" onclick="editarPerfil({{ p.id }}, '{{ p.codigo }}', '{{ p.nome }}', '{{ p.descricao or '' }}', '{{ p.cor }}', {{ p.nivel }}, {{ 'true' if p.ativo else 'false' }})">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="editarPerfil({{ p.id }}, '{{ p.codigo }}', '{{ p.nome }}', '{{ p.descricao or '' }}', '{{ p.cor }}', {{ 'true' if p.ativo else 'false' }})">
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form action="{{ url_for('admin.perfil_excluir', id=p.id) }}" method="POST" class="d-inline">
@@ -341,10 +340,7 @@
                     <div class="mb-3"><label class="form-label">Código *</label><input type="text" class="form-control" id="tipo_codigo" name="codigo" required maxlength="20" placeholder="Ex: POP"></div>
                     <div class="mb-3"><label class="form-label">Nome *</label><input type="text" class="form-control" id="tipo_nome" name="nome" required placeholder="Nome completo"></div>
                     <div class="mb-3"><label class="form-label">Descrição</label><textarea class="form-control" id="tipo_descricao" name="descricao" rows="2"></textarea></div>
-                    <div class="row">
-                        <div class="col-6 mb-3"><label class="form-label">Validade (anos)</label><input type="number" class="form-control" id="tipo_validade" name="validade_anos" value="2" min="1" max="10"></div>
-                        <div class="col-6 mb-3"><label class="form-label">Prefixo Código</label><input type="text" class="form-control" id="tipo_prefixo" name="prefixo_codigo" maxlength="10" placeholder="Ex: POP"></div>
-                    </div>
+                    <div class="mb-3"><label class="form-label">Validade (anos)</label><input type="number" class="form-control" id="tipo_validade" name="validade_anos" value="2" min="1" max="10"></div>
                     <div class="form-check"><input type="checkbox" class="form-check-input" id="tipo_ativo" name="ativo" checked><label class="form-check-label">Ativo</label></div>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Salvar</button></div>
@@ -396,10 +392,7 @@
                     <div class="mb-3"><label class="form-label">Código *</label><input type="text" class="form-control" id="perfil_codigo" name="codigo" required placeholder="Ex: gerente"></div>
                     <div class="mb-3"><label class="form-label">Nome *</label><input type="text" class="form-control" id="perfil_nome" name="nome" required placeholder="Nome do perfil"></div>
                     <div class="mb-3"><label class="form-label">Descrição</label><textarea class="form-control" id="perfil_descricao" name="descricao" rows="2"></textarea></div>
-                    <div class="row">
-                        <div class="col-6 mb-3"><label class="form-label">Cor</label><input type="color" class="form-control form-control-color w-100" id="perfil_cor" name="cor" value="#6b7280"></div>
-                        <div class="col-6 mb-3"><label class="form-label">Nível</label><input type="number" class="form-control" id="perfil_nivel" name="nivel" value="1" min="0" max="100"></div>
-                    </div>
+                    <div class="mb-3"><label class="form-label">Cor</label><input type="color" class="form-control form-control-color w-100" id="perfil_cor" name="cor" value="#6b7280"></div>
                     <div class="form-check"><input type="checkbox" class="form-check-input" id="perfil_ativo" name="ativo" checked><label class="form-check-label">Ativo</label></div>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Salvar</button></div>
@@ -422,7 +415,7 @@ function editarAbrangencia(id, codigo, nome, descricao, cor, icone, ativo) {
     new bootstrap.Modal(document.getElementById('modalAbrangencia')).show();
 }
 
-function editarTipo(id, codigo, nome, descricao, validade, prefixo, ativo) {
+function editarTipo(id, codigo, nome, descricao, validade, ativo) {
     document.getElementById('tituloModalTipo').textContent = 'Editar Tipo de Documento';
     document.getElementById('formTipo').action = '/admin/tipo-documento/' + id + '/editar';
     document.getElementById('tipo_id').value = id;
@@ -430,7 +423,6 @@ function editarTipo(id, codigo, nome, descricao, validade, prefixo, ativo) {
     document.getElementById('tipo_nome').value = nome;
     document.getElementById('tipo_descricao').value = descricao;
     document.getElementById('tipo_validade').value = validade;
-    document.getElementById('tipo_prefixo').value = prefixo;
     document.getElementById('tipo_ativo').checked = ativo;
     new bootstrap.Modal(document.getElementById('modalTipo')).show();
 }
@@ -449,7 +441,7 @@ function editarSetor(id, nome, abrangencia_id, descricao, sigla, responsavel, em
     new bootstrap.Modal(document.getElementById('modalSetor')).show();
 }
 
-function editarPerfil(id, codigo, nome, descricao, cor, nivel, ativo) {
+function editarPerfil(id, codigo, nome, descricao, cor, ativo) {
     document.getElementById('tituloModalPerfil').textContent = 'Editar Perfil';
     document.getElementById('formPerfil').action = '/admin/perfil/' + id + '/editar';
     document.getElementById('perfil_id').value = id;
@@ -457,7 +449,6 @@ function editarPerfil(id, codigo, nome, descricao, cor, nivel, ativo) {
     document.getElementById('perfil_nome').value = nome;
     document.getElementById('perfil_descricao').value = descricao;
     document.getElementById('perfil_cor').value = cor;
-    document.getElementById('perfil_nivel').value = nivel;
     document.getElementById('perfil_ativo').checked = ativo;
     new bootstrap.Modal(document.getElementById('modalPerfil')).show();
 }

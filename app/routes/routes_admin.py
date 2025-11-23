@@ -370,11 +370,11 @@ def perfil_excluir(id):
 # INICIALIZAR DADOS PADRÃO
 # ============================================================================
 
-@admin_bp.route('/inicializar-dados', methods=['POST'])
+@admin_bp.route('/inicializar-dados', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def inicializar_dados():
-    """Inicializa dados padrão no banco"""
+    """Inicializa dados padrão no banco (GET ou POST)"""
     try:
         # Abrangências padrão
         abrangencias_padrao = [
@@ -386,14 +386,14 @@ def inicializar_dados():
             if not Abrangencia.query.filter_by(codigo=a['codigo']).first():
                 db.session.add(Abrangencia(ordem=i, **a))
 
-        # Tipos de documento padrão
+        # Tipos de documento padrão (codigo JÁ É a abreviação)
         tipos_padrao = [
-            {'codigo': 'POP', 'nome': 'Procedimento Operacional Padrão', 'validade_anos': 2, 'prefixo_codigo': 'POP'},
-            {'codigo': 'MAN', 'nome': 'Manual', 'validade_anos': 2, 'prefixo_codigo': 'MAN'},
-            {'codigo': 'PROT', 'nome': 'Protocolo', 'validade_anos': 2, 'prefixo_codigo': 'PRT'},
-            {'codigo': 'POL', 'nome': 'Política', 'validade_anos': 4, 'prefixo_codigo': 'POL'},
-            {'codigo': 'REG', 'nome': 'Regimento', 'validade_anos': 4, 'prefixo_codigo': 'REG'},
-            {'codigo': 'REGUL', 'nome': 'Regulamento', 'validade_anos': 4, 'prefixo_codigo': 'RGL'},
+            {'codigo': 'POP', 'nome': 'Procedimento Operacional Padrão', 'validade_anos': 2},
+            {'codigo': 'MAN', 'nome': 'Manual', 'validade_anos': 2},
+            {'codigo': 'PROT', 'nome': 'Protocolo', 'validade_anos': 2},
+            {'codigo': 'POL', 'nome': 'Política', 'validade_anos': 4},
+            {'codigo': 'REG', 'nome': 'Regimento', 'validade_anos': 4},
+            {'codigo': 'REGUL', 'nome': 'Regulamento', 'validade_anos': 4},
         ]
         for i, t in enumerate(tipos_padrao):
             if not TipoDocumento.query.filter_by(codigo=t['codigo']).first():
@@ -401,15 +401,15 @@ def inicializar_dados():
 
         # Perfis padrão
         perfis_padrao = [
-            {'codigo': 'comum', 'nome': 'Usuário Comum', 'nivel': 1, 'cor': '#6b7280',
+            {'codigo': 'comum', 'nome': 'Usuário Comum', 'cor': '#6b7280',
              'descricao': 'Cria documentos e executa tarefas'},
-            {'codigo': 'gerente', 'nome': 'Gerente', 'nivel': 2, 'cor': '#ca8a04',
+            {'codigo': 'gerente', 'nome': 'Gerente', 'cor': '#ca8a04',
              'descricao': 'Gerencia documentos e equipe do setor'},
-            {'codigo': 'qualidade_triador', 'nome': 'Triador UGQ', 'nivel': 3, 'cor': '#2563eb',
+            {'codigo': 'qualidade_triador', 'nome': 'Triador UGQ', 'cor': '#2563eb',
              'descricao': 'Faz triagem inicial de documentos'},
-            {'codigo': 'qualidade_validador', 'nome': 'Validador UGQ', 'nivel': 4, 'cor': '#16a34a',
+            {'codigo': 'qualidade_validador', 'nome': 'Validador UGQ', 'cor': '#16a34a',
              'descricao': 'Valida, codifica e publica documentos'},
-            {'codigo': 'administrador', 'nome': 'Administrador', 'nivel': 10, 'cor': '#dc2626',
+            {'codigo': 'administrador', 'nome': 'Administrador', 'cor': '#dc2626',
              'descricao': 'Controle total do sistema'},
         ]
         for p in perfis_padrao:
