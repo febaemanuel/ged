@@ -16,7 +16,11 @@ from .models import (
     Comentario,
     ConfiguracaoWhatsApp,
     ConversacaoWhatsApp,
-    LogWhatsApp
+    LogWhatsApp,
+    Abrangencia,
+    TipoDocumento,
+    Setor,
+    PerfilPermissao
 )
 
 __all__ = [
@@ -34,5 +38,9 @@ __all__ = [
     'Comentario',
     'ConfiguracaoWhatsApp',
     'ConversacaoWhatsApp',
-    'LogWhatsApp'
+    'LogWhatsApp',
+    'Abrangencia',
+    'TipoDocumento',
+    'Setor',
+    'PerfilPermissao'
 ]
