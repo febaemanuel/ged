@@ -1391,7 +1391,7 @@ class WhatsAppChatbot:
 
                 # Atualiza status do documento
                 doc = bloco.documento
-                if doc.status == 'Em Assinatura':
+                if doc.status == 'Em Aprovação':
                     doc.status = 'Em Ajustes'
 
             db.session.commit()
@@ -1477,7 +1477,7 @@ class WhatsAppChatbot:
             tarefa.concluir(parecer=f"Devolvido via WhatsApp: {justificativa}", aprovado=False)
 
             # Atualiza status do documento para Em Ajustes
-            if doc.status in ['Em Validação', 'Em Assinatura', 'Aprovado']:
+            if doc.status in ['Em Validação', 'Em Aprovação', 'Aprovado']:
                 doc.status = 'Em Ajustes'
 
             # Cria tarefa de correção para o autor
