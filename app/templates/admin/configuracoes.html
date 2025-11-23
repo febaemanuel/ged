@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block title %}Configurações - Sistema GED{% endblock %}
+
+{% block extra_css %}
+<style>
+.config-header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+}
+.config-tabs {
+    background: white;
+    border-radius: 12px;
+    padding: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+.config-tabs .nav-link {
+    color: var(--gray-600);
+    font-weight: 600;
+    padding: 12px 20px;
+    border-radius: 8px;
+    margin: 0 5px;
+}
+.config-tabs .nav-link.active {
+    background: var(--primary-color);
+    color: white;
+}
+.config-tabs .nav-link:hover:not(.active) {
+    background: var(--gray-100);
+}
+.config-section {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+.config-section h5 {
+    color: var(--gray-700);
+    font-weight: 600;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--primary-light);
+}
+.stat-mini {
+    text-align: center;
+    padding: 15px;
+    border-radius: 10px;
+    background: var(--gray-50);
+}
+.stat-mini .number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.stat-mini .label {
+    font-size: 0.8rem;
+    color: var(--gray-500);
+    margin-top: 5px;
+}
+.abrang-card {
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 15px;
+}
+.abrang-card .header {
+    padding: 15px;
+    color: white;
+}
+.abrang-card .header.chufc { background: #2563eb; }
+.abrang-card .header.huwc { background: #059669; }
+.abrang-card .header.meac { background: #d97706; }
+.abrang-card .body {
+    padding: 15px;
+    background: var(--gray-50);
+}
+.tipo-item, .setor-item {
+    padding: 10px 15px;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--gray-200);
+}
+.perfil-card {
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+}
+.perfil-card.admin { background: #fef2f2; border-left: 4px solid #dc2626; }
+.perfil-card.validador { background: #f0fdf4; border-left: 4px solid #16a34a; }
+.perfil-card.triador { background: #eff6ff; border-left: 4px solid #2563eb; }
+.perfil-card.gerente { background: #fefce8; border-left: 4px solid #ca8a04; }
+.perfil-card.comum { background: #f9fafb; border-left: 4px solid #6b7280; }
+.user-table {
+    max-height: 400px;
+    overflow-y: auto;
+}
+.quick-action {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px;
+    border-radius: 8px;
+    background: var(--gray-50);
+    margin-bottom: 10px;
+    text-decoration: none;
+    color: var(--gray-700);
+    transition: all 0.2s;
+}
+.quick-action:hover {
+    background: var(--primary-color);
+    color: white;
+}
+.quick-action i {
+    font-size: 1.3rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Header -->
+    <div class="config-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-2"><i class="bi bi-gear-fill"></i> Configurações do Sistema</h2>
+                <p class="mb-0 opacity-75">Gerencie usuários, abrangências, tipos de documento, setores e permissões</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <span class="badge bg-success fs-6"><i class="bi bi-shield-check"></i> Administrador</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estatísticas Rápidas -->
+    <div class="row mb-4">
+        <div class="col-md-2 col-sm-4 col-6 mb-2">
+            <div class="stat-mini">
+                <div class="number text-primary">{{ stats.total_usuarios }}</div>
+                <div class="label">Usuários</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-2">
+            <div class="stat-mini">
+                <div class="number text-success">{{ stats.total_documentos }}</div>
+                <div class="label">Documentos</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-2">
+            <div class="stat-mini">
+                <div class="number text-info">{{ stats.documentos_publicados }}</div>
+                <div class="label">Publicados</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-2">
+            <div class="stat-mini">
+                <div class="number text-warning">{{ stats.documentos_em_fluxo }}</div>
+                <div class="label">Em Fluxo</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-2">
+            <div class="stat-mini">
+                <div class="number text-danger">{{ stats.tarefas_pendentes }}</div>
+                <div class="label">Tarefas</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-2">
+            <div class="stat-mini">
+                <div class="number text-secondary">{{ stats.usuarios_ativos }}</div>
+                <div class="label">Ativos</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs de Navegação -->
+    <div class="config-tabs">
+        <ul class="nav nav-pills" id="configTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="usuarios-tab" data-bs-toggle="tab" data-bs-target="#usuarios" type="button">
+                    <i class="bi bi-people"></i> Usuários
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="abrangencias-tab" data-bs-toggle="tab" data-bs-target="#abrangencias" type="button">
+                    <i class="bi bi-globe"></i> Abrangências
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tipos-tab" data-bs-toggle="tab" data-bs-target="#tipos" type="button">
+                    <i class="bi bi-file-earmark"></i> Tipos de Documento
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="setores-tab" data-bs-toggle="tab" data-bs-target="#setores" type="button">
+                    <i class="bi bi-building"></i> Setores
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="permissoes-tab" data-bs-toggle="tab" data-bs-target="#permissoes" type="button">
+                    <i class="bi bi-key"></i> Permissões
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Conteúdo das Tabs -->
+    <div class="tab-content" id="configTabsContent">
+
+        <!-- Tab: Usuários -->
+        <div class="tab-pane fade show active" id="usuarios" role="tabpanel">
+            <div class="config-section">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="bi bi-people"></i> Gestão de Usuários</h5>
+                    <a href="{{ url_for('view.usuarios') }}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle"></i> Gerenciar Usuários
+                    </a>
+                </div>
+
+                <div class="row mb-4">
+                    {% for perfil, count in stats.perfis.items() %}
+                    <div class="col-md-2 col-sm-4 col-6 mb-2">
+                        <div class="text-center p-2 rounded bg-light">
+                            <div class="fw-bold fs-5">{{ count }}</div>
+                            <small class="text-muted">{{ perfil|replace('_', ' ')|title }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="user-table">
+                    <table class="table table-hover table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nome</th>
+                                <th>Email</th>
+                                <th>Perfil</th>
+                                <th>Setor</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in usuarios[:20] %}
+                            <tr>
+                                <td>{{ user.nome }}</td>
+                                <td><small>{{ user.email }}</small></td>
+                                <td><span class="badge bg-secondary">{{ user.perfil }}</span></td>
+                                <td><small>{{ user.setor or '-' }}</small></td>
+                                <td>
+                                    {% if user.ativo %}
+                                    <span class="badge bg-success">Ativo</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Inativo</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% if usuarios|length > 20 %}
+                    <div class="text-center">
+                        <a href="{{ url_for('view.usuarios') }}" class="btn btn-outline-primary btn-sm">
+                            Ver todos os {{ usuarios|length }} usuários
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Abrangências -->
+        <div class="tab-pane fade" id="abrangencias" role="tabpanel">
+            <div class="config-section">
+                <h5><i class="bi bi-globe"></i> Abrangências do Complexo Hospitalar</h5>
+                <div class="row">
+                    {% for abrang in abrangencias %}
+                    <div class="col-lg-4 mb-3">
+                        <div class="abrang-card">
+                            <div class="header {{ abrang.nome|lower }}">
+                                <h6 class="mb-0">
+                                    {% if abrang.nome == 'CHUFC' %}<i class="bi bi-building"></i>
+                                    {% elif abrang.nome == 'HUWC' %}<i class="bi bi-hospital"></i>
+                                    {% elif abrang.nome == 'MEAC' %}<i class="bi bi-heart"></i>
+                                    {% endif %}
+                                    {{ abrang.nome }}
+                                </h6>
+                            </div>
+                            <div class="body">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span><i class="bi bi-folder"></i> Setores:</span>
+                                    <strong>{{ abrang.total_setores }}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span><i class="bi bi-file-text"></i> Documentos:</span>
+                                    <strong>{{ abrang.total_documentos }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="bi bi-info-circle"></i> Abrangências são configuradas no arquivo <code>config.py</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Tipos de Documento -->
+        <div class="tab-pane fade" id="tipos" role="tabpanel">
+            <div class="config-section">
+                <h5><i class="bi bi-file-earmark"></i> Tipos de Documento</h5>
+                <div class="row">
+                    {% for tipo in tipos %}
+                    <div class="col-lg-4 col-md-6 mb-2">
+                        <div class="tipo-item">
+                            <div>
+                                <strong>{{ tipo.nome }}</strong>
+                                <small class="d-block text-muted">Validade: {{ tipo.validade_anos }} anos</small>
+                            </div>
+                            <span class="badge bg-primary rounded-pill">{{ tipo.total }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="alert alert-warning mt-3 mb-0">
+                    <i class="bi bi-clock"></i> <strong>Regras EBSERH:</strong>
+                    POP/Manual/Protocolo = 2 anos | Política/Regimento/Regulamento = 4 anos
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Setores -->
+        <div class="tab-pane fade" id="setores" role="tabpanel">
+            <div class="config-section">
+                <h5><i class="bi bi-building"></i> Setores por Abrangência</h5>
+
+                <div class="mb-3">
+                    <select class="form-select" id="filterSetorAbrang" onchange="filterSetoresByAbrang()">
+                        <option value="">Todas as abrangências</option>
+                        {% for abrang in abrangencias_list %}
+                        <option value="{{ abrang }}">{{ abrang }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="row" id="setoresList">
+                    {% for setor in setores[:30] %}
+                    <div class="col-lg-4 col-md-6 mb-2 setor-row" data-abrang="{{ setor.abrangencia }}">
+                        <div class="setor-item">
+                            <div>
+                                <strong>{{ setor.nome }}</strong>
+                                <small class="d-block">
+                                    <span class="badge bg-{{ 'primary' if setor.abrangencia == 'CHUFC' else 'success' if setor.abrangencia == 'HUWC' else 'warning' }}">
+                                        {{ setor.abrangencia }}
+                                    </span>
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">{{ setor.total_documentos }} docs</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if setores|length > 30 %}
+                <div class="text-center mt-2">
+                    <small class="text-muted">Mostrando 30 de {{ setores|length }} setores</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tab: Permissões -->
+        <div class="tab-pane fade" id="permissoes" role="tabpanel">
+            <div class="config-section">
+                <h5><i class="bi bi-key"></i> Controle de Permissões por Perfil</h5>
+                <div class="row">
+                    {% for perfil in perfis %}
+                    <div class="col-lg-6 mb-3">
+                        <div class="perfil-card {{ 'admin' if perfil.nome == 'administrador' else 'validador' if perfil.nome == 'qualidade_validador' else 'triador' if perfil.nome == 'qualidade_triador' else 'gerente' if perfil.nome == 'gerente' else 'comum' }}">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="mb-0">{{ perfil.nome|replace('_', ' ')|title }}</h6>
+                                    <small class="text-muted">{{ perfil.descricao }}</small>
+                                </div>
+                                <span class="badge bg-secondary">{{ perfil.total_usuarios }} usuários</span>
+                            </div>
+                            <div class="mt-2">
+                                {% for perm in perfil.permissoes %}
+                                <small class="d-block"><i class="bi bi-check text-success"></i> {{ perm }}</small>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ações Rápidas -->
+    <div class="config-section">
+        <h5><i class="bi bi-lightning"></i> Ações Rápidas</h5>
+        <div class="row">
+            <div class="col-md-3 col-sm-6">
+                <a href="{{ url_for('view.usuarios') }}" class="quick-action">
+                    <i class="bi bi-person-plus text-primary"></i>
+                    <span>Criar Usuário</span>
+                </a>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <a href="{{ url_for('view.templates_admin') }}" class="quick-action">
+                    <i class="bi bi-file-earmark-code text-success"></i>
+                    <span>Templates</span>
+                </a>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <a href="{{ url_for('admin.lista_mestra') }}" class="quick-action">
+                    <i class="bi bi-list-columns text-info"></i>
+                    <span>Lista Mestra</span>
+                </a>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <a href="{{ url_for('view.dashboard') }}" class="quick-action">
+                    <i class="bi bi-house text-secondary"></i>
+                    <span>Voltar ao Dashboard</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterSetoresByAbrang() {
+    const filter = document.getElementById('filterSetorAbrang').value;
+    const rows = document.querySelectorAll('.setor-row');
+    rows.forEach(row => {
+        if (!filter || row.dataset.abrang === filter) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}

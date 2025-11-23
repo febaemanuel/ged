@@ -16,6 +16,54 @@ logger = logging.getLogger(__name__)
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
+# Valores padrão para garantir compatibilidade
+ABRANGENCIAS_DEFAULT = ['CHUFC', 'HUWC', 'MEAC']
+TIPOS_DOCUMENTO_DEFAULT = ['POP', 'Manual', 'Protocolo', 'Política', 'Regimento', 'Regulamento']
+TIPOS_VALIDADE_4_ANOS_DEFAULT = ['Política', 'Regimento', 'Regulamento']
+SETORES_DEFAULT = {
+    'CHUFC': ['Administração', 'Qualidade', 'Tecnologia da Informação', 'Gestão de Pessoas'],
+    'HUWC': ['Administração', 'Enfermagem', 'Farmácia', 'Laboratório', 'UTI'],
+    'MEAC': ['Administração', 'Enfermagem', 'Neonatologia', 'Obstetrícia']
+}
+
+
+def get_abrangencias():
+    """Retorna lista de abrangências (com fallback)"""
+    return getattr(Config, 'ABRANGENCIAS', ABRANGENCIAS_DEFAULT)
+
+
+def get_tipos_documento():
+    """Retorna tipos de documento (com fallback)"""
+    return getattr(Config, 'TIPOS_DOCUMENTO', TIPOS_DOCUMENTO_DEFAULT)
+
+
+def get_tipos_validade_4_anos():
+    """Retorna tipos com validade de 4 anos (com fallback)"""
+    return getattr(Config, 'TIPOS_VALIDADE_4_ANOS', TIPOS_VALIDADE_4_ANOS_DEFAULT)
+
+
+def get_setores_por_abrangencia(abrangencia):
+    """Retorna setores de uma abrangência (com fallback)"""
+    if hasattr(Config, 'get_setores_por_abrangencia'):
+        return Config.get_setores_por_abrangencia(abrangencia)
+    elif hasattr(Config, 'SETORES_POR_ABRANGENCIA'):
+        return Config.SETORES_POR_ABRANGENCIA.get(abrangencia, [])
+    return SETORES_DEFAULT.get(abrangencia, [])
+
+
+def get_all_setores():
+    """Retorna todos os setores com suas abrangências"""
+    if hasattr(Config, 'SETORES_POR_ABRANGENCIA'):
+        setores_dict = Config.SETORES_POR_ABRANGENCIA
+    else:
+        setores_dict = SETORES_DEFAULT
+
+    todos = []
+    for abrang, setores in setores_dict.items():
+        for setor in setores:
+            todos.append({'setor': setor, 'abrangencia': abrang})
+    return sorted(todos, key=lambda x: (x['setor'], x['abrangencia']))
+
 
 def admin_required(f):
     """Decorator para exigir perfil de administrador"""
@@ -30,14 +78,14 @@ def admin_required(f):
 
 
 # ============================================================================
-# PAINEL PRINCIPAL DE ADMINISTRAÇÃO
+# PÁGINA ÚNICA DE CONFIGURAÇÕES
 # ============================================================================
 
-@admin_bp.route('/')
+@admin_bp.route('/configuracoes')
 @login_required
 @admin_required
-def painel():
-    """Painel principal de administração"""
+def configuracoes():
+    """Página unificada de configurações do sistema"""
     # Estatísticas gerais
     stats = {
         'total_usuarios': Usuario.query.count(),
@@ -66,7 +114,98 @@ def painel():
     ).filter(Documento.abrangencia != None).group_by(Documento.abrangencia).all()
     stats['abrangencias'] = dict(abrangencia_count)
 
-    return render_template('admin/painel.html', stats=stats)
+    # Dados de abrangências
+    abrangencias_info = []
+    for abrang in get_abrangencias():
+        setores = get_setores_por_abrangencia(abrang)
+        docs_count = Documento.query.filter_by(abrangencia=abrang).count()
+        abrangencias_info.append({
+            'nome': abrang,
+            'setores': setores,
+            'total_setores': len(setores),
+            'total_documentos': docs_count,
+        })
+
+    # Dados de tipos de documento
+    tipos_info = []
+    tipos_validade_4 = get_tipos_validade_4_anos()
+    for tipo in get_tipos_documento():
+        count = Documento.query.filter_by(tipo_documento=tipo).count()
+        validade = 4 if tipo in tipos_validade_4 else 2
+        tipos_info.append({
+            'nome': tipo,
+            'total': count,
+            'validade_anos': validade
+        })
+
+    # Dados de setores
+    setores_info = []
+    for abrang in get_abrangencias():
+        for setor in get_setores_por_abrangencia(abrang):
+            docs_count = Documento.query.filter_by(setor=setor, abrangencia=abrang).count()
+            users_count = Usuario.query.filter_by(setor=setor).count()
+            setores_info.append({
+                'nome': setor,
+                'abrangencia': abrang,
+                'total_documentos': docs_count,
+                'total_usuarios': users_count
+            })
+    setores_info.sort(key=lambda x: (x['abrangencia'], x['nome']))
+
+    # Dados de permissões
+    perfis = [
+        {
+            'nome': 'comum',
+            'descricao': 'Usuário comum',
+            'permissoes': ['Criar documentos', 'Executar tarefas', 'Ver repositório']
+        },
+        {
+            'nome': 'gerente',
+            'descricao': 'Gerente de setor',
+            'permissoes': ['Tudo de comum', 'Aprovar documentos', 'Usar IA']
+        },
+        {
+            'nome': 'qualidade_triador',
+            'descricao': 'Triador UGQ',
+            'permissoes': ['Triagem', 'Verificar duplicidade', 'Devolver documentos']
+        },
+        {
+            'nome': 'qualidade_validador',
+            'descricao': 'Validador UGQ',
+            'permissoes': ['Validar', 'Codificar', 'Criar blocos', 'Publicar']
+        },
+        {
+            'nome': 'administrador',
+            'descricao': 'Administrador',
+            'permissoes': ['Acesso total', 'Gerenciar usuários', 'Configurações']
+        }
+    ]
+    for perfil in perfis:
+        perfil['total_usuarios'] = Usuario.query.filter_by(perfil=perfil['nome']).count()
+
+    # Usuários
+    usuarios = Usuario.query.order_by(Usuario.nome).all()
+
+    return render_template('admin/configuracoes.html',
+                          stats=stats,
+                          abrangencias=abrangencias_info,
+                          tipos=tipos_info,
+                          setores=setores_info,
+                          perfis=perfis,
+                          usuarios=usuarios,
+                          abrangencias_list=get_abrangencias())
+
+
+# ============================================================================
+# PAINEL PRINCIPAL DE ADMINISTRAÇÃO (redireciona para configurações)
+# ============================================================================
+
+@admin_bp.route('/')
+@login_required
+@admin_required
+def painel():
+    """Redireciona para página de configurações"""
+    return redirect(url_for('admin.configuracoes'))
 
 
 # ============================================================================
@@ -79,8 +218,8 @@ def painel():
 def abrangencias():
     """Gestão de abrangências"""
     abrangencias_info = []
-    for abrang in Config.ABRANGENCIAS:
-        setores = Config.get_setores_por_abrangencia(abrang)
+    for abrang in get_abrangencias():
+        setores = get_setores_por_abrangencia(abrang)
         docs_count = Documento.query.filter_by(abrangencia=abrang).count()
         docs_publicados = Documento.query.filter_by(abrangencia=abrang, status='Publicado').count()
         abrangencias_info.append({
@@ -104,10 +243,11 @@ def abrangencias():
 def tipos_documento():
     """Gestão de tipos de documento"""
     tipos_info = []
-    for tipo in Config.TIPOS_DOCUMENTO:
+    tipos_validade_4 = get_tipos_validade_4_anos()
+    for tipo in get_tipos_documento():
         count = Documento.query.filter_by(tipo_documento=tipo).count()
         publicados = Documento.query.filter_by(tipo_documento=tipo, status='Publicado').count()
-        validade = 4 if tipo in Config.TIPOS_VALIDADE_4_ANOS else 2
+        validade = 4 if tipo in tipos_validade_4 else 2
         tipos_info.append({
             'nome': tipo,
             'total': count,
@@ -129,8 +269,8 @@ def setores():
     """Gestão de setores"""
     setores_info = []
 
-    for abrang, setores_list in Config.SETORES_POR_ABRANGENCIA.items():
-        for setor in setores_list:
+    for abrang in get_abrangencias():
+        for setor in get_setores_por_abrangencia(abrang):
             docs_count = Documento.query.filter_by(setor=setor, abrangencia=abrang).count()
             users_count = Usuario.query.filter_by(setor=setor).count()
             setores_info.append({
@@ -140,10 +280,9 @@ def setores():
                 'total_usuarios': users_count
             })
 
-    # Ordena por abrangência e nome
     setores_info.sort(key=lambda x: (x['abrangencia'], x['nome']))
 
-    return render_template('admin/setores.html', setores=setores_info, abrangencias=Config.ABRANGENCIAS)
+    return render_template('admin/setores.html', setores=setores_info, abrangencias=get_abrangencias())
 
 
 # ============================================================================
@@ -229,7 +368,6 @@ def permissoes():
         }
     ]
 
-    # Conta usuários por perfil
     for perfil in perfis:
         perfil['total_usuarios'] = Usuario.query.filter_by(perfil=perfil['nome']).count()
 
@@ -248,7 +386,6 @@ def lista_mestra():
     page = request.args.get('page', 1, type=int)
     per_page = 50
 
-    # Filtros
     abrangencia = request.args.get('abrangencia')
     tipo = request.args.get('tipo')
     setor = request.args.get('setor')
@@ -271,8 +408,8 @@ def lista_mestra():
 
     return render_template('admin/lista_mestra.html',
                           registros=registros,
-                          abrangencias=Config.ABRANGENCIAS,
-                          tipos=Config.TIPOS_DOCUMENTO)
+                          abrangencias=get_abrangencias(),
+                          tipos=get_tipos_documento())
 
 
 # ============================================================================
@@ -284,7 +421,7 @@ def lista_mestra():
 def api_setores():
     """API para obter setores por abrangência"""
     abrangencia = request.args.get('abrangencia', 'CHUFC')
-    setores = Config.get_setores_por_abrangencia(abrangencia)
+    setores = get_setores_por_abrangencia(abrangencia)
     return jsonify({'setores': setores, 'abrangencia': abrangencia})
 
 
@@ -318,9 +455,14 @@ def api_stats():
 @login_required
 def api_abrangencias():
     """API para obter abrangências disponíveis"""
+    abrangencias = get_abrangencias()
+    setores_dict = {}
+    for abrang in abrangencias:
+        setores_dict[abrang] = get_setores_por_abrangencia(abrang)
+
     return jsonify({
-        'abrangencias': Config.ABRANGENCIAS,
-        'setores_por_abrangencia': Config.SETORES_POR_ABRANGENCIA
+        'abrangencias': abrangencias,
+        'setores_por_abrangencia': setores_dict
     })
 
 
@@ -329,19 +471,10 @@ def api_abrangencias():
 def api_tipos_documento():
     """API para obter tipos de documento"""
     tipos = []
-    for tipo in Config.TIPOS_DOCUMENTO:
+    tipos_validade_4 = get_tipos_validade_4_anos()
+    for tipo in get_tipos_documento():
         tipos.append({
             'nome': tipo,
-            'validade_anos': 4 if tipo in Config.TIPOS_VALIDADE_4_ANOS else 2
+            'validade_anos': 4 if tipo in tipos_validade_4 else 2
         })
     return jsonify({'tipos': tipos})
-
-
-# Rota alternativa para compatibilidade com o template de edição
-@admin_bp.route('/setores', methods=['GET'])
-@login_required
-def api_setores_alt():
-    """API alternativa para setores (rota /api/admin/setores)"""
-    abrangencia = request.args.get('abrangencia', 'CHUFC')
-    setores = Config.get_setores_por_abrangencia(abrangencia)
-    return jsonify({'setores': setores, 'abrangencia': abrangencia})

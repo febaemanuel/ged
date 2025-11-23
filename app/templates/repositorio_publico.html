@@ -70,19 +70,23 @@
 }
 
 .abrangencia-tab {
-    padding: 8px 4px;
+    padding: 8px 2px;
     border: 2px solid transparent;
     background: white;
     border-radius: 8px;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 2px;
     color: var(--gray-600);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .abrangencia-tab:hover {
