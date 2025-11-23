@@ -61,7 +61,7 @@ def configuracoes():
     abrangencias = Abrangencia.query.order_by(Abrangencia.ordem).all()
     tipos = TipoDocumento.query.order_by(TipoDocumento.ordem).all()
     setores = Setor.query.order_by(Setor.nome).all()
-    perfis = PerfilPermissao.query.order_by(PerfilPermissao.nivel).all()
+    perfis = PerfilPermissao.query.order_by(PerfilPermissao.codigo).all()
     usuarios = Usuario.query.order_by(Usuario.nome).all()
 
     return render_template('admin/configuracoes.html',
@@ -306,7 +306,6 @@ def perfil_criar():
     nome = request.form.get('nome', '').strip()
     descricao = request.form.get('descricao', '').strip()
     cor = request.form.get('cor', '#6b7280')
-    nivel = request.form.get('nivel', 0, type=int)
     permissoes = request.form.getlist('permissoes')
 
     if not codigo or not nome:
@@ -321,8 +320,7 @@ def perfil_criar():
         codigo=codigo,
         nome=nome,
         descricao=descricao,
-        cor=cor,
-        nivel=nivel
+        cor=cor
     )
     perfil.set_permissoes(permissoes)
     db.session.add(perfil)
@@ -343,7 +341,6 @@ def perfil_editar(id):
     perfil.nome = request.form.get('nome', perfil.nome).strip()
     perfil.descricao = request.form.get('descricao', '').strip()
     perfil.cor = request.form.get('cor', perfil.cor)
-    perfil.nivel = request.form.get('nivel', perfil.nivel, type=int)
     perfil.ativo = request.form.get('ativo') == 'on'
 
     permissoes = request.form.getlist('permissoes')
