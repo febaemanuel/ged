@@ -684,7 +684,7 @@ def repositorio_publico():
             'codigo': doc.codigo_provisorio or doc.codigo_unico,
             'setor': doc.setor,
             'abrangencia': doc.abrangencia or 'CHUFC',
-            'data_publicacao': doc.data_publicacao.isoformat(),
+            'data_publicacao': doc.data_publicacao.isoformat() if doc.data_publicacao else None,
             'data_vencimento': doc.data_vencimento.isoformat() if doc.data_vencimento else None,
             'versao': doc.versao,
             'metadados': parse_metadados(doc)
@@ -1098,7 +1098,7 @@ def get_setor_dashboard(setor_nome):
             'titulo': doc.titulo,
             'tipo_documento': doc.tipo_documento,
             'codigo': doc.codigo_definitivo or doc.codigo_provisorio or doc.codigo_unico,
-            'data_publicacao': doc.data_publicacao.isoformat(),
+            'data_publicacao': doc.data_publicacao.isoformat() if doc.data_publicacao else None,
             'versao': doc.versao,
             'metadados': parse_metadados(doc)
         } for doc in docs_recentes]
