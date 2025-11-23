@@ -270,7 +270,7 @@ def concluir_tarefa(id):
         documento.data_publicacao = datetime.utcnow()
         documento.calcular_data_vencimento()
         documento.gerar_codigo_definitivo()
-        documento.status = 'Aprovado e Publicado'
+        documento.status = 'Publicado'
 
     # Conclui tarefa
     tarefa.concluir(parecer=parecer, aprovado=aprovado, arquivo=arquivo_nome)

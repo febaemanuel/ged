@@ -305,7 +305,7 @@ function updateSetoresPorAbrangencia(abrangencia) {
     const currentSetor = setorSelect.value;
 
     // Busca setores via API
-    fetch(`/api/admin/setores?abrangencia=${abrangencia}`)
+    fetch(`/admin/api/setores?abrangencia=${abrangencia}`)
         .then(response => response.json())
         .then(data => {
             if (data.setores) {

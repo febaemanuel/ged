@@ -28,7 +28,7 @@
                         </div>
                         <div class="col-md-6">
                             <strong>Status:</strong><br>
-                            <span class="badge bg-{% if documento.status == 'Aprovado e Publicado' %}success{% elif documento.status == 'Aprovado' %}primary{% elif documento.status == 'Em Análise' %}warning{% else %}secondary{% endif %} fs-6">
+                            <span class="badge bg-{% if documento.status == 'Publicado' %}success{% elif documento.status == 'Aprovado' %}primary{% elif documento.status in ['Em Triagem', 'Em Validação', 'Em Aprovação'] %}warning{% else %}secondary{% endif %} fs-6">
                                 {{ documento.status }}
                             </span>
                         </div>

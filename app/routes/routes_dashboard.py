@@ -64,7 +64,7 @@ def index():
             query_docs = query_docs.filter_by(setor=current_user.setor)
 
         total_documentos = query_docs.count()
-        docs_publicados = query_docs.filter_by(status='Aprovado e Publicado').count()
+        docs_publicados = query_docs.filter_by(status='Publicado').count()
         docs_em_analise = query_docs.filter_by(status='Em Análise').count()
 
         # Documentos vencendo em 30 dias
@@ -73,7 +73,7 @@ def index():
             Documento.data_vencimento != None,
             Documento.data_vencimento <= data_limite,
             Documento.data_vencimento > datetime.utcnow(),
-            Documento.status == 'Aprovado e Publicado'
+            Documento.status == 'Publicado'
         ).count()
 
         # Tarefas atrasadas do setor
@@ -161,7 +161,7 @@ def estatisticas():
         stats['documentos_vencidos'] = Documento.query.filter(
             Documento.data_vencimento != None,
             Documento.data_vencimento < datetime.utcnow(),
-            Documento.status == 'Aprovado e Publicado'
+            Documento.status == 'Publicado'
         ).count()
 
     # Estatísticas administrativas
@@ -232,7 +232,7 @@ def preview_documentos_vencendo():
         Documento.data_vencimento != None,
         Documento.data_vencimento <= data_limite,
         Documento.data_vencimento > datetime.utcnow(),
-        Documento.status == 'Aprovado e Publicado'
+        Documento.status == 'Publicado'
     )
 
     # Filtro por setor
@@ -355,7 +355,7 @@ def verificar_vencimentos():
     documentos_vencidos = Documento.query.filter(
         Documento.data_vencimento != None,
         Documento.data_vencimento < agora,
-        Documento.status == 'Aprovado e Publicado'
+        Documento.status == 'Publicado'
     ).all()
 
     total_atualizados = 0
@@ -501,7 +501,7 @@ def relatorio_pdf_documentos_vencendo():
         Documento.data_vencimento != None,
         Documento.data_vencimento <= data_limite,
         Documento.data_vencimento > datetime.utcnow(),
-        Documento.status == 'Aprovado e Publicado'
+        Documento.status == 'Publicado'
     )
 
     # Filtro por setor

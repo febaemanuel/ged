@@ -28,9 +28,15 @@
                     <select class="form-select" name="status">
                         <option value="">Todos</option>
                         <option value="Novo" {% if request.args.get('status') == 'Novo' %}selected{% endif %}>Novo</option>
-                        <option value="Em Análise" {% if request.args.get('status') == 'Em Análise' %}selected{% endif %}>Em Análise</option>
+                        <option value="Em Triagem" {% if request.args.get('status') == 'Em Triagem' %}selected{% endif %}>Em Triagem</option>
+                        <option value="Em Validação" {% if request.args.get('status') == 'Em Validação' %}selected{% endif %}>Em Validação</option>
+                        <option value="Validado" {% if request.args.get('status') == 'Validado' %}selected{% endif %}>Validado</option>
+                        <option value="Em Aprovação" {% if request.args.get('status') == 'Em Aprovação' %}selected{% endif %}>Em Aprovação</option>
                         <option value="Aprovado" {% if request.args.get('status') == 'Aprovado' %}selected{% endif %}>Aprovado</option>
-                        <option value="Aprovado e Publicado" {% if request.args.get('status') == 'Aprovado e Publicado' %}selected{% endif %}>Publicado</option>
+                        <option value="Publicado" {% if request.args.get('status') == 'Publicado' %}selected{% endif %}>Publicado</option>
+                        <option value="Em Correção" {% if request.args.get('status') == 'Em Correção' %}selected{% endif %}>Em Correção</option>
+                        <option value="Cancelado" {% if request.args.get('status') == 'Cancelado' %}selected{% endif %}>Cancelado</option>
+                        <option value="Obsoleto" {% if request.args.get('status') == 'Obsoleto' %}selected{% endif %}>Obsoleto</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -80,7 +86,7 @@
                             <td><span class="badge bg-info">{{ doc.tipo_documento }}</span></td>
                             <td>{{ doc.setor or '-' }}</td>
                             <td>
-                                <span class="badge bg-{% if doc.status == 'Aprovado e Publicado' %}success{% elif doc.status == 'Aprovado' %}primary{% elif doc.status == 'Em Análise' %}warning{% else %}secondary{% endif %}">
+                                <span class="badge bg-{% if doc.status == 'Publicado' %}success{% elif doc.status == 'Aprovado' %}primary{% elif doc.status in ['Em Triagem', 'Em Validação', 'Em Aprovação'] %}warning{% else %}secondary{% endif %}">
                                     {{ doc.status }}
                                 </span>
                                 {% if doc.esta_vencido() %}
@@ -102,23 +108,23 @@
             </div>
 
             <!-- Paginação -->
-            {% if pagination and pagination.pages > 1 %}
+            {% if documentos and documentos.pages > 1 %}
             <nav>
                 <ul class="pagination justify-content-center">
-                    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                        <a class="page-link" href="?page={{ pagination.prev_num }}">Anterior</a>
+                    <li class="page-item {% if not documentos.has_prev %}disabled{% endif %}">
+                        <a class="page-link" href="?page={{ documentos.prev_num }}">Anterior</a>
                     </li>
-                    {% for page_num in pagination.iter_pages() %}
+                    {% for page_num in documentos.iter_pages() %}
                         {% if page_num %}
-                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                        <li class="page-item {% if page_num == documentos.page %}active{% endif %}">
                             <a class="page-link" href="?page={{ page_num }}">{{ page_num }}</a>
                         </li>
                         {% else %}
                         <li class="page-item disabled"><span class="page-link">...</span></li>
                         {% endif %}
                     {% endfor %}
-                    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                        <a class="page-link" href="?page={{ pagination.next_num }}">Próximo</a>
+                    <li class="page-item {% if not documentos.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="?page={{ documentos.next_num }}">Próximo</a>
                     </li>
                 </ul>
             </nav>

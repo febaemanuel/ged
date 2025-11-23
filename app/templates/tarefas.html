@@ -18,19 +18,22 @@
                     <label class="form-label">Tipo de Tarefa</label>
                     <select class="form-select" name="tipo">
                         <option value="">Todas</option>
-                        <option value="Analisar">Analisar</option>
-                        <option value="Validar Conteúdo">Validar Conteúdo</option>
-                        <option value="Validar Padronização">Validar Padronização</option>
-                        <option value="Aprovar">Aprovar</option>
-                        <option value="Publicar">Publicar</option>
-                        <option value="Realizar Correção">Realizar Correção</option>
+                        <!-- Workflow UGQ Atual -->
+                        <option value="Triagem de Documento" {% if request.args.get('tipo') == 'Triagem de Documento' %}selected{% endif %}>Triagem de Documento</option>
+                        <option value="Validar e Codificar Documento" {% if request.args.get('tipo') == 'Validar e Codificar Documento' %}selected{% endif %}>Validar e Codificar</option>
+                        <option value="Gestão do Bloco de Assinatura" {% if request.args.get('tipo') == 'Gestão do Bloco de Assinatura' %}selected{% endif %}>Gestão Bloco Assinatura</option>
+                        <option value="Assinar Documento" {% if request.args.get('tipo') == 'Assinar Documento' %}selected{% endif %}>Assinar Documento</option>
+                        <option value="Publicar Documento Aprovado" {% if request.args.get('tipo') == 'Publicar Documento Aprovado' %}selected{% endif %}>Publicar Documento</option>
+                        <option value="Realizar Correção" {% if request.args.get('tipo') == 'Realizar Correção' %}selected{% endif %}>Realizar Correção</option>
+                        <option value="Realizar Ajustes" {% if request.args.get('tipo') == 'Realizar Ajustes' %}selected{% endif %}>Realizar Ajustes</option>
                     </select>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Status</label>
-                    <select class="form-select" name="concluida">
-                        <option value="false">Pendentes</option>
-                        <option value="true">Concluídas</option>
+                    <select class="form-select" name="status">
+                        <option value="">Todas</option>
+                        <option value="pendente" {% if request.args.get('status') == 'pendente' %}selected{% endif %}>Pendentes</option>
+                        <option value="concluida" {% if request.args.get('status') == 'concluida' %}selected{% endif %}>Concluídas</option>
                     </select>
                 </div>
                 <div class="col-md-3">
