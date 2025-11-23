@@ -570,27 +570,51 @@ class EvolutionAPIv2:
     def enviar_documento(
         self,
         para_numero: str,
-        documento_url: str,
+        arquivo_path: str,
         nome_arquivo: str,
         legenda: str = None
     ) -> Tuple[bool, str]:
         """
-        Envia documento via WhatsApp
+        Envia documento via WhatsApp usando base64
 
         Args:
             para_numero: +5585999999999 ou 5585999999999
-            documento_url: URL pública do documento
-            nome_arquivo: Nome do arquivo
+            arquivo_path: Caminho completo do arquivo no servidor
+            nome_arquivo: Nome do arquivo para exibição
             legenda: Legenda opcional
 
         Returns:
             (sucesso, message_id ou erro)
         """
+        import base64
+        import os
+        import mimetypes
+
         if not self.esta_ativo():
             logger.warning("WhatsApp não configurado")
             return False, "WhatsApp não configurado"
 
         try:
+            # Verifica se arquivo existe
+            if not os.path.exists(arquivo_path):
+                logger.error(f"Arquivo não encontrado: {arquivo_path}")
+                return False, f"Arquivo não encontrado: {arquivo_path}"
+
+            # Lê o arquivo e converte para base64
+            with open(arquivo_path, 'rb') as f:
+                arquivo_bytes = f.read()
+
+            arquivo_base64 = base64.b64encode(arquivo_bytes).decode('utf-8')
+
+            # Detecta o mimetype
+            mimetype, _ = mimetypes.guess_type(arquivo_path)
+            if not mimetype:
+                # Default para PDF
+                mimetype = 'application/pdf'
+
+            # Monta o data URI
+            media_base64 = f"data:{mimetype};base64,{arquivo_base64}"
+
             # Formata número
             numero_formatado = self._format_number(para_numero)
 
@@ -601,7 +625,7 @@ class EvolutionAPIv2:
             payload = {
                 'number': numero_formatado,
                 'mediatype': 'document',
-                'media': documento_url,
+                'media': media_base64,
                 'fileName': nome_arquivo,
                 'delay': 1000
             }
@@ -609,8 +633,7 @@ class EvolutionAPIv2:
             if legenda:
                 payload['caption'] = legenda
 
-            logger.info(f"Enviando documento para {numero_formatado}: {nome_arquivo}")
-            logger.debug(f"Payload: {json.dumps(payload, indent=2)}")
+            logger.info(f"Enviando documento para {numero_formatado}: {nome_arquivo} ({len(arquivo_bytes)} bytes)")
 
             response = self._request_with_retry('POST', url, headers=headers, json=payload)
 
@@ -1914,33 +1937,41 @@ class WhatsAppChatbot:
     def _enviar_documento(self, usuario, remote_jid, doc, conversacao):
         """Envia o documento como anexo via WhatsApp"""
         import os
+        from flask import current_app
 
         codigo = doc.codigo_definitivo or doc.codigo_provisorio or f"Doc #{doc.id}"
         titulo_formatado = f"{codigo} - {doc.titulo}" if doc.titulo else codigo
 
         # Verifica se tem arquivo (prioridade: final > publicado_pdf > original)
-        arquivo_path = doc.arquivo_final or doc.arquivo_publicado_pdf or doc.arquivo_original
+        arquivo_relativo = doc.arquivo_final or doc.arquivo_publicado_pdf or doc.arquivo_original
 
-        if not arquivo_path:
+        if not arquivo_relativo:
             self.api.enviar_mensagem(remote_jid, f"❌ *Documento sem arquivo anexado*\n\n📄 {titulo_formatado}\n\n_Responda *3* para nova busca ou *menu* para voltar._")
             conversacao.atualizar_estado('menu', {})
             db.session.commit()
             return
 
-        # Monta URL pública do documento
-        # Assume que há uma rota para download público
         try:
-            # Tenta obter URL base do request atual
-            from flask import current_app
-            base_url = current_app.config.get('BASE_URL', 'http://127.0.0.1:5000')
+            # Monta caminho completo do arquivo
+            upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
 
-            # Usa a rota pública de download se existir
-            documento_url = f"{base_url}/repositorio/download/{doc.id}"
+            # Se o caminho já é absoluto, usa diretamente
+            if os.path.isabs(arquivo_relativo):
+                arquivo_path = arquivo_relativo
+            else:
+                arquivo_path = os.path.join(upload_folder, arquivo_relativo)
 
-            # Determina nome do arquivo
-            nome_arquivo = os.path.basename(arquivo_path)
-            if not nome_arquivo:
-                nome_arquivo = f"{codigo}.pdf"
+            # Verifica se arquivo existe
+            if not os.path.exists(arquivo_path):
+                logger.error(f"Arquivo não encontrado: {arquivo_path}")
+                self.api.enviar_mensagem(remote_jid, f"❌ *Arquivo não encontrado no servidor*\n\n📄 {titulo_formatado}\n\n_Responda *3* para nova busca ou *menu* para voltar._")
+                conversacao.atualizar_estado('menu', {})
+                db.session.commit()
+                return
+
+            # Determina nome do arquivo para exibição
+            _, ext = os.path.splitext(arquivo_path)
+            nome_arquivo = f"{codigo}{ext or '.pdf'}"
 
             # Monta legenda
             legenda = f"📄 *{titulo_formatado}*\n"
@@ -1948,10 +1979,10 @@ class WhatsAppChatbot:
             legenda += f"📊 Status: {doc.status}\n\n"
             legenda += "_Sistema GED - EBSERH_"
 
-            # Envia o documento
+            # Envia o documento como anexo (base64)
             sucesso, resultado = self.api.enviar_documento(
                 remote_jid,
-                documento_url,
+                arquivo_path,
                 nome_arquivo,
                 legenda
             )
@@ -1959,9 +1990,10 @@ class WhatsAppChatbot:
             if sucesso:
                 msg = f"✅ *Documento enviado!*\n\n📄 {titulo_formatado}\n\n_Responda *3* para nova busca ou *menu* para voltar._"
             else:
-                # Se falhar o envio de mídia, envia link
-                msg = f"📄 *{titulo_formatado}*\n\n"
-                msg += f"🔗 Link para download:\n{documento_url}\n\n"
+                # Se falhar, informa o erro
+                msg = f"❌ *Não foi possível enviar o documento*\n\n"
+                msg += f"📄 {titulo_formatado}\n"
+                msg += f"Erro: {resultado}\n\n"
                 msg += "_Responda *3* para nova busca ou *menu* para voltar._"
 
             self.api.enviar_mensagem(remote_jid, msg)
