@@ -1918,8 +1918,9 @@ class WhatsAppChatbot:
         codigo = doc.codigo_definitivo or doc.codigo_provisorio or f"Doc #{doc.id}"
         titulo_formatado = f"{codigo} - {doc.titulo}" if doc.titulo else codigo
 
-        # Verifica se tem arquivo (prioridade: final > publicado_pdf > original)
-        arquivo_path = doc.arquivo_final or doc.arquivo_publicado_pdf or doc.arquivo_original
+        # Verifica se tem arquivo (prioridade: publicado_pdf > original)
+        # NÃO usar arquivo_final pois é o PDF de assinaturas, não o documento
+        arquivo_path = doc.arquivo_publicado_pdf or doc.arquivo_original
 
         if not arquivo_path:
             self.api.enviar_mensagem(remote_jid, f"❌ *Documento sem arquivo anexado*\n\n📄 {titulo_formatado}\n\n_Responda *3* para nova busca ou *menu* para voltar._")

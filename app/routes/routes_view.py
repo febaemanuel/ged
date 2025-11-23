@@ -1179,18 +1179,12 @@ def download_documento_publico(doc_id):
         abort(403, description="Documento não disponível para download público")
 
     # Determina o arquivo a ser enviado
-    arquivo_path = documento.arquivo_final_path or documento.arquivo_path
+    # Prioridade: PDF publicado > arquivo original
+    # NÃO usar arquivo_final pois é o PDF de assinaturas
+    full_path = documento.get_caminho_publicado() or documento.get_caminho_arquivo()
 
-    if not arquivo_path:
+    if not full_path:
         abort(404, description="Arquivo não encontrado")
-
-    # Monta caminho completo
-    upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
-    full_path = os.path.join(upload_folder, arquivo_path)
-
-    # Se o caminho já é absoluto, usa diretamente
-    if os.path.isabs(arquivo_path):
-        full_path = arquivo_path
 
     if not os.path.exists(full_path):
         abort(404, description="Arquivo não encontrado no servidor")
@@ -1200,7 +1194,7 @@ def download_documento_publico(doc_id):
     nome_arquivo = f"{codigo}.pdf"
 
     # Se o arquivo não é PDF, usa a extensão original
-    _, ext = os.path.splitext(arquivo_path)
+    _, ext = os.path.splitext(full_path)
     if ext and ext.lower() != '.pdf':
         nome_arquivo = f"{codigo}{ext}"
 
