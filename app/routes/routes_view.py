@@ -1218,10 +1218,14 @@ def concluir_triagem(tarefa_id):
 
     tarefa.parecer = parecer
 
+    # Verifica se é um documento do tipo Manual (aceita MAN, Manual, MANUAL)
+    tipo_doc = tarefa.documento.tipo_documento or ''
+    eh_manual = tipo_doc in ['Manual', 'MAN', 'MANUAL'] or tipo_doc.upper().startswith('MAN')
+
     try:
         if acao == 'aprovar' and checkpoint_1 == 'nao' and checkpoint_3 == 'sim':
             # Todos checkpoints OK
-            if tarefa.documento.tipo_documento == 'Manual':
+            if eh_manual:
                 # Manual precisa de validação do colegiado
                 if checkpoint_2 == 'nao':
                     # Devolve

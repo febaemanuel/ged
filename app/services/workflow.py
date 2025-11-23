@@ -1065,6 +1065,37 @@ class WorkflowUGQ:
         log_debug(f"   Responsável: {validador.nome} (ID: {validador_id})")
         log_debug(f"   Tipo: {Config.TAREFA_PUBLICAR_APROVADO}")
         log_debug(f"   Prazo: {tarefa_publicar.prazo.strftime('%d/%m/%Y')}")
+
+        # Verifica método de confirmação configurado
+        metodo = 'ambos'  # Padrão
+        if WHATSAPP_ENABLED:
+            from app.models import ConfiguracaoWhatsApp
+            whatsapp_config = ConfiguracaoWhatsApp.get_config()
+            metodo = whatsapp_config.metodo_confirmacao or 'ambos'
+            log_debug(f"📬 Método de confirmação: {metodo}")
+
+        # Envia e-mail para o Validador UGQ (se configurado)
+        if EMAIL_ENABLED and metodo in ['email', 'ambos']:
+            EmailService.enviar_notificacao_tarefa(
+                usuario_id=validador_id,
+                tipo_tarefa=Config.TAREFA_PUBLICAR_APROVADO,
+                documento_titulo=documento.titulo,
+                documento_codigo=documento.codigo_definitivo
+            )
+            log_debug(f"📧 E-mail enviado para Validador UGQ: {validador.email}")
+
+        # Envia WhatsApp para o Validador UGQ (se configurado)
+        if WHATSAPP_ENABLED and metodo in ['whatsapp', 'ambos']:
+            whatsapp_service = WhatsAppService()
+            if whatsapp_service.esta_ativo():
+                sucesso, resultado = whatsapp_service.enviar_notificacao_tarefa(validador, tarefa_publicar)
+                if sucesso:
+                    log_debug(f"📱 WhatsApp enviado para Validador UGQ: {validador.telefone}")
+                    print(f"[WORKFLOW] 📱 WhatsApp enviado para Validador UGQ: {validador.telefone}", file=sys.stderr, flush=True)
+                else:
+                    log_debug(f"⚠️ Falha ao enviar WhatsApp: {resultado}")
+                    print(f"[WORKFLOW] ⚠️ Falha ao enviar WhatsApp: {resultado}", file=sys.stderr, flush=True)
+
         log_debug("=" * 80)
 
     # ========================================================================

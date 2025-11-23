@@ -160,7 +160,7 @@
                         <div class="col-md-4">
                             <div class="info-card">
                                 <small class="text-muted">Tipo</small>
-                                <div><strong><i class="bi bi-tag"></i> {{ documento.tipo_documento }}</strong></div>
+                                <div><strong><i class="bi bi-tag"></i> {{ documento.tipo_documento_nome }}</strong></div>
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -212,7 +212,7 @@
                                     {% if documento.tipo_documento %}
                                     <div class="col-md-4">
                                         <small class="text-muted"><i class="bi bi-file-text"></i> Tipo</small>
-                                        <div><strong>{{ documento.tipo_documento }}</strong></div>
+                                        <div><strong>{{ documento.tipo_documento_nome }}</strong></div>
                                     </div>
                                     {% endif %}
                                     {% if documento.setor %}

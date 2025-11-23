@@ -155,7 +155,7 @@
                         </div>
 
                         <!-- Checkpoint 2: Colegiado (só para Manuais) -->
-                        {% if tarefa.documento.tipo_documento == 'Manual' %}
+                        {% if tarefa.documento.tipo_documento in ['Manual', 'MAN', 'MANUAL'] or tarefa.documento.tipo_documento.upper().startswith('MAN') %}
                         <div class="card mb-3">
                             <div class="card-header bg-light">
                                 <strong>Checkpoint 2:</strong> Manual foi validado pelo Colegiado Executivo?
@@ -429,7 +429,7 @@
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Tipo de Documento</label>
                                         <input type="text" class="form-control"
-                                               value="{{ tarefa.documento.tipo_documento }}" readonly>
+                                               value="{{ tarefa.documento.tipo_documento_nome }}" readonly>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Setor</label>
