@@ -567,6 +567,70 @@ class EvolutionAPIv2:
 
             return False, error_msg
 
+    def enviar_documento(
+        self,
+        para_numero: str,
+        documento_url: str,
+        nome_arquivo: str,
+        legenda: str = None
+    ) -> Tuple[bool, str]:
+        """
+        Envia documento via WhatsApp
+
+        Args:
+            para_numero: +5585999999999 ou 5585999999999
+            documento_url: URL pública do documento
+            nome_arquivo: Nome do arquivo
+            legenda: Legenda opcional
+
+        Returns:
+            (sucesso, message_id ou erro)
+        """
+        if not self.esta_ativo():
+            logger.warning("WhatsApp não configurado")
+            return False, "WhatsApp não configurado"
+
+        try:
+            # Formata número
+            numero_formatado = self._format_number(para_numero)
+
+            # Monta requisição
+            url = f"{self.base_url}/message/sendMedia/{self.instance_name}"
+            headers = self._get_headers('application/json')
+
+            payload = {
+                'number': numero_formatado,
+                'mediatype': 'document',
+                'media': documento_url,
+                'fileName': nome_arquivo,
+                'delay': 1000
+            }
+
+            if legenda:
+                payload['caption'] = legenda
+
+            logger.info(f"Enviando documento para {numero_formatado}: {nome_arquivo}")
+            logger.debug(f"Payload: {json.dumps(payload, indent=2)}")
+
+            response = self._request_with_retry('POST', url, headers=headers, json=payload)
+
+            if response.status_code in [200, 201]:
+                data = response.json()
+                message_id = data.get('key', {}).get('id', 'unknown')
+
+                logger.info(f"✓ Documento enviado: {message_id}")
+                return True, message_id
+
+            else:
+                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+                logger.error(f"Erro ao enviar documento: {error_msg}")
+                return False, error_msg
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Exceção ao enviar documento: {error_msg}", exc_info=True)
+            return False, error_msg
+
     def enviar_notificacao_tarefa(self, usuario: Usuario, tarefa: Tarefa) -> Tuple[bool, str]:
         """
         Envia notificação de nova tarefa via WhatsApp
@@ -770,6 +834,8 @@ class WhatsAppChatbot:
                     self._listar_tarefas(usuario, remote_jid, conversacao)
                 elif texto_lower in ['documentos', '2', 'dois']:
                     self.api.enviar_mensagem(remote_jid, "📂 *Meus Documentos*\n\nEsta funcionalidade estará disponível em breve.\n\n_Responda *menu* para voltar._")
+                elif texto_lower in ['buscar', 'busca', '3', 'tres', 'três']:
+                    self._enviar_menu_busca(usuario, remote_jid, conversacao)
                 else:
                     self._enviar_menu_principal(usuario, remote_jid)
 
@@ -788,6 +854,30 @@ class WhatsAppChatbot:
             # Estado: AGUARDANDO JUSTIFICATIVA DE REPROVAÇÃO
             elif estado == 'aguardando_justificativa':
                 self._processar_justificativa(usuario, remote_jid, texto, conversacao)
+
+            # Estado: MENU DE BUSCA DE DOCUMENTOS
+            elif estado == 'busca_menu':
+                self._processar_menu_busca(usuario, remote_jid, texto, conversacao)
+
+            # Estado: AGUARDANDO NOME PARA BUSCA
+            elif estado == 'busca_por_nome':
+                self._processar_busca_por_nome(usuario, remote_jid, texto, conversacao)
+
+            # Estado: SELEÇÃO DE ABRANGÊNCIA
+            elif estado == 'busca_abrangencia':
+                self._processar_selecao_abrangencia(usuario, remote_jid, texto, conversacao)
+
+            # Estado: SELEÇÃO DE SETOR
+            elif estado == 'busca_setor':
+                self._processar_selecao_setor(usuario, remote_jid, texto, conversacao)
+
+            # Estado: SELEÇÃO DE TIPO
+            elif estado == 'busca_tipo':
+                self._processar_selecao_tipo(usuario, remote_jid, texto, conversacao)
+
+            # Estado: RESULTADO DE BUSCA
+            elif estado == 'busca_resultado':
+                self._processar_selecao_documento(usuario, remote_jid, texto, conversacao)
 
             # Estado desconhecido - volta ao menu
             else:
@@ -834,7 +924,8 @@ class WhatsAppChatbot:
         msg_menu = f"📋 *Olá, {usuario.nome}!*\n\n"
         msg_menu += f"Você tem *{total_tarefas}* tarefa(s) pendente(s).\n\n"
         msg_menu += "1️⃣ Ver Tarefas Pendentes\n"
-        msg_menu += "2️⃣ Meus Documentos\n\n"
+        msg_menu += "2️⃣ Meus Documentos\n"
+        msg_menu += "3️⃣ 🔍 *Buscar Documentos*\n\n"
         msg_menu += "_Responda com o número da opção._"
 
         self.api.enviar_mensagem(remote_jid, msg_menu)
@@ -1499,3 +1590,387 @@ class WhatsAppChatbot:
             db.session.rollback()
             logger.error(f"Erro ao executar devolução via WhatsApp: {str(e)}", exc_info=True)
             return False, str(e)
+
+    # ========================================================================
+    # MÉTODOS DE BUSCA DE DOCUMENTOS
+    # ========================================================================
+
+    def _enviar_menu_busca(self, usuario, remote_jid, conversacao):
+        """Envia o menu de busca de documentos"""
+        conversacao.atualizar_estado('busca_menu', {})
+        db.session.commit()
+
+        msg = "🔍 *Buscar Documentos*\n\n"
+        msg += "Como você deseja buscar?\n\n"
+        msg += "1️⃣ *Buscar por Nome/Código*\n"
+        msg += "   _Digite o termo de busca_\n\n"
+        msg += "2️⃣ *Navegar por Categorias*\n"
+        msg += "   _Abrangência > Setor > Tipo_\n\n"
+        msg += "0️⃣ Voltar ao Menu\n\n"
+        msg += "_Responda com o número da opção._"
+
+        self.api.enviar_mensagem(remote_jid, msg)
+
+    def _processar_menu_busca(self, usuario, remote_jid, texto, conversacao):
+        """Processa a escolha no menu de busca"""
+        texto_limpo = texto.strip().lower()
+
+        if texto_limpo in ['1', 'nome', 'codigo', 'código']:
+            # Busca por nome/código
+            conversacao.atualizar_estado('busca_por_nome', {})
+            db.session.commit()
+
+            msg = "🔎 *Busca por Nome/Código*\n\n"
+            msg += "Digite o *nome*, *código* ou *palavra-chave* do documento que procura.\n\n"
+            msg += "_Exemplo: POP Higienização, MAN.TESTE, Gestação_\n\n"
+            msg += "_Responda *0* para voltar._"
+
+            self.api.enviar_mensagem(remote_jid, msg)
+
+        elif texto_limpo in ['2', 'navegar', 'categorias']:
+            # Navegar por categorias - começa com abrangência
+            self._enviar_lista_abrangencias(usuario, remote_jid, conversacao)
+
+        else:
+            self.api.enviar_mensagem(remote_jid, "❌ Opção inválida.\n\nEscolha: *1* (Buscar por Nome) ou *2* (Navegar por Categorias)\n\n_Responda *0* para voltar ao menu._")
+
+    def _processar_busca_por_nome(self, usuario, remote_jid, texto, conversacao):
+        """Processa a busca por nome/código"""
+        termo = texto.strip()
+
+        if len(termo) < 2:
+            self.api.enviar_mensagem(remote_jid, "❌ Digite pelo menos 2 caracteres para buscar.\n\n_Responda *0* para voltar._")
+            return
+
+        # Busca documentos publicados que contenham o termo
+        documentos = Documento.query.filter(
+            Documento.status == 'Publicado',
+            db.or_(
+                Documento.titulo.ilike(f'%{termo}%'),
+                Documento.codigo_definitivo.ilike(f'%{termo}%'),
+                Documento.codigo_provisorio.ilike(f'%{termo}%')
+            )
+        ).order_by(Documento.titulo.asc()).limit(10).all()
+
+        self._exibir_resultado_busca(usuario, remote_jid, documentos, conversacao, f"Busca: '{termo}'")
+
+    def _enviar_lista_abrangencias(self, usuario, remote_jid, conversacao):
+        """Envia lista de abrangências disponíveis"""
+        from app.models import Abrangencia
+
+        abrangencias = Abrangencia.query.filter_by(ativo=True).order_by(Abrangencia.nome.asc()).all()
+
+        if not abrangencias:
+            self.api.enviar_mensagem(remote_jid, "❌ Nenhuma abrangência cadastrada.\n\n_Responda *menu* para voltar._")
+            conversacao.atualizar_estado('menu', {})
+            db.session.commit()
+            return
+
+        # Guarda lista no contexto
+        abrangencias_ids = [a.id for a in abrangencias]
+        conversacao.atualizar_estado('busca_abrangencia', {'abrangencias_ids': abrangencias_ids})
+        db.session.commit()
+
+        msg = "🏢 *Selecione a Abrangência*\n\n"
+        for idx, a in enumerate(abrangencias, 1):
+            msg += f"*{idx}.* {a.nome}\n"
+
+        msg += "\n_Responda com o número ou *0* para voltar._"
+        self.api.enviar_mensagem(remote_jid, msg)
+
+    def _processar_selecao_abrangencia(self, usuario, remote_jid, texto, conversacao):
+        """Processa a seleção de abrangência"""
+        from app.models import Abrangencia
+
+        contexto = conversacao.get_contexto()
+        abrangencias_ids = contexto.get('abrangencias_ids', [])
+
+        try:
+            numero = int(texto.strip())
+            if numero < 1 or numero > len(abrangencias_ids):
+                self.api.enviar_mensagem(remote_jid, f"❌ Opção inválida. Digite um número de 1 a {len(abrangencias_ids)}.\n\n_Responda *0* para voltar._")
+                return
+
+            abrangencia_id = abrangencias_ids[numero - 1]
+            abrangencia = Abrangencia.query.get(abrangencia_id)
+
+            if not abrangencia:
+                self.api.enviar_mensagem(remote_jid, "❌ Abrangência não encontrada.\n\n_Responda *menu* para voltar._")
+                return
+
+            # Avança para seleção de setor
+            self._enviar_lista_setores(usuario, remote_jid, conversacao, abrangencia)
+
+        except ValueError:
+            self.api.enviar_mensagem(remote_jid, "❌ Por favor, digite apenas o *número* da opção.\n\n_Responda *0* para voltar._")
+
+    def _enviar_lista_setores(self, usuario, remote_jid, conversacao, abrangencia):
+        """Envia lista de setores disponíveis para a abrangência"""
+        from app.models import Setor
+
+        setores = Setor.query.filter_by(
+            abrangencia_id=abrangencia.id,
+            ativo=True
+        ).order_by(Setor.nome.asc()).all()
+
+        if not setores:
+            # Se não há setores, mostra documentos direto
+            self._buscar_documentos_por_filtros(usuario, remote_jid, conversacao, abrangencia.codigo, None, None)
+            return
+
+        # Guarda no contexto
+        setores_ids = [s.id for s in setores]
+        conversacao.atualizar_estado('busca_setor', {
+            'abrangencia_codigo': abrangencia.codigo,
+            'abrangencia_nome': abrangencia.nome,
+            'setores_ids': setores_ids
+        })
+        db.session.commit()
+
+        msg = f"🏥 *Setores em {abrangencia.nome}*\n\n"
+        for idx, s in enumerate(setores, 1):
+            msg += f"*{idx}.* {s.nome}\n"
+
+        msg += f"\n*{len(setores) + 1}.* 📄 Ver TODOS os documentos\n"
+        msg += "\n_Responda com o número ou *0* para voltar._"
+        self.api.enviar_mensagem(remote_jid, msg)
+
+    def _processar_selecao_setor(self, usuario, remote_jid, texto, conversacao):
+        """Processa a seleção de setor"""
+        from app.models import Setor
+
+        contexto = conversacao.get_contexto()
+        setores_ids = contexto.get('setores_ids', [])
+        abrangencia_codigo = contexto.get('abrangencia_codigo')
+
+        try:
+            numero = int(texto.strip())
+
+            # Opção "Ver TODOS"
+            if numero == len(setores_ids) + 1:
+                self._buscar_documentos_por_filtros(usuario, remote_jid, conversacao, abrangencia_codigo, None, None)
+                return
+
+            if numero < 1 or numero > len(setores_ids):
+                self.api.enviar_mensagem(remote_jid, f"❌ Opção inválida. Digite um número de 1 a {len(setores_ids) + 1}.\n\n_Responda *0* para voltar._")
+                return
+
+            setor_id = setores_ids[numero - 1]
+            setor = Setor.query.get(setor_id)
+
+            if not setor:
+                self.api.enviar_mensagem(remote_jid, "❌ Setor não encontrado.\n\n_Responda *menu* para voltar._")
+                return
+
+            # Avança para seleção de tipo
+            self._enviar_lista_tipos(usuario, remote_jid, conversacao, abrangencia_codigo, setor)
+
+        except ValueError:
+            self.api.enviar_mensagem(remote_jid, "❌ Por favor, digite apenas o *número* da opção.\n\n_Responda *0* para voltar._")
+
+    def _enviar_lista_tipos(self, usuario, remote_jid, conversacao, abrangencia_codigo, setor):
+        """Envia lista de tipos de documento disponíveis"""
+        from app.models import TipoDocumento
+
+        tipos = TipoDocumento.query.filter_by(ativo=True).order_by(TipoDocumento.nome.asc()).all()
+
+        if not tipos:
+            # Se não há tipos, mostra documentos direto
+            self._buscar_documentos_por_filtros(usuario, remote_jid, conversacao, abrangencia_codigo, setor.codigo if setor else None, None)
+            return
+
+        # Guarda no contexto
+        tipos_codigos = [t.codigo for t in tipos]
+        conversacao.atualizar_estado('busca_tipo', {
+            'abrangencia_codigo': abrangencia_codigo,
+            'setor_codigo': setor.codigo if setor else None,
+            'setor_nome': setor.nome if setor else None,
+            'tipos_codigos': tipos_codigos,
+            'tipos_nomes': [t.nome for t in tipos]
+        })
+        db.session.commit()
+
+        setor_info = f" > {setor.nome}" if setor else ""
+        msg = f"📑 *Tipos de Documento{setor_info}*\n\n"
+        for idx, t in enumerate(tipos, 1):
+            msg += f"*{idx}.* {t.nome} ({t.codigo})\n"
+
+        msg += f"\n*{len(tipos) + 1}.* 📄 Ver TODOS os documentos\n"
+        msg += "\n_Responda com o número ou *0* para voltar._"
+        self.api.enviar_mensagem(remote_jid, msg)
+
+    def _processar_selecao_tipo(self, usuario, remote_jid, texto, conversacao):
+        """Processa a seleção de tipo de documento"""
+        contexto = conversacao.get_contexto()
+        tipos_codigos = contexto.get('tipos_codigos', [])
+        abrangencia_codigo = contexto.get('abrangencia_codigo')
+        setor_codigo = contexto.get('setor_codigo')
+
+        try:
+            numero = int(texto.strip())
+
+            # Opção "Ver TODOS"
+            if numero == len(tipos_codigos) + 1:
+                self._buscar_documentos_por_filtros(usuario, remote_jid, conversacao, abrangencia_codigo, setor_codigo, None)
+                return
+
+            if numero < 1 or numero > len(tipos_codigos):
+                self.api.enviar_mensagem(remote_jid, f"❌ Opção inválida. Digite um número de 1 a {len(tipos_codigos) + 1}.\n\n_Responda *0* para voltar._")
+                return
+
+            tipo_codigo = tipos_codigos[numero - 1]
+
+            # Busca documentos com os filtros
+            self._buscar_documentos_por_filtros(usuario, remote_jid, conversacao, abrangencia_codigo, setor_codigo, tipo_codigo)
+
+        except ValueError:
+            self.api.enviar_mensagem(remote_jid, "❌ Por favor, digite apenas o *número* da opção.\n\n_Responda *0* para voltar._")
+
+    def _buscar_documentos_por_filtros(self, usuario, remote_jid, conversacao, abrangencia_codigo, setor_codigo, tipo_codigo):
+        """Busca documentos com os filtros selecionados"""
+        # Monta query
+        query = Documento.query.filter(Documento.status == 'Publicado')
+
+        if abrangencia_codigo:
+            query = query.filter(Documento.abrangencia == abrangencia_codigo)
+
+        if setor_codigo:
+            query = query.filter(Documento.setor == setor_codigo)
+
+        if tipo_codigo:
+            query = query.filter(Documento.tipo_documento == tipo_codigo)
+
+        documentos = query.order_by(Documento.titulo.asc()).limit(10).all()
+
+        # Monta descrição do filtro
+        filtros = []
+        if abrangencia_codigo:
+            filtros.append(abrangencia_codigo)
+        if setor_codigo:
+            filtros.append(setor_codigo)
+        if tipo_codigo:
+            filtros.append(tipo_codigo)
+
+        descricao = " > ".join(filtros) if filtros else "Todos"
+
+        self._exibir_resultado_busca(usuario, remote_jid, documentos, conversacao, descricao)
+
+    def _exibir_resultado_busca(self, usuario, remote_jid, documentos, conversacao, descricao):
+        """Exibe resultado da busca de documentos"""
+        if not documentos:
+            msg = f"❌ *Nenhum documento encontrado*\n\n"
+            msg += f"Filtro: {descricao}\n\n"
+            msg += "_Responda *3* para nova busca ou *menu* para voltar._"
+            self.api.enviar_mensagem(remote_jid, msg)
+            conversacao.atualizar_estado('menu', {})
+            db.session.commit()
+            return
+
+        # Guarda lista de documentos no contexto
+        docs_ids = [d.id for d in documentos]
+        conversacao.atualizar_estado('busca_resultado', {'docs_ids': docs_ids})
+        db.session.commit()
+
+        msg = f"📚 *Documentos Encontrados* ({len(documentos)})\n"
+        msg += f"_{descricao}_\n\n"
+
+        for idx, d in enumerate(documentos, 1):
+            codigo = d.codigo_definitivo or d.codigo_provisorio or f"Doc #{d.id}"
+            titulo = d.titulo[:30] + "..." if len(d.titulo) > 30 else d.titulo
+            msg += f"*{idx}.* {codigo}\n"
+            msg += f"    {titulo}\n\n"
+
+        msg += "💬 *Responda o número* para baixar o documento.\n"
+        msg += "_Ou responda *0* para voltar._"
+        self.api.enviar_mensagem(remote_jid, msg)
+
+    def _processar_selecao_documento(self, usuario, remote_jid, texto, conversacao):
+        """Processa a seleção de documento para download"""
+        contexto = conversacao.get_contexto()
+        docs_ids = contexto.get('docs_ids', [])
+
+        try:
+            numero = int(texto.strip())
+            if numero < 1 or numero > len(docs_ids):
+                self.api.enviar_mensagem(remote_jid, f"❌ Opção inválida. Digite um número de 1 a {len(docs_ids)}.\n\n_Responda *0* para voltar._")
+                return
+
+            doc_id = docs_ids[numero - 1]
+            doc = Documento.query.get(doc_id)
+
+            if not doc:
+                self.api.enviar_mensagem(remote_jid, "❌ Documento não encontrado.\n\n_Responda *menu* para voltar._")
+                return
+
+            # Envia o documento
+            self._enviar_documento(usuario, remote_jid, doc, conversacao)
+
+        except ValueError:
+            self.api.enviar_mensagem(remote_jid, "❌ Por favor, digite apenas o *número* do documento.\n\n_Responda *0* para voltar._")
+
+    def _enviar_documento(self, usuario, remote_jid, doc, conversacao):
+        """Envia o documento como anexo via WhatsApp"""
+        from flask import url_for
+        import os
+
+        codigo = doc.codigo_definitivo or doc.codigo_provisorio or f"Doc #{doc.id}"
+        titulo_formatado = f"{codigo} - {doc.titulo}" if doc.titulo else codigo
+
+        # Verifica se tem arquivo
+        if not doc.arquivo_final_path:
+            # Tenta arquivo principal
+            if doc.arquivo_path:
+                arquivo_path = doc.arquivo_path
+            else:
+                self.api.enviar_mensagem(remote_jid, f"❌ *Documento sem arquivo anexado*\n\n📄 {titulo_formatado}\n\n_Responda *3* para nova busca ou *menu* para voltar._")
+                conversacao.atualizar_estado('menu', {})
+                db.session.commit()
+                return
+        else:
+            arquivo_path = doc.arquivo_final_path
+
+        # Monta URL pública do documento
+        # Assume que há uma rota para download público
+        try:
+            # Tenta obter URL base do request atual
+            from flask import current_app
+            base_url = current_app.config.get('BASE_URL', 'http://127.0.0.1:5000')
+
+            # Usa a rota pública de download se existir
+            documento_url = f"{base_url}/repositorio/download/{doc.id}"
+
+            # Determina nome do arquivo
+            nome_arquivo = os.path.basename(arquivo_path)
+            if not nome_arquivo:
+                nome_arquivo = f"{codigo}.pdf"
+
+            # Monta legenda
+            legenda = f"📄 *{titulo_formatado}*\n"
+            legenda += f"📌 Versão: {doc.versao or 'v1.0'}\n"
+            legenda += f"📊 Status: {doc.status}\n\n"
+            legenda += "_Sistema GED - EBSERH_"
+
+            # Envia o documento
+            sucesso, resultado = self.api.enviar_documento(
+                remote_jid,
+                documento_url,
+                nome_arquivo,
+                legenda
+            )
+
+            if sucesso:
+                msg = f"✅ *Documento enviado!*\n\n📄 {titulo_formatado}\n\n_Responda *3* para nova busca ou *menu* para voltar._"
+            else:
+                # Se falhar o envio de mídia, envia link
+                msg = f"📄 *{titulo_formatado}*\n\n"
+                msg += f"🔗 Link para download:\n{documento_url}\n\n"
+                msg += "_Responda *3* para nova busca ou *menu* para voltar._"
+
+            self.api.enviar_mensagem(remote_jid, msg)
+
+        except Exception as e:
+            logger.error(f"Erro ao enviar documento via WhatsApp: {str(e)}", exc_info=True)
+            self.api.enviar_mensagem(remote_jid, f"❌ Erro ao enviar documento: {str(e)}\n\n_Responda *menu* para voltar._")
+
+        conversacao.atualizar_estado('menu', {})
+        db.session.commit()
