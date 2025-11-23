@@ -4,385 +4,262 @@
 
 {% block extra_css %}
 <style>
-/* ===== FASE 1: SIDEBAR HIERÁRQUICA ===== */
+/* ===== LAYOUT PRINCIPAL ===== */
 .repo-container {
     display: flex;
-    gap: 20px;
+    gap: 24px;
     min-height: calc(100vh - 200px);
 }
 
+/* ===== SIDEBAR ===== */
 .repo-sidebar {
-    width: 340px;
+    width: 320px;
     flex-shrink: 0;
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    padding: 24px;
     max-height: calc(100vh - 150px);
     overflow-y: auto;
     position: sticky;
     top: 80px;
 }
 
-.repo-sidebar h5 {
-    font-size: 1rem;
-    font-weight: 700;
-    margin-bottom: 15px;
-    color: var(--gray-900);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
 .sidebar-stats {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
     color: white;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 24px;
     text-align: center;
 }
 
 .sidebar-stats .total {
-    font-size: 2rem;
-    font-weight: 700;
+    font-size: 2.5rem;
+    font-weight: 800;
     margin: 0;
+    line-height: 1;
 }
 
 .sidebar-stats .label {
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     opacity: 0.9;
+    margin-top: 4px;
 }
 
-/* ===== CARROSSEL DE ABRANGÊNCIAS ===== */
+/* ===== ABRANGÊNCIAS ===== */
 .abrangencia-carousel {
-    background: var(--gray-50);
-    border-radius: 10px;
-    padding: 12px;
-    border: 1px solid var(--gray-200);
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid #e2e8f0;
 }
 
 .abrangencia-tabs {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 8px;
+    gap: 8px;
+    margin-bottom: 12px;
 }
 
 .abrangencia-tab {
-    padding: 8px 6px;
-    border: 2px solid transparent;
+    padding: 10px 12px;
+    border: 2px solid #e2e8f0;
     background: white;
     border-radius: 8px;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    color: var(--gray-600);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     flex: 1;
-    min-width: 60px;
+    min-width: 70px;
+    text-align: center;
+    color: #64748b;
 }
 
 .abrangencia-tab:hover {
-    border-color: var(--primary-color);
-    color: var(--primary-color);
-    transform: translateY(-1px);
+    border-color: #3b82f6;
+    color: #3b82f6;
 }
 
 .abrangencia-tab.active {
-    background: var(--primary-color);
+    background: #3b82f6;
     color: white;
-    border-color: var(--primary-color);
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    border-color: #3b82f6;
 }
 
-.abrangencia-tab[data-abrangencia="CHUFC"].active {
-    background: #2563eb;
-    border-color: #2563eb;
-}
-
-.abrangencia-tab[data-abrangencia="HUWC"].active {
-    background: #059669;
-    border-color: #059669;
-}
-
-.abrangencia-tab[data-abrangencia="MEAC"].active {
-    background: #d97706;
-    border-color: #d97706;
-}
+.abrangencia-tab[data-abrangencia="HUWC"].active { background: #059669; border-color: #059669; }
+.abrangencia-tab[data-abrangencia="MEAC"].active { background: #d97706; border-color: #d97706; }
 
 .abrangencia-info {
     text-align: center;
-    padding-top: 4px;
-    border-top: 1px solid var(--gray-200);
+    padding-top: 8px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 0.85rem;
+    color: #64748b;
 }
 
-/* Badge de abrangência no setor */
-.setor-abrangencia-badge {
-    font-size: 0.65rem;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-    margin-left: 4px;
-}
-
-.setor-abrangencia-badge.chufc {
-    background: rgba(37, 99, 235, 0.15);
-    color: #2563eb;
-}
-
-.setor-abrangencia-badge.huwc {
-    background: rgba(5, 150, 105, 0.15);
-    color: #059669;
-}
-
-.setor-abrangencia-badge.meac {
-    background: rgba(217, 119, 6, 0.15);
-    color: #d97706;
+/* ===== NAVEGAÇÃO SETORES ===== */
+.sidebar-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .setor-item {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .setor-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
-    border-radius: 6px;
+    padding: 12px 14px;
+    border-radius: 10px;
     cursor: pointer;
     transition: all 0.2s;
-    background: var(--gray-50);
+    background: #f8fafc;
+    border: 1px solid transparent;
 }
 
 .setor-header:hover {
-    background: var(--gray-100);
-    transform: translateX(5px);
+    background: #f1f5f9;
+    border-color: #e2e8f0;
 }
 
 .setor-header.active {
-    background: var(--primary-color);
+    background: #3b82f6;
     color: white;
 }
 
 .setor-name {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     font-weight: 600;
     font-size: 0.9rem;
 }
 
 .setor-chevron {
     transition: transform 0.3s;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    opacity: 0.6;
 }
 
 .setor-chevron.expanded {
     transform: rotate(90deg);
 }
 
-.setor-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.setor-dashboard-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    background: var(--primary-color);
-    color: white;
-    border-radius: 6px;
-    transition: all 0.2s;
-    font-size: 0.85rem;
-    text-decoration: none;
-}
-
-.setor-dashboard-btn:hover {
-    background: var(--secondary-color);
-    transform: scale(1.1);
-    color: white;
-}
-
-.setor-header.active .setor-dashboard-btn {
-    background: rgba(255,255,255,0.2);
-}
-
-.setor-header.active .setor-dashboard-btn:hover {
-    background: rgba(255,255,255,0.3);
-}
-
 .setor-badge {
-    background: rgba(0,0,0,0.1);
-    padding: 2px 8px;
-    border-radius: 12px;
+    background: #e2e8f0;
+    padding: 4px 10px;
+    border-radius: 20px;
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 700;
+    color: #64748b;
 }
 
 .setor-header.active .setor-badge {
     background: rgba(255,255,255,0.2);
+    color: white;
 }
 
 .setor-tipos {
-    padding-left: 20px;
-    margin-top: 5px;
+    padding-left: 16px;
+    margin-top: 6px;
     display: none;
 }
 
 .setor-tipos.show {
     display: block;
-    animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 .tipo-link {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
+    padding: 10px 14px;
     margin-bottom: 4px;
-    border-radius: 6px;
-    color: var(--gray-700);
+    border-radius: 8px;
+    color: #475569;
     text-decoration: none;
     transition: all 0.2s;
     font-size: 0.85rem;
 }
 
 .tipo-link:hover {
-    background: var(--gray-100);
-    color: var(--primary-color);
-    transform: translateX(3px);
+    background: #f1f5f9;
+    color: #3b82f6;
 }
 
 .tipo-link.active {
-    background: var(--primary-light);
-    color: white;
+    background: #dbeafe;
+    color: #1d4ed8;
     font-weight: 600;
 }
 
 .tipo-badge {
-    background: var(--gray-200);
-    padding: 2px 6px;
-    border-radius: 10px;
+    background: #e2e8f0;
+    padding: 2px 8px;
+    border-radius: 12px;
     font-size: 0.7rem;
     font-weight: 600;
 }
 
-.tipo-link.active .tipo-badge {
-    background: rgba(255,255,255,0.3);
-}
-
-/* ===== BREADCRUMBS ===== */
-.repo-breadcrumbs {
-    background: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-}
-
-.repo-breadcrumbs nav {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.9rem;
-}
-
-.breadcrumb-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.breadcrumb-link {
-    color: var(--primary-color);
-    text-decoration: none;
-    transition: all 0.2s;
-}
-
-.breadcrumb-link:hover {
-    text-decoration: underline;
-}
-
-.breadcrumb-separator {
-    color: var(--gray-400);
-}
-
-.breadcrumb-current {
-    color: var(--gray-700);
-    font-weight: 600;
-}
-
-/* ===== MAIN CONTENT ===== */
+/* ===== CONTEÚDO PRINCIPAL ===== */
 .repo-main {
     flex: 1;
     min-width: 0;
 }
 
-/* ===== FASE 2: VIEW MODES (Cards/Lista/Timeline) ===== */
+/* ===== CONTROLES ===== */
 .view-controls {
     background: white;
-    padding: 15px 20px;
-    border-radius: 8px;
+    padding: 16px 20px;
+    border-radius: 12px;
     margin-bottom: 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 15px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .view-toggles {
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 
 .view-toggle {
-    padding: 8px 16px;
-    border: 2px solid var(--gray-200);
+    padding: 10px 18px;
+    border: 2px solid #e2e8f0;
     background: white;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s;
     font-size: 0.9rem;
+    font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    color: #64748b;
 }
 
 .view-toggle:hover {
-    border-color: var(--primary-color);
-    color: var(--primary-color);
+    border-color: #3b82f6;
+    color: #3b82f6;
 }
 
 .view-toggle.active {
-    background: var(--primary-color);
+    background: #3b82f6;
     color: white;
-    border-color: var(--primary-color);
+    border-color: #3b82f6;
 }
 
 .search-box {
@@ -393,20 +270,22 @@
 
 .search-box input {
     width: 100%;
-    padding: 8px 40px 8px 12px;
-    border: 2px solid var(--gray-200);
-    border-radius: 6px;
+    padding: 12px 44px 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
     font-size: 0.9rem;
+    transition: all 0.2s;
 }
 
 .search-box input:focus {
-    border-color: var(--primary-color);
+    border-color: #3b82f6;
     outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .search-spinner {
     position: absolute;
-    right: 12px;
+    right: 14px;
     top: 50%;
     transform: translateY(-50%);
     display: none;
@@ -416,94 +295,182 @@
     display: block;
 }
 
-.results-info {
-    padding: 10px 20px;
-    background: var(--gray-50);
-    border-radius: 6px;
-    margin-bottom: 15px;
-    font-size: 0.9rem;
-    color: var(--gray-700);
-}
-
-/* ===== MODO CARDS ===== */
-#view-cards .row {
-    margin: 0 -10px;
-}
-
-#view-cards .col-md-4 {
-    padding: 0 10px;
-    margin-bottom: 20px;
-}
-
-.document-card {
-    position: relative;
-    height: 100%;
-    transition: all 0.3s ease;
-    overflow: hidden;
-}
-
-.document-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 20px 30px rgba(0,0,0,0.15) !important;
-}
-
-.document-card .card-body {
-    overflow: hidden;
-}
-
-.document-card .card-title {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    hyphens: auto;
-}
-
-.document-card .alert {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-/* ===== FASE 3: QUICK ACTIONS ===== */
-.btn-favorite {
-    position: absolute;
-    top: 10px;
-    right: 10px;
+/* ===== BREADCRUMBS ===== */
+.repo-breadcrumbs {
     background: white;
-    border: none;
-    border-radius: 50%;
-    width: 36px;
-    height: 36px;
+    padding: 14px 20px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.repo-breadcrumbs nav {
     display: flex;
     align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: all 0.3s;
-    z-index: 10;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    gap: 10px;
+    font-size: 0.9rem;
 }
 
-.document-card:hover .btn-favorite {
-    opacity: 1;
+.breadcrumb-link {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
 }
 
-.btn-favorite i {
-    font-size: 1.1rem;
-    color: var(--gray-600);
+.breadcrumb-link:hover {
+    text-decoration: underline;
 }
 
-.btn-favorite.active i {
-    color: gold;
+.breadcrumb-separator {
+    color: #cbd5e1;
 }
 
-.quick-actions-overlay {
+.breadcrumb-current {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+/* ===== CARDS DE DOCUMENTOS ===== */
+.documents-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 20px;
+}
+
+.doc-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.doc-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+}
+
+/* Header do Card */
+.doc-card-header {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    color: white;
+    padding: 18px 20px;
+}
+
+.doc-card-header .doc-type {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    backdrop-filter: blur(4px);
+}
+
+.doc-card-header .doc-title-full {
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.doc-card-header .doc-title-full code {
+    background: rgba(255,255,255,0.15);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+/* Body do Card */
+.doc-card-body {
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.doc-summary {
+    background: #f8fafc;
+    border-left: 4px solid #3b82f6;
+    padding: 14px 16px;
+    border-radius: 0 10px 10px 0;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    color: #475569;
+    line-height: 1.5;
+}
+
+.doc-summary i {
+    color: #3b82f6;
+    margin-right: 6px;
+}
+
+.doc-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.doc-tag {
+    background: #dbeafe;
+    color: #1d4ed8;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+/* Footer do Card */
+.doc-card-footer {
+    border-top: 1px solid #f1f5f9;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fafbfc;
+}
+
+.doc-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.doc-meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.doc-abrangencia {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.doc-abrangencia.chufc { background: #dbeafe; color: #1d4ed8; }
+.doc-abrangencia.huwc { background: #d1fae5; color: #047857; }
+.doc-abrangencia.meac { background: #fef3c7; color: #b45309; }
+
+/* Ações do Card */
+.doc-card-actions {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-    padding: 50px 15px 15px;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+    padding: 60px 20px 20px;
     display: flex;
-    gap: 8px;
+    gap: 10px;
     justify-content: center;
     opacity: 0;
     transform: translateY(20px);
@@ -511,30 +478,68 @@
     pointer-events: none;
 }
 
-.document-card:hover .quick-actions-overlay {
+.doc-card:hover .doc-card-actions {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
 }
 
-.quick-action-btn {
+.action-btn {
     background: white;
-    color: var(--gray-900);
+    color: #1e293b;
     border: none;
-    padding: 8px 14px;
-    border-radius: 6px;
-    font-size: 0.8rem;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
 }
 
-.quick-action-btn:hover {
+.action-btn:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.action-btn.primary {
+    background: #3b82f6;
+    color: white;
+}
+
+/* Favorito */
+.btn-favorite {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 10;
+}
+
+.doc-card:hover .btn-favorite {
+    opacity: 1;
+}
+
+.btn-favorite i {
+    font-size: 1.1rem;
+    color: #64748b;
+}
+
+.btn-favorite.active i {
+    color: #f59e0b;
 }
 
 /* ===== MODO LISTA ===== */
@@ -548,52 +553,45 @@
 
 .list-item {
     background: white;
-    padding: 15px 20px;
-    margin-bottom: 10px;
-    border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    padding: 18px 24px;
+    margin-bottom: 12px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     transition: all 0.3s;
     cursor: pointer;
-    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }
 
 .list-item:hover {
-    background: var(--gray-50);
+    background: #f8fafc;
     transform: translateX(8px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.list-item-main {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    flex-wrap: wrap;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
 }
 
 .list-item-icon {
-    font-size: 1.5rem;
-    color: var(--primary-color);
+    font-size: 2rem;
+    color: #3b82f6;
 }
 
-.list-item-code {
-    font-weight: 700;
-    color: var(--gray-900);
-    min-width: 120px;
+.list-item-content {
+    flex: 1;
 }
 
 .list-item-title {
-    flex: 1;
-    min-width: 200px;
-    font-weight: 600;
-    color: var(--gray-800);
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 6px;
 }
 
 .list-item-meta {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 16px;
     font-size: 0.85rem;
-    color: var(--gray-600);
+    color: #64748b;
 }
 
 .list-item-actions {
@@ -604,78 +602,23 @@
 .list-action-btn {
     background: transparent;
     border: none;
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     cursor: pointer;
     transition: all 0.2s;
-    padding: 5px;
+    padding: 8px;
+    border-radius: 8px;
+    color: #64748b;
 }
 
 .list-action-btn:hover {
-    transform: scale(1.2);
+    background: #f1f5f9;
+    color: #3b82f6;
 }
 
-/* ===== FASE 3: HOVER TOOLTIP ===== */
-.list-item-tooltip {
-    position: absolute;
-    left: 105%;
-    top: 0;
-    width: 350px;
-    background: white;
-    border: 1px solid var(--gray-300);
-    border-radius: 8px;
-    padding: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    z-index: 1000;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-}
-
-.list-item:hover .list-item-tooltip {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.list-item-tooltip::before {
-    content: '';
-    position: absolute;
-    left: -10px;
-    top: 20px;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 10px 10px 10px 0;
-    border-color: transparent white transparent transparent;
-}
-
-.tooltip-content h6 {
-    font-size: 0.9rem;
-    font-weight: 700;
-    margin-bottom: 8px;
-    color: var(--gray-900);
-}
-
-.tooltip-content p {
-    font-size: 0.85rem;
-    color: var(--gray-700);
-    margin-bottom: 10px;
-}
-
-.tooltip-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-bottom: 10px;
-}
-
-.tooltip-tags .badge {
-    font-size: 0.75rem;
-}
-
-/* ===== LOADING & SKELETON ===== */
+/* ===== LOADING & EMPTY ===== */
 .loading-indicator {
     text-align: center;
-    padding: 30px;
+    padding: 40px;
     display: none;
 }
 
@@ -683,23 +626,10 @@
     display: block;
 }
 
-.skeleton-card {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 12px;
-    height: 350px;
-}
-
-@keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-}
-
 .end-message {
     text-align: center;
-    padding: 20px;
-    color: var(--gray-600);
+    padding: 24px;
+    color: #64748b;
     font-size: 0.9rem;
     display: none;
 }
@@ -708,7 +638,31 @@
     display: block;
 }
 
+.results-info {
+    padding: 12px 20px;
+    background: #f0f9ff;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+/* ===== HIGHLIGHT ===== */
+mark {
+    background: #fef08a;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
 /* ===== RESPONSIVE ===== */
+@media (max-width: 1200px) {
+    .documents-grid {
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    }
+}
+
 @media (max-width: 992px) {
     .repo-container {
         flex-direction: column;
@@ -720,28 +674,9 @@
         max-height: none;
     }
 
-    .list-item-tooltip {
-        left: 50%;
-        transform: translateX(-50%);
-        top: 100%;
-        margin-top: 10px;
+    .documents-grid {
+        grid-template-columns: 1fr;
     }
-
-    .list-item-tooltip::before {
-        left: 50%;
-        transform: translateX(-50%);
-        top: -10px;
-        border-width: 0 10px 10px 10px;
-        border-color: transparent transparent white transparent;
-    }
-}
-
-/* ===== HIGHLIGHT SEARCH TERMS ===== */
-mark {
-    background: #ffeb3b;
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-weight: 600;
 }
 </style>
 {% endblock %}
@@ -749,15 +684,15 @@ mark {
 {% block content %}
 <div class="container-fluid px-4">
     <div class="repo-container">
-        <!-- ===== SIDEBAR HIERÁRQUICA ===== -->
+        <!-- ===== SIDEBAR ===== -->
         <aside class="repo-sidebar">
             <div class="sidebar-stats">
                 <p class="total" id="total-geral">0</p>
                 <p class="label">Documentos Publicados</p>
             </div>
 
-            <!-- ===== CARROSSEL DE ABRANGÊNCIAS ===== -->
-            <div class="abrangencia-carousel mb-3">
+            <!-- Abrangências -->
+            <div class="abrangencia-carousel">
                 <div class="abrangencia-tabs">
                     <button class="abrangencia-tab active" data-abrangencia="TODOS" onclick="selectAbrangencia('TODOS')">
                         <i class="bi bi-globe"></i> Todos
@@ -768,34 +703,30 @@ mark {
                     </button>
                     {% endfor %}
                 </div>
-                <div class="abrangencia-info" id="abrangencia-info">
-                    <small class="text-muted">Mostrando: <strong id="abrangencia-atual">Todas as abrangências</strong></small>
+                <div class="abrangencia-info">
+                    Mostrando: <strong id="abrangencia-atual">Todas as abrangências</strong>
                 </div>
             </div>
 
-            <h5>
+            <h5 class="sidebar-title">
                 <i class="bi bi-folder-fill"></i>
                 Navegação por Setor
             </h5>
 
-            <!-- Filtro de Busca de Setores -->
             <div class="mb-3">
                 <input type="text" id="filter-setores" class="form-control form-control-sm" placeholder="Filtrar setores...">
             </div>
 
             <div id="sidebar-hierarchy">
-                <!-- Carregado via JavaScript -->
                 <div class="text-center py-3">
-                    <div class="spinner-border spinner-border-sm text-primary" role="status">
-                        <span class="visually-hidden">Carregando...</span>
-                    </div>
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                 </div>
             </div>
         </aside>
 
         <!-- ===== CONTEÚDO PRINCIPAL ===== -->
         <main class="repo-main">
-            <!-- BREADCRUMBS -->
+            <!-- Breadcrumbs -->
             <div class="repo-breadcrumbs">
                 <nav id="breadcrumbs">
                     <div class="breadcrumb-item">
@@ -809,19 +740,16 @@ mark {
                 </nav>
             </div>
 
-            <!-- VIEW CONTROLS -->
+            <!-- Controles -->
             <div class="view-controls">
                 <div class="view-toggles">
                     <button class="view-toggle active" data-view="cards" onclick="setViewMode('cards')">
-                        <i class="bi bi-grid-3x3-gap-fill"></i>
-                        Cards
+                        <i class="bi bi-grid-3x3-gap-fill"></i> Cards
                     </button>
                     <button class="view-toggle" data-view="list" onclick="setViewMode('list')">
-                        <i class="bi bi-list-ul"></i>
-                        Lista
+                        <i class="bi bi-list-ul"></i> Lista
                     </button>
                 </div>
-
                 <div class="search-box">
                     <input type="text" id="search-input" placeholder="Buscar documentos..." />
                     <div class="search-spinner" id="search-spinner">
@@ -830,45 +758,39 @@ mark {
                 </div>
             </div>
 
-            <!-- RESULTS INFO -->
+            <!-- Info de Resultados -->
             <div class="results-info" id="results-info" style="display: none;">
                 <span id="results-text"></span>
             </div>
 
-            <!-- ===== VIEW: CARDS ===== -->
+            <!-- View: Cards -->
             <div id="view-cards" class="active">
-                <div class="row" id="documents-container-cards">
-                    <!-- Documentos carregados via JavaScript -->
-                </div>
+                <div class="documents-grid" id="documents-container-cards"></div>
             </div>
 
-            <!-- ===== VIEW: LISTA ===== -->
+            <!-- View: Lista -->
             <div id="view-list">
-                <div id="documents-container-list">
-                    <!-- Documentos em lista carregados via JavaScript -->
-                </div>
+                <div id="documents-container-list"></div>
             </div>
 
-            <!-- LOADING INDICATOR -->
+            <!-- Loading -->
             <div class="loading-indicator" id="loading-indicator">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Carregando...</span>
-                </div>
+                <div class="spinner-border text-primary" role="status"></div>
                 <p class="mt-2">Carregando documentos...</p>
             </div>
 
-            <!-- END MESSAGE -->
+            <!-- End Message -->
             <div class="end-message" id="end-message">
-                ✅ <span id="end-message-text"></span>
+                <i class="bi bi-check-circle-fill text-success"></i>
+                <span id="end-message-text"></span>
             </div>
 
-            <!-- SCROLL SENTINEL (para infinite scroll) -->
             <div id="scroll-sentinel" style="height: 1px;"></div>
         </main>
     </div>
 </div>
 
-<!-- ===== FASE 4: MODAL DE PREVIEW PDF ===== -->
+<!-- Modal Preview PDF -->
 <div class="modal fade" id="pdf-preview-modal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -892,7 +814,7 @@ mark {
 
 {% block extra_js %}
 <script>
-// ===== ESTADO GLOBAL =====
+// ===== ESTADO =====
 let currentPage = 1;
 let isLoading = false;
 let hasMore = true;
@@ -901,13 +823,12 @@ let currentSetor = null;
 let currentTipo = null;
 let currentSearch = '';
 let currentAbrangencia = 'TODOS';
-let currentSetorAbrangencia = null; // Abrangência do setor selecionado
+let currentSetorAbrangencia = null;
 let allDocuments = [];
 let hierarchyData = null;
 let searchTimeout = null;
 let favorites = JSON.parse(localStorage.getItem('repo_favorites') || '[]');
 
-// Nomes das abrangências (carregados do banco de dados)
 const ABRANGENCIA_NOMES = {
     'TODOS': 'Todas as abrangências',
     {% for abrang in abrangencias %}
@@ -915,7 +836,7 @@ const ABRANGENCIA_NOMES = {
     {% endfor %}
 };
 
-// ===== INICIALIZAÇÃO =====
+// ===== INIT =====
 document.addEventListener('DOMContentLoaded', function() {
     loadHierarchy();
     loadDocuments();
@@ -923,51 +844,47 @@ document.addEventListener('DOMContentLoaded', function() {
     setupSearch();
     setupSetorFilter();
 
-    // Restaura view mode salvo
     const savedViewMode = localStorage.getItem('repo_view_mode');
-    if (savedViewMode) {
-        setViewMode(savedViewMode);
-    }
+    if (savedViewMode) setViewMode(savedViewMode);
 
-    // Restaura abrangência salva
     const savedAbrangencia = localStorage.getItem('repo_abrangencia');
-    if (savedAbrangencia) {
-        selectAbrangencia(savedAbrangencia, false);
-    }
+    if (savedAbrangencia) selectAbrangencia(savedAbrangencia, false);
 });
 
-// ===== SISTEMA DE ABRANGÊNCIAS =====
+// ===== ABRANGÊNCIAS =====
 function selectAbrangencia(abrangencia, reload = true) {
     currentAbrangencia = abrangencia;
     localStorage.setItem('repo_abrangencia', abrangencia);
 
-    // Atualiza visual dos tabs
     document.querySelectorAll('.abrangencia-tab').forEach(tab => {
         tab.classList.remove('active');
-        tab.style.background = '';
-        tab.style.borderColor = '';
-        tab.style.color = '';
         if (tab.dataset.abrangencia === abrangencia) {
             tab.classList.add('active');
-            // Aplica cor do banco de dados
-            const cor = tab.dataset.cor || '#2563eb';
-            tab.style.background = cor;
-            tab.style.borderColor = cor;
-            tab.style.color = 'white';
         }
     });
 
-    // Atualiza texto de info
     document.getElementById('abrangencia-atual').textContent = ABRANGENCIA_NOMES[abrangencia] || abrangencia;
 
-    // Recarrega hierarquia e documentos
     if (reload) {
         currentSetor = null;
         currentTipo = null;
-        currentSetorAbrangencia = null; // Reset abrangência do setor
+        currentSetorAbrangencia = null;
         updateBreadcrumbs();
         renderHierarchyForAbrangencia();
         resetAndLoadDocuments();
+    }
+}
+
+// ===== HIERARQUIA =====
+async function loadHierarchy() {
+    try {
+        const response = await fetch('/api/documento/hierarquia');
+        const data = await response.json();
+        hierarchyData = data;
+        document.getElementById('total-geral').textContent = data.total_geral || 0;
+        renderHierarchyForAbrangencia();
+    } catch (error) {
+        console.error('Erro ao carregar hierarquia:', error);
     }
 }
 
@@ -977,9 +894,7 @@ function renderHierarchyForAbrangencia() {
     const container = document.getElementById('sidebar-hierarchy');
     let filteredHierarchy = {};
 
-    // Filtra hierarquia pela abrangência
     Object.entries(hierarchyData.hierarquia || {}).forEach(([key, info]) => {
-        // key pode ser "Setor" ou "Setor (ABRANG)"
         const match = key.match(/^(.+?)\s*\((\w+)\)$/);
         const setor = match ? match[1].trim() : key;
         const abrang = match ? match[2] : info.abrangencia || 'CHUFC';
@@ -990,35 +905,22 @@ function renderHierarchyForAbrangencia() {
         }
     });
 
-    // Renderiza
-    const hierarchyHTML = Object.entries(filteredHierarchy).map(([displayName, info]) => {
+    const html = Object.entries(filteredHierarchy).map(([displayName, info]) => {
         const setorOriginal = info.setor_original || displayName;
         const abrang = info.abrangencia || 'CHUFC';
-        const abrangBadge = currentAbrangencia === 'TODOS'
-            ? `<span class="setor-abrangencia-badge ${abrang.toLowerCase()}">${abrang}</span>`
-            : '';
 
         return `
             <div class="setor-item" data-abrangencia="${abrang}">
                 <div class="setor-header" onclick="toggleSetor('${setorOriginal}', '${abrang}', event)" data-setor="${setorOriginal}" data-abrangencia="${abrang}">
                     <div class="setor-name">
                         <span class="setor-chevron">▶</span>
-                        <span>📂 ${setorOriginal}</span>
-                        ${abrangBadge}
+                        <span>📁 ${setorOriginal}</span>
                     </div>
-                    <div class="setor-actions">
-                        <a href="/setor/${encodeURIComponent(setorOriginal)}?abrangencia=${abrang}"
-                           class="setor-dashboard-btn"
-                           title="Ver dashboard completo do setor"
-                           onclick="event.stopPropagation()">
-                            <i class="bi bi-graph-up"></i>
-                        </a>
-                        <span class="setor-badge">${info.total}</span>
-                    </div>
+                    <span class="setor-badge">${info.total}</span>
                 </div>
                 <div class="setor-tipos" id="tipos-${setorOriginal.replace(/\s+/g, '-')}-${abrang}">
                     ${Object.entries(info.tipos || {}).map(([tipo, count]) => `
-                        <a href="#" class="tipo-link" onclick="filterByTipo('${setorOriginal}', '${tipo}', '${abrang}'); return false;" data-setor="${setorOriginal}" data-tipo="${tipo}" data-abrangencia="${abrang}">
+                        <a href="#" class="tipo-link" onclick="filterByTipo('${setorOriginal}', '${tipo}', '${abrang}'); return false;">
                             <span>📄 ${tipo}</span>
                             <span class="tipo-badge">${count}</span>
                         </a>
@@ -1028,39 +930,19 @@ function renderHierarchyForAbrangencia() {
         `;
     }).join('');
 
-    container.innerHTML = hierarchyHTML || '<p class="text-muted text-center py-3">Nenhum setor encontrado</p>';
-}
-
-// ===== FASE 1: HIERARQUIA E NAVEGAÇÃO =====
-async function loadHierarchy() {
-    try {
-        const response = await fetch('/api/documento/hierarquia');
-        const data = await response.json();
-
-        // Armazena dados para filtragem por abrangência
-        hierarchyData = data;
-        document.getElementById('total-geral').textContent = data.total_geral || 0;
-
-        // Renderiza hierarquia baseada na abrangência atual
-        renderHierarchyForAbrangencia();
-    } catch (error) {
-        console.error('Erro ao carregar hierarquia:', error);
-        document.getElementById('sidebar-hierarchy').innerHTML = '<p class="text-danger small">Erro ao carregar</p>';
-    }
+    container.innerHTML = html || '<p class="text-muted text-center py-3">Nenhum setor encontrado</p>';
 }
 
 function toggleSetor(setor, abrangencia, event) {
     event.stopPropagation();
     const setorId = `${setor.replace(/\s+/g, '-')}-${abrangencia}`;
     const tiposDiv = document.getElementById(`tipos-${setorId}`);
-    const header = event.currentTarget;
-    const chevron = header.querySelector('.setor-chevron');
+    const chevron = event.currentTarget.querySelector('.setor-chevron');
 
     if (tiposDiv && tiposDiv.classList.contains('show')) {
         tiposDiv.classList.remove('show');
         chevron.classList.remove('expanded');
     } else {
-        // Fecha outros setores
         document.querySelectorAll('.setor-tipos').forEach(div => div.classList.remove('show'));
         document.querySelectorAll('.setor-chevron').forEach(ch => ch.classList.remove('expanded'));
 
@@ -1071,16 +953,14 @@ function toggleSetor(setor, abrangencia, event) {
     }
 }
 
+// ===== FILTROS =====
 function filterByTipo(setor, tipo, abrangencia) {
     currentSetor = setor;
     currentTipo = tipo;
     currentSetorAbrangencia = abrangencia || currentAbrangencia;
     currentPage = 1;
     allDocuments = [];
-
-    // Atualiza UI
     updateBreadcrumbs();
-    updateActiveLinks();
     loadDocuments(true);
 }
 
@@ -1090,9 +970,19 @@ function filterBySetor(setor, abrangencia) {
     currentSetorAbrangencia = abrangencia || currentAbrangencia;
     currentPage = 1;
     allDocuments = [];
-
     updateBreadcrumbs();
-    updateActiveLinks();
+    loadDocuments(true);
+}
+
+function clearFilters() {
+    currentSetor = null;
+    currentTipo = null;
+    currentSetorAbrangencia = null;
+    currentSearch = '';
+    currentPage = 1;
+    allDocuments = [];
+    document.getElementById('search-input').value = '';
+    updateBreadcrumbs();
     loadDocuments(true);
 }
 
@@ -1103,36 +993,15 @@ function resetAndLoadDocuments() {
     loadDocuments(true);
 }
 
-function clearFilters() {
-    currentSetor = null;
-    currentTipo = null;
-    currentSetorAbrangencia = null; // Reset abrangência do setor
-    currentSearch = '';
-    currentPage = 1;
-    allDocuments = [];
-
-    document.getElementById('search-input').value = '';
-    updateBreadcrumbs();
-    updateActiveLinks();
-    loadDocuments(true);
-}
-
 function updateBreadcrumbs() {
     const setorBread = document.getElementById('breadcrumb-setor');
     const tipoBread = document.getElementById('breadcrumb-tipo');
     const sep1 = document.querySelector('.breadcrumb-separator');
     const sep2 = document.getElementById('breadcrumb-sep-tipo');
 
-    // Usa a abrangência do setor se disponível, senão usa a global
-    const abrangenciaAtual = currentSetorAbrangencia || currentAbrangencia;
-
     if (currentSetor) {
-        const abrangBadge = abrangenciaAtual && abrangenciaAtual !== 'TODOS'
-            ? `<span class="badge ms-2 ${getAbrangenciaBadgeClass(abrangenciaAtual)}">${abrangenciaAtual}</span>`
-            : '';
-        setorBread.innerHTML = `<a href="#" class="breadcrumb-link" onclick="filterBySetor('${currentSetor}', '${abrangenciaAtual}'); return false;">${currentSetor}</a>${abrangBadge}`;
-        setorBread.style.display = 'flex';
-        setorBread.style.alignItems = 'center';
+        setorBread.innerHTML = `<a href="#" class="breadcrumb-link" onclick="filterBySetor('${currentSetor}', '${currentSetorAbrangencia}'); return false;">${currentSetor}</a>`;
+        setorBread.style.display = 'block';
         sep1.style.display = 'inline';
     } else {
         setorBread.style.display = 'none';
@@ -1149,23 +1018,7 @@ function updateBreadcrumbs() {
     }
 }
 
-function updateActiveLinks() {
-    // Remove active de todos
-    document.querySelectorAll('.setor-header, .tipo-link').forEach(el => el.classList.remove('active'));
-
-    // Adiciona active aos selecionados
-    if (currentSetor && currentTipo) {
-        const tipoLink = document.querySelector(`.tipo-link[data-setor="${currentSetor}"][data-tipo="${currentTipo}"]`);
-        if (tipoLink) tipoLink.classList.add('active');
-    }
-
-    if (currentSetor) {
-        const setorHeader = document.querySelector(`.setor-header[data-setor="${currentSetor}"]`);
-        if (setorHeader) setorHeader.classList.add('active');
-    }
-}
-
-// ===== FASE 2: CARREGAMENTO DE DOCUMENTOS + LAZY LOADING =====
+// ===== DOCUMENTOS =====
 async function loadDocuments(clear = false) {
     if (isLoading) return;
     if (!hasMore && !clear) return;
@@ -1176,17 +1029,14 @@ async function loadDocuments(clear = false) {
         currentPage = 1;
         hasMore = true;
         allDocuments = [];
-        clearDocumentContainers();
+        document.getElementById('documents-container-cards').innerHTML = '';
+        document.getElementById('documents-container-list').innerHTML = '';
     }
 
-    showLoading();
+    document.getElementById('loading-indicator').classList.add('show');
 
     try {
-        const params = new URLSearchParams({
-            page: currentPage,
-            per_page: 30
-        });
-
+        const params = new URLSearchParams({ page: currentPage, per_page: 30 });
         if (currentSetor) params.append('setor', currentSetor);
         if (currentTipo) params.append('tipo', currentTipo);
         if (currentSearch) params.append('q', currentSearch);
@@ -1204,127 +1054,99 @@ async function loadDocuments(clear = false) {
         updateResultsInfo(data.total);
 
         if (!hasMore) {
-            showEndMessage(data.total);
+            document.getElementById('end-message-text').textContent = `Todos os ${data.total} documentos carregados`;
+            document.getElementById('end-message').classList.add('show');
         }
 
         currentPage++;
     } catch (error) {
-        console.error('Erro ao carregar documentos:', error);
-        showToast('Erro ao carregar documentos', 'danger');
+        console.error('Erro:', error);
     } finally {
-        hideLoading();
+        document.getElementById('loading-indicator').classList.remove('show');
         isLoading = false;
     }
 }
 
 function renderDocuments(docs) {
     if (currentViewMode === 'cards') {
-        renderCardsView(docs);
+        const container = document.getElementById('documents-container-cards');
+        docs.forEach(doc => {
+            container.insertAdjacentHTML('beforeend', createCardHTML(doc));
+        });
     } else {
-        renderListView(docs);
+        const container = document.getElementById('documents-container-list');
+        docs.forEach(doc => {
+            container.insertAdjacentHTML('beforeend', createListHTML(doc));
+        });
     }
-}
-
-function renderCardsView(docs) {
-    const container = document.getElementById('documents-container-cards');
-    const fragment = document.createDocumentFragment();
-
-    docs.forEach(doc => {
-        const col = document.createElement('div');
-        col.className = 'col-md-4';
-        col.innerHTML = createCardHTML(doc);
-        fragment.appendChild(col);
-    });
-
-    container.appendChild(fragment);
 }
 
 function createCardHTML(doc) {
     const metadados = doc.metadados || {};
-
-    // Garante que resumo seja sempre uma string e remove "ok" isolado
     let resumo = '';
     if (typeof metadados.resumo === 'string') {
         resumo = metadados.resumo;
     } else if (typeof metadados.resumo === 'object' && metadados.resumo !== null) {
         resumo = metadados.resumo.resumo || '';
     }
-    if (!resumo) {
-        resumo = doc.descricao || '';
-    }
-
-    // Remove "ok" isolado ou no final
+    if (!resumo) resumo = doc.descricao || '';
     resumo = resumo.replace(/\s*\bok\b\s*/gi, ' ').trim();
 
     const palavrasChave = metadados.palavras_chave || [];
     const isFavorite = favorites.includes(doc.id);
 
-    // Obtém nome completo do tipo (usa tipo_documento_nome se disponível)
+    // Nome completo do tipo
     const tipoNome = doc.tipo_documento_nome || doc.tipo_documento || '';
+    const codigo = doc.codigo_definitivo || doc.codigo || '';
+    const titulo = doc.titulo || 'Sem título';
+
+    // Título completo: TIPO CODIGO - TITULO
+    const tituloCompleto = `${codigo} - ${titulo}`;
+
+    const abrangClass = (doc.abrangencia || 'chufc').toLowerCase();
 
     return `
-        <div class="card document-card h-100 shadow-sm border-0">
+        <div class="doc-card">
             <button class="btn-favorite ${isFavorite ? 'active' : ''}" onclick="toggleFavorite(${doc.id}, event)">
                 <i class="bi bi-star${isFavorite ? '-fill' : ''}"></i>
             </button>
 
-            <!-- Header com código e badge de tipo -->
-            <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #1a5490 0%, #2563eb 100%);">
-                <div class="d-flex align-items-center justify-content-between">
-                    <span class="badge bg-white text-dark fw-bold" style="font-size: 0.7rem;">${tipoNome}</span>
-                    ${doc.abrangencia ? `<span class="badge bg-white bg-opacity-25 text-white" style="font-size: 0.65rem;">${doc.abrangencia}</span>` : ''}
-                </div>
-                <div class="mt-2">
-                    <code class="text-white-50" style="font-size: 0.75rem;">${doc.codigo_definitivo || doc.codigo || ''}</code>
-                </div>
+            <div class="doc-card-header">
+                <span class="doc-type">${tipoNome}</span>
+                <h3 class="doc-title-full">${highlightText(tituloCompleto, currentSearch)}</h3>
             </div>
 
-            <div class="card-body d-flex flex-column">
-                <!-- Título -->
-                <h6 class="card-title fw-bold text-dark mb-2" style="line-height: 1.3; min-height: 2.6em;">
-                    ${highlightText(doc.titulo || 'Sem título', currentSearch)}
-                </h6>
-
-                <!-- Resumo IA -->
+            <div class="doc-card-body">
                 ${resumo ? `
-                <div class="bg-light rounded p-2 mb-2 flex-grow-1" style="font-size: 0.8rem; border-left: 3px solid #2563eb;">
-                    <div class="d-flex align-items-start gap-1">
-                        <i class="bi bi-robot text-primary" style="font-size: 0.9rem;"></i>
-                        <span class="text-muted">${truncate(resumo, 100)}</span>
-                    </div>
-                </div>
-                ` : '<div class="flex-grow-1"></div>'}
-
-                <!-- Tags/Palavras-chave -->
-                ${palavrasChave.length ? `
-                <div class="mb-2" style="min-height: 28px;">
-                    ${palavrasChave.slice(0, 4).map(palavra =>
-                        `<span class="badge bg-info bg-opacity-10 text-info me-1 mb-1" style="font-size: 0.7rem; font-weight: 500;">${palavra}</span>`
-                    ).join('')}
+                <div class="doc-summary">
+                    <i class="bi bi-robot"></i>
+                    ${truncate(resumo, 150)}
                 </div>
                 ` : ''}
 
-                <!-- Footer info -->
-                <div class="border-top pt-2 mt-auto">
-                    <div class="d-flex justify-content-between align-items-center" style="font-size: 0.75rem;">
-                        <span class="text-muted">
-                            <i class="bi bi-building me-1"></i>${doc.setor || '-'}
-                        </span>
-                        <span class="text-muted">
-                            <i class="bi bi-calendar-check me-1"></i>${formatDate(doc.data_publicacao)}
-                        </span>
-                    </div>
+                ${palavrasChave.length ? `
+                <div class="doc-tags">
+                    ${palavrasChave.slice(0, 5).map(p => `<span class="doc-tag">${p}</span>`).join('')}
                 </div>
+                ` : ''}
             </div>
 
-            <div class="quick-actions-overlay">
-                <button class="quick-action-btn" onclick="window.location.href='/documento/${doc.id}'" title="Ver Detalhes">
-                    <i class="bi bi-info-circle-fill"></i> Detalhes
+            <div class="doc-card-footer">
+                <div class="doc-meta">
+                    <span><i class="bi bi-building"></i> ${doc.setor || '-'}</span>
+                    <span><i class="bi bi-calendar-check"></i> ${formatDate(doc.data_publicacao)}</span>
+                </div>
+                ${doc.abrangencia ? `<span class="doc-abrangencia ${abrangClass}">${doc.abrangencia}</span>` : ''}
+            </div>
+
+            <div class="doc-card-actions">
+                <button class="action-btn primary" onclick="window.location.href='/documento/${doc.id}'">
+                    <i class="bi bi-eye-fill"></i> Ver Detalhes
                 </button>
-                <button class="quick-action-btn" onclick="quickView(${doc.id})" title="Preview">
-                    <i class="bi bi-eye-fill"></i> Preview
+                <button class="action-btn" onclick="quickView(${doc.id})">
+                    <i class="bi bi-file-pdf"></i> Preview
                 </button>
-                <button class="quick-action-btn" onclick="downloadDoc(${doc.id}, event)" title="Download">
+                <button class="action-btn" onclick="downloadDoc(${doc.id}, event)">
                     <i class="bi bi-download"></i> Baixar
                 </button>
             </div>
@@ -1332,54 +1154,25 @@ function createCardHTML(doc) {
     `;
 }
 
-function renderListView(docs) {
-    const container = document.getElementById('documents-container-list');
-    const fragment = document.createDocumentFragment();
-
-    docs.forEach(doc => {
-        const div = document.createElement('div');
-        div.innerHTML = createListHTML(doc);
-        fragment.appendChild(div.firstElementChild);
-    });
-
-    container.appendChild(fragment);
-}
-
 function createListHTML(doc) {
-    const metadados = doc.metadados || {};
-
-    // Garante que resumo seja sempre uma string e remove "ok" isolado
-    let resumo = '';
-    if (typeof metadados.resumo === 'string') {
-        resumo = metadados.resumo;
-    } else if (typeof metadados.resumo === 'object' && metadados.resumo !== null) {
-        resumo = metadados.resumo.resumo || '';
-    }
-
-    // Remove "ok" isolado ou no final
-    resumo = resumo.replace(/\s*\bok\b\s*/gi, ' ').trim();
-
-    const palavrasChave = metadados.palavras_chave || [];
+    const tipoNome = doc.tipo_documento_nome || doc.tipo_documento || '';
+    const codigo = doc.codigo_definitivo || doc.codigo || '';
+    const titulo = doc.titulo || 'Sem título';
+    const tituloCompleto = `${tipoNome} ${codigo} - ${titulo}`;
     const isFavorite = favorites.includes(doc.id);
 
     return `
-        <div class="list-item">
-            <div class="list-item-main">
-                <i class="bi bi-file-earmark-pdf list-item-icon"></i>
-                <span class="list-item-title">
-                    ${highlightText(doc.titulo_completo || doc.codigo_definitivo || doc.codigo, currentSearch)}
-                </span>
+        <div class="list-item" onclick="window.location.href='/documento/${doc.id}'">
+            <i class="bi bi-file-earmark-pdf-fill list-item-icon"></i>
+            <div class="list-item-content">
+                <div class="list-item-title">${highlightText(tituloCompleto, currentSearch)}</div>
                 <div class="list-item-meta">
                     <span><i class="bi bi-building"></i> ${doc.setor || '-'}</span>
-                    ${doc.abrangencia ? `<span class="badge ${getAbrangenciaBadgeClass(doc.abrangencia)}">${doc.abrangencia}</span>` : ''}
                     <span><i class="bi bi-calendar"></i> ${formatDate(doc.data_publicacao)}</span>
-                    <span class="badge bg-success">Publicado</span>
+                    ${doc.abrangencia ? `<span class="badge bg-primary">${doc.abrangencia}</span>` : ''}
                 </div>
             </div>
             <div class="list-item-actions">
-                <button class="list-action-btn" onclick="window.location.href='/documento/${doc.id}'; event.stopPropagation();" title="Ver Detalhes">
-                    <i class="bi bi-info-circle-fill"></i>
-                </button>
                 <button class="list-action-btn" onclick="quickView(${doc.id}); event.stopPropagation();" title="Preview">
                     <i class="bi bi-eye-fill"></i>
                 </button>
@@ -1387,103 +1180,45 @@ function createListHTML(doc) {
                     <i class="bi bi-download"></i>
                 </button>
                 <button class="list-action-btn" onclick="toggleFavorite(${doc.id}, event)" title="Favoritar">
-                    <i class="bi bi-star${isFavorite ? '-fill' : ''}" style="color: ${isFavorite ? 'gold' : 'inherit'}"></i>
+                    <i class="bi bi-star${isFavorite ? '-fill' : ''}" style="color: ${isFavorite ? '#f59e0b' : 'inherit'}"></i>
                 </button>
-            </div>
-
-            <!-- Tooltip com preview -->
-            <div class="list-item-tooltip">
-                <div class="tooltip-content">
-                    ${resumo ? `
-                    <h6><i class="bi bi-robot"></i> Resumo IA:</h6>
-                    <p>${resumo}</p>
-                    ` : ''}
-
-                    ${palavrasChave.length ? `
-                    <h6><i class="bi bi-tags"></i> Palavras-chave:</h6>
-                    <div class="tooltip-tags">
-                        ${palavrasChave.map(palavra =>
-                            `<span class="badge bg-info">${palavra}</span>`
-                        ).join('')}
-                    </div>
-                    ` : ''}
-
-                    <h6><i class="bi bi-info-circle"></i> Informações:</h6>
-                    <p class="mb-1"><strong>Tipo:</strong> ${doc.tipo_documento}</p>
-                    <p class="mb-1"><strong>Setor:</strong> ${doc.setor || '-'}</p>
-                    <p class="mb-0"><strong>Versão:</strong> ${doc.versao || 'v1.0'}</p>
-                </div>
             </div>
         </div>
     `;
 }
 
-/// ===== FUNÇÃO AUXILIAR: BADGE DE ABRANGÊNCIA =====
-// Cores carregadas do banco de dados
-const ABRANGENCIA_CORES = {
-    {% for abrang in abrangencias %}
-    '{{ abrang.codigo }}': '{{ abrang.cor or '#2563eb' }}',
-    {% endfor %}
-};
-
-function getAbrangenciaBadgeClass(abrangencia) {
-    // Fallback para classes Bootstrap padrão
-    const classes = {
-        'CHUFC': 'bg-primary',
-        'HUWC': 'bg-success',
-        'MEAC': 'bg-warning text-dark'
-    };
-    return classes[abrangencia] || 'bg-secondary';
-}
-
-function getAbrangenciaStyle(abrangencia) {
-    const cor = ABRANGENCIA_CORES[abrangencia];
-    if (cor) {
-        return `background-color: ${cor}; color: white;`;
-    }
-    return '';
-}
-
-// ===== FASE 2: VIEW MODES =====
+// ===== VIEW MODE =====
 function setViewMode(mode) {
     currentViewMode = mode;
     localStorage.setItem('repo_view_mode', mode);
 
-    // Atualiza botões
     document.querySelectorAll('.view-toggle').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.view === mode);
     });
 
-    // Atualiza views
     document.getElementById('view-cards').classList.toggle('active', mode === 'cards');
     document.getElementById('view-list').classList.toggle('active', mode === 'list');
 
-    // Re-renderiza se necessário
     if (allDocuments.length > 0) {
-        clearDocumentContainers();
+        document.getElementById('documents-container-cards').innerHTML = '';
+        document.getElementById('documents-container-list').innerHTML = '';
         renderDocuments(allDocuments);
     }
 }
 
-// ===== FASE 2: INFINITE SCROLL =====
+// ===== INFINITE SCROLL =====
 function setupInfiniteScroll() {
-    const sentinel = document.getElementById('scroll-sentinel');
     const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && !isLoading && hasMore) {
             loadDocuments();
         }
-    }, {
-        rootMargin: '300px' // Começa a carregar 300px antes
-    });
-
-    observer.observe(sentinel);
+    }, { rootMargin: '300px' });
+    observer.observe(document.getElementById('scroll-sentinel'));
 }
 
-// ===== FASE 5: BUSCA INSTANTÂNEA =====
+// ===== BUSCA =====
 function setupSearch() {
-    const searchInput = document.getElementById('search-input');
-
-    searchInput.addEventListener('input', (e) => {
+    document.getElementById('search-input').addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
         const query = e.target.value.trim();
 
@@ -1495,32 +1230,37 @@ function setupSearch() {
 
         if (query.length < 3) return;
 
-        showSearchSpinner();
+        document.getElementById('search-spinner').classList.add('show');
 
         searchTimeout = setTimeout(() => {
             currentSearch = query;
             loadDocuments(true);
-            hideSearchSpinner();
+            document.getElementById('search-spinner').classList.remove('show');
         }, 500);
     });
 }
 
-// ===== FASE 3: QUICK ACTIONS =====
+// ===== FILTRO SETORES =====
+function setupSetorFilter() {
+    document.getElementById('filter-setores').addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('.setor-item').forEach(item => {
+            const name = item.textContent.toLowerCase();
+            item.style.display = name.includes(query) || query === '' ? 'block' : 'none';
+        });
+    });
+}
+
+// ===== AÇÕES =====
 function toggleFavorite(docId, event) {
-    if (event) {
-        event.stopPropagation();
-        event.preventDefault();
-    }
+    if (event) { event.stopPropagation(); event.preventDefault(); }
 
     const index = favorites.indexOf(docId);
     if (index > -1) {
         favorites.splice(index, 1);
-        showToast('Removido dos favoritos', 'info');
     } else {
         favorites.push(docId);
-        showToast('⭐ Adicionado aos favoritos!', 'success');
     }
-
     localStorage.setItem('repo_favorites', JSON.stringify(favorites));
 
     // Atualiza UI
@@ -1529,117 +1269,46 @@ function toggleFavorite(docId, event) {
         if (favorites.includes(docId)) {
             btn.classList.add('active');
             icon.className = 'bi bi-star-fill';
-            if (btn.classList.contains('list-action-btn')) {
-                icon.style.color = 'gold';
-            }
         } else {
             btn.classList.remove('active');
             icon.className = 'bi bi-star';
-            if (btn.classList.contains('list-action-btn')) {
-                icon.style.color = 'inherit';
-            }
         }
     });
 }
 
 function downloadDoc(docId, event) {
-    if (event) {
-        event.stopPropagation();
-        event.preventDefault();
-    }
-
-    // Abre download em nova aba
+    if (event) { event.stopPropagation(); event.preventDefault(); }
     window.open(`/documento/${docId}/download`, '_blank');
-    showToast('✅ Download iniciado!', 'success');
 }
 
-function copyLink(docId, event) {
-    if (event) {
-        event.stopPropagation();
-        event.preventDefault();
-    }
-
-    const url = `${window.location.origin}/documento/${docId}`;
-    navigator.clipboard.writeText(url).then(() => {
-        showToast('✅ Link copiado!', 'success');
-    }).catch(() => {
-        showToast('Erro ao copiar link', 'danger');
-    });
-}
-
-// ===== FASE 4: PREVIEW PDF =====
 function quickView(docId, event) {
-    if (event) {
-        event.stopPropagation();
-        event.preventDefault();
-    }
+    if (event) { event.stopPropagation(); event.preventDefault(); }
 
     const modal = new bootstrap.Modal(document.getElementById('pdf-preview-modal'));
-    const iframe = document.getElementById('pdf-iframe');
-    const downloadLink = document.getElementById('pdf-download-link');
-
-    // Define source do iframe
-    iframe.src = `/documento/${docId}/download`;
-    downloadLink.href = `/documento/${docId}/download`;
-
+    document.getElementById('pdf-iframe').src = `/documento/${docId}/download`;
+    document.getElementById('pdf-download-link').href = `/documento/${docId}/download`;
     modal.show();
 }
 
-// ===== UTILITÁRIOS =====
-function clearDocumentContainers() {
-    document.getElementById('documents-container-cards').innerHTML = '';
-    document.getElementById('documents-container-list').innerHTML = '';
-}
-
-function showLoading() {
-    document.getElementById('loading-indicator').classList.add('show');
-}
-
-function hideLoading() {
-    document.getElementById('loading-indicator').classList.remove('show');
-}
-
-function showEndMessage(total) {
-    const msg = document.getElementById('end-message');
-    document.getElementById('end-message-text').textContent = `Todos os ${total} documentos foram carregados`;
-    msg.classList.add('show');
-}
-
-function showSearchSpinner() {
-    document.getElementById('search-spinner').classList.add('show');
-}
-
-function hideSearchSpinner() {
-    document.getElementById('search-spinner').classList.remove('show');
-}
-
+// ===== UTILS =====
 function updateResultsInfo(total) {
     const info = document.getElementById('results-info');
-    const text = document.getElementById('results-text');
-
     if (currentSearch || currentSetor || currentTipo) {
-        let msg = `✅ ${total} documento${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
+        let msg = `${total} documento${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
         if (currentSearch) msg += ` para "${currentSearch}"`;
         if (currentSetor) msg += ` em ${currentSetor}`;
         if (currentTipo) msg += ` (${currentTipo})`;
-
-        text.textContent = msg;
+        document.getElementById('results-text').textContent = msg;
         info.style.display = 'block';
     } else {
         info.style.display = 'none';
     }
 }
 
-// ===== FASE 5: HIGHLIGHT =====
 function highlightText(text, query) {
     if (!query || !text) return text;
-
-    const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
     return text.replace(regex, '<mark>$1</mark>');
-}
-
-function escapeRegex(str) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function truncate(text, length) {
@@ -1649,62 +1318,7 @@ function truncate(text, length) {
 
 function formatDate(dateString) {
     if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
-}
-
-function showToast(message, type = 'info') {
-    // Usa sistema de toast do main.js se disponível
-    if (typeof window.showToast === 'function') {
-        window.showToast(message, type);
-    } else {
-        alert(message);
-    }
-}
-
-// ===== FILTRO DE SETORES NA SIDEBAR =====
-function setupSetorFilter() {
-    const filterInput = document.getElementById('filter-setores');
-
-    filterInput.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase().trim();
-        const setorItems = document.querySelectorAll('.setor-item');
-
-        setorItems.forEach(item => {
-            const setorName = item.querySelector('.setor-header').textContent.toLowerCase();
-            const tipoLinks = item.querySelectorAll('.tipo-link');
-
-            // Verifica se o setor ou algum tipo corresponde ao filtro
-            let hasMatch = setorName.includes(query);
-
-            if (!hasMatch) {
-                tipoLinks.forEach(link => {
-                    if (link.textContent.toLowerCase().includes(query)) {
-                        hasMatch = true;
-                    }
-                });
-            }
-
-            // Mostra/oculta o item
-            if (hasMatch || query === '') {
-                item.style.display = 'block';
-
-                // Se está filtrando, expande automaticamente
-                if (query !== '' && hasMatch) {
-                    const setorId = item.querySelector('.setor-header').dataset.setor.replace(/\s+/g, '-');
-                    const tiposDiv = document.getElementById(`tipos-${setorId}`);
-                    const chevron = item.querySelector('.setor-chevron');
-
-                    if (tiposDiv && !tiposDiv.classList.contains('show')) {
-                        tiposDiv.classList.add('show');
-                        chevron.classList.add('expanded');
-                    }
-                }
-            } else {
-                item.style.display = 'none';
-            }
-        });
-    });
+    return new Date(dateString).toLocaleDateString('pt-BR');
 }
 </script>
 {% endblock %}
