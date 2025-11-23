@@ -14,6 +14,9 @@ import logging
 import requests
 import json
 import time
+import base64
+import mimetypes
+import os
 from typing import Tuple, Optional, Dict, Any
 
 from flask import current_app, request
@@ -515,7 +518,7 @@ class EvolutionAPIv2:
 
                 log = LogWhatsApp(
                     usuario_id=usuario.id if usuario else None,
-                    telefone=f"+{telefone_limpo}",
+                    telefone=f"+{telefone_limpo}"[:20], # Truncate to fit varchar(20)
                     direcao='enviada',
                     mensagem=mensagem,
                     twilio_sid=message_id,
@@ -534,7 +537,7 @@ class EvolutionAPIv2:
 
                 # Registra erro
                 log = LogWhatsApp(
-                    telefone=f"+{telefone_limpo}",
+                    telefone=f"+{telefone_limpo}"[:20], # Truncate to fit varchar(20)
                     direcao='enviada',
                     mensagem=mensagem,
                     documento_id=documento_id,
@@ -554,7 +557,7 @@ class EvolutionAPIv2:
             # Registra erro
             telefone_limpo = para_numero.replace('whatsapp:', '').replace('+', '').strip()
             log = LogWhatsApp(
-                telefone=f"+{telefone_limpo}",
+                telefone=f"+{telefone_limpo}"[:20], # Truncate to fit varchar(20)
                 direcao='enviada',
                 mensagem=mensagem,
                 documento_id=documento_id,
@@ -570,7 +573,7 @@ class EvolutionAPIv2:
     def enviar_documento(
         self,
         para_numero: str,
-        documento_url: str,
+        media: str,
         nome_arquivo: str,
         legenda: str = None
     ) -> Tuple[bool, str]:
@@ -579,7 +582,7 @@ class EvolutionAPIv2:
 
         Args:
             para_numero: +5585999999999 ou 5585999999999
-            documento_url: URL pública do documento
+            media: URL pública do documento ou Base64 (data:application/pdf;base64,...)
             nome_arquivo: Nome do arquivo
             legenda: Legenda opcional
 
@@ -601,7 +604,7 @@ class EvolutionAPIv2:
             payload = {
                 'number': numero_formatado,
                 'mediatype': 'document',
-                'media': documento_url,
+                'media': media,
                 'fileName': nome_arquivo,
                 'delay': 1000
             }
@@ -788,7 +791,7 @@ class WhatsAppChatbot:
             try:
                 log = LogWhatsApp(
                     usuario_id=usuario.id,
-                    telefone=usuario.telefone, 
+                    telefone=usuario.telefone[:20],  # Truncate to fit varchar(20)
                     direcao='recebida',
                     mensagem=texto,
                     twilio_sid=key.get('id'),
@@ -1701,7 +1704,10 @@ class WhatsAppChatbot:
                 self.api.enviar_mensagem(remote_jid, "❌ Abrangência não encontrada.\n\n_Responda *menu* para voltar._")
                 return
 
-            # Avança para seleção de setor
+            # Guarda seleção e pede setor
+            conversacao.atualizar_estado('busca_setor', {'abrangencia_id': abrangencia.id})
+            db.session.commit()
+
             self._enviar_lista_setores(usuario, remote_jid, conversacao, abrangencia)
 
         except ValueError:
@@ -1779,14 +1785,15 @@ class WhatsAppChatbot:
 
         if not tipos:
             # Se não há tipos, mostra documentos direto
-            self._buscar_documentos_por_filtros(usuario, remote_jid, conversacao, abrangencia_codigo, setor.codigo if setor else None, None)
+            # Usa setor.nome pois Documento.setor armazena o nome
+            self._buscar_documentos_por_filtros(usuario, remote_jid, conversacao, abrangencia_codigo, setor.nome if setor else None, None)
             return
 
         # Guarda no contexto
         tipos_codigos = [t.codigo for t in tipos]
         conversacao.atualizar_estado('busca_tipo', {
             'abrangencia_codigo': abrangencia_codigo,
-            'setor_codigo': setor.codigo if setor else None,
+            'setor_codigo': setor.nome if setor else None, # Usa nome como código para filtro
             'setor_nome': setor.nome if setor else None,
             'tipos_codigos': tipos_codigos,
             'tipos_nomes': [t.nome for t in tipos]
@@ -1920,7 +1927,12 @@ class WhatsAppChatbot:
 
         # Verifica se tem arquivo (prioridade: publicado_pdf > original)
         # NÃO usar arquivo_final pois é o PDF de assinaturas, não o documento
-        arquivo_path = doc.arquivo_publicado_pdf or doc.arquivo_original
+        if doc.arquivo_publicado_pdf:
+            arquivo_path = doc.get_caminho_publicado()
+        elif doc.arquivo_original:
+            arquivo_path = doc.get_caminho_arquivo()
+        else:
+            arquivo_path = None
 
         if not arquivo_path:
             self.api.enviar_mensagem(remote_jid, f"❌ *Documento sem arquivo anexado*\n\n📄 {titulo_formatado}\n\n_Responda *3* para nova busca ou *menu* para voltar._")
@@ -1931,17 +1943,31 @@ class WhatsAppChatbot:
         # Monta URL pública do documento
         # Assume que há uma rota para download público
         try:
-            # Tenta obter URL base do request atual
-            from flask import current_app
-            base_url = current_app.config.get('BASE_URL', 'http://127.0.0.1:5000')
-
-            # Usa a rota pública de download se existir
-            documento_url = f"{base_url}/repositorio/download/{doc.id}"
+            # Verifica se o arquivo existe
+            if not os.path.exists(arquivo_path):
+                logger.error(f"Arquivo não encontrado: {arquivo_path}")
+                self.api.enviar_mensagem(remote_jid, f"❌ Erro: Arquivo não encontrado no servidor.\n\n_Responda *menu* para voltar._")
+                return
 
             # Determina nome do arquivo
             nome_arquivo = os.path.basename(arquivo_path)
             if not nome_arquivo:
                 nome_arquivo = f"{codigo}.pdf"
+
+            # Lê o arquivo e converte para base64
+            with open(arquivo_path, "rb") as file:
+                file_content = file.read()
+                encoded_string = base64.b64encode(file_content).decode('utf-8')
+            
+            # Determina MIME type
+            mime_type, _ = mimetypes.guess_type(arquivo_path)
+            if not mime_type:
+                mime_type = "application/pdf" # Fallback
+            
+            # Monta Data URI
+            # Evolution API v2 expects raw base64 string for 'media' field when not using URL
+            # media_data = f"data:{mime_type};base64,{encoded_string}"
+            media_data = encoded_string
 
             # Monta legenda
             legenda = f"📄 *{titulo_formatado}*\n"
@@ -1950,9 +1976,11 @@ class WhatsAppChatbot:
             legenda += "_Sistema GED - EBSERH_"
 
             # Envia o documento
+            logger.info(f"Enviando documento {doc.id} via Base64 ({len(media_data)} bytes)")
+            
             sucesso, resultado = self.api.enviar_documento(
                 remote_jid,
-                documento_url,
+                media_data,
                 nome_arquivo,
                 legenda
             )
@@ -1960,10 +1988,7 @@ class WhatsAppChatbot:
             if sucesso:
                 msg = f"✅ *Documento enviado!*\n\n📄 {titulo_formatado}\n\n_Responda *3* para nova busca ou *menu* para voltar._"
             else:
-                # Se falhar o envio de mídia, envia link
-                msg = f"📄 *{titulo_formatado}*\n\n"
-                msg += f"🔗 Link para download:\n{documento_url}\n\n"
-                msg += "_Responda *3* para nova busca ou *menu* para voltar._"
+                msg = f"❌ *Erro ao enviar documento*\n\nNão foi possível enviar o arquivo.\nErro: {resultado}\n\n_Responda *menu* para voltar._"
 
             self.api.enviar_mensagem(remote_jid, msg)
 
