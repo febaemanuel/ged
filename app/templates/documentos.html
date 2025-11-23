@@ -37,9 +37,9 @@
                     <label class="form-label">Tipo</label>
                     <select class="form-select" name="tipo">
                         <option value="">Todos</option>
-                        <option value="POP" {% if request.args.get('tipo') == 'POP' %}selected{% endif %}>POP</option>
-                        <option value="Manual" {% if request.args.get('tipo') == 'Manual' %}selected{% endif %}>Manual</option>
-                        <option value="Protocolo" {% if request.args.get('tipo') == 'Protocolo' %}selected{% endif %}>Protocolo</option>
+                        {% for tipo in tipos_documento %}
+                        <option value="{{ tipo.codigo }}" {% if request.args.get('tipo') == tipo.codigo %}selected{% endif %}>{{ tipo.codigo }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-2">

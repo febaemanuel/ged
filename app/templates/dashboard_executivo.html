@@ -193,45 +193,21 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
+                        {% for tipo in tipos_documento %}
                         <div class="col-md-4">
-                            <div class="stats-mini" onclick="mostrarDocumentosPorTipo('POP')" style="cursor: pointer; border-left: 4px solid #0d6efd;">
+                            <div class="stats-mini" onclick="mostrarDocumentosPorTipo('{{ tipo.codigo }}')" style="cursor: pointer; border-left: 4px solid {{ ['#0d6efd', '#198754', '#dc3545', '#fd7e14', '#6f42c1', '#20c997'][loop.index0 % 6] }};">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <h6 class="mb-0">POP</h6>
-                                        <small class="text-muted">Procedimentos Operacionais</small>
+                                        <h6 class="mb-0">{{ tipo.codigo }}</h6>
+                                        <small class="text-muted">{{ tipo.nome }}</small>
                                     </div>
                                     <div>
-                                        <h3 class="mb-0 text-primary" id="total-pop">-</h3>
+                                        <h3 class="mb-0" id="total-{{ tipo.codigo|lower }}" style="color: {{ ['#0d6efd', '#198754', '#dc3545', '#fd7e14', '#6f42c1', '#20c997'][loop.index0 % 6] }}">-</h3>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <div class="stats-mini" onclick="mostrarDocumentosPorTipo('Manual')" style="cursor: pointer; border-left: 4px solid #198754;">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-0">Manuais</h6>
-                                        <small class="text-muted">Manuais Técnicos</small>
-                                    </div>
-                                    <div>
-                                        <h3 class="mb-0 text-success" id="total-manual">-</h3>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="stats-mini" onclick="mostrarDocumentosPorTipo('Protocolo')" style="cursor: pointer; border-left: 4px solid #dc3545;">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-0">Protocolos</h6>
-                                        <small class="text-muted">Protocolos Clínicos</small>
-                                    </div>
-                                    <div>
-                                        <h3 class="mb-0 text-danger" id="total-protocolo">-</h3>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
