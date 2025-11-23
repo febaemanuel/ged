@@ -496,42 +496,49 @@ def get_hierarquia():
     Usado para popular a sidebar de navegação
 
     Returns:
-        JSON com estrutura: {setor: {total: X, tipos: {tipo: count}}}
+        JSON com estrutura: {"Setor (ABRANG)": {total: X, tipos: {tipo: count}, abrangencia: "ABRANG"}}
     """
-    # Consulta otimizada com GROUP BY
+    # Consulta otimizada com GROUP BY incluindo abrangência
     query_result = db.session.query(
         Documento.setor,
+        Documento.abrangencia,
         Documento.tipo_documento,
         db.func.count(Documento.id).label('count')
     ).filter(
         Documento.status == 'Publicado'
     ).group_by(
         Documento.setor,
+        Documento.abrangencia,
         Documento.tipo_documento
     ).all()
 
-    # Organiza em estrutura hierárquica
+    # Organiza em estrutura hierárquica com abrangência
     hierarquia = {}
     total_geral = 0
 
-    for setor, tipo, count in query_result:
+    for setor, abrangencia, tipo, count in query_result:
         setor_nome = setor or 'Sem Setor'
+        abrang = abrangencia or 'CHUFC'  # Default CHUFC se não definido
 
-        if setor_nome not in hierarquia:
-            hierarquia[setor_nome] = {
+        # Chave única: "Setor (ABRANG)" para setores com mesmo nome em abrangências diferentes
+        chave = f"{setor_nome} ({abrang})"
+
+        if chave not in hierarquia:
+            hierarquia[chave] = {
                 'total': 0,
-                'tipos': {}
+                'tipos': {},
+                'abrangencia': abrang,
+                'setor_original': setor_nome
             }
 
-        hierarquia[setor_nome]['tipos'][tipo] = count
-        hierarquia[setor_nome]['total'] += count
+        hierarquia[chave]['tipos'][tipo] = count
+        hierarquia[chave]['total'] += count
         total_geral += count
 
-    # Ordena setores por quantidade (maior primeiro)
+    # Ordena setores por nome (alfabético) e depois por abrangência
     hierarquia_ordenada = dict(sorted(
         hierarquia.items(),
-        key=lambda x: x[1]['total'],
-        reverse=True
+        key=lambda x: (x[1]['setor_original'], x[1]['abrangencia'])
     ))
 
     return jsonify({
@@ -589,6 +596,11 @@ def repositorio_publico():
     setor = request.args.get('setor')
     if setor:
         query = query.filter_by(setor=setor)
+
+    # Filtro por abrangência
+    abrangencia = request.args.get('abrangencia')
+    if abrangencia:
+        query = query.filter_by(abrangencia=abrangencia)
 
     # Ordenação: agrupa por setor e tipo, depois por data
     order_by = request.args.get('order_by', 'setor_tipo')
@@ -663,6 +675,7 @@ def repositorio_publico():
             'codigo_definitivo': doc.codigo_definitivo,
             'codigo': doc.codigo_provisorio or doc.codigo_unico,
             'setor': doc.setor,
+            'abrangencia': doc.abrangencia or 'CHUFC',
             'data_publicacao': doc.data_publicacao.isoformat(),
             'data_vencimento': doc.data_vencimento.isoformat() if doc.data_vencimento else None,
             'versao': doc.versao,

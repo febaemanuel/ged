@@ -54,6 +54,95 @@
     opacity: 0.9;
 }
 
+/* ===== CARROSSEL DE ABRANGÊNCIAS ===== */
+.abrangencia-carousel {
+    background: var(--gray-50);
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid var(--gray-200);
+}
+
+.abrangencia-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.abrangencia-tab {
+    padding: 8px 4px;
+    border: 2px solid transparent;
+    background: white;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--gray-600);
+}
+
+.abrangencia-tab:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+.abrangencia-tab.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.abrangencia-tab[data-abrangencia="CHUFC"].active {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+.abrangencia-tab[data-abrangencia="HUWC"].active {
+    background: #059669;
+    border-color: #059669;
+}
+
+.abrangencia-tab[data-abrangencia="MEAC"].active {
+    background: #d97706;
+    border-color: #d97706;
+}
+
+.abrangencia-info {
+    text-align: center;
+    padding-top: 4px;
+    border-top: 1px solid var(--gray-200);
+}
+
+/* Badge de abrangência no setor */
+.setor-abrangencia-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.setor-abrangencia-badge.chufc {
+    background: rgba(37, 99, 235, 0.15);
+    color: #2563eb;
+}
+
+.setor-abrangencia-badge.huwc {
+    background: rgba(5, 150, 105, 0.15);
+    color: #059669;
+}
+
+.setor-abrangencia-badge.meac {
+    background: rgba(217, 119, 6, 0.15);
+    color: #d97706;
+}
+
 .setor-item {
     margin-bottom: 8px;
 }
@@ -662,6 +751,27 @@ mark {
                 <p class="label">Documentos Publicados</p>
             </div>
 
+            <!-- ===== CARROSSEL DE ABRANGÊNCIAS ===== -->
+            <div class="abrangencia-carousel mb-3">
+                <div class="abrangencia-tabs">
+                    <button class="abrangencia-tab active" data-abrangencia="TODOS" onclick="selectAbrangencia('TODOS')">
+                        <i class="bi bi-globe"></i> Todos
+                    </button>
+                    <button class="abrangencia-tab" data-abrangencia="CHUFC" onclick="selectAbrangencia('CHUFC')">
+                        CHUFC
+                    </button>
+                    <button class="abrangencia-tab" data-abrangencia="HUWC" onclick="selectAbrangencia('HUWC')">
+                        HUWC
+                    </button>
+                    <button class="abrangencia-tab" data-abrangencia="MEAC" onclick="selectAbrangencia('MEAC')">
+                        MEAC
+                    </button>
+                </div>
+                <div class="abrangencia-info" id="abrangencia-info">
+                    <small class="text-muted">Mostrando: <strong id="abrangencia-atual">Todas as abrangências</strong></small>
+                </div>
+            </div>
+
             <h5>
                 <i class="bi bi-folder-fill"></i>
                 Navegação por Setor
@@ -789,9 +899,19 @@ let currentViewMode = 'cards';
 let currentSetor = null;
 let currentTipo = null;
 let currentSearch = '';
+let currentAbrangencia = 'TODOS';
 let allDocuments = [];
+let hierarchyData = null;
 let searchTimeout = null;
 let favorites = JSON.parse(localStorage.getItem('repo_favorites') || '[]');
+
+// Nomes das abrangências
+const ABRANGENCIA_NOMES = {
+    'TODOS': 'Todas as abrangências',
+    'CHUFC': 'CHUFC - Complexo Hospitalar',
+    'HUWC': 'HUWC - Hospital Walter Cantídio',
+    'MEAC': 'MEAC - Maternidade Escola'
+};
 
 // ===== INICIALIZAÇÃO =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -806,25 +926,77 @@ document.addEventListener('DOMContentLoaded', function() {
     if (savedViewMode) {
         setViewMode(savedViewMode);
     }
+
+    // Restaura abrangência salva
+    const savedAbrangencia = localStorage.getItem('repo_abrangencia');
+    if (savedAbrangencia) {
+        selectAbrangencia(savedAbrangencia, false);
+    }
 });
 
-// ===== FASE 1: HIERARQUIA E NAVEGAÇÃO =====
-async function loadHierarchy() {
-    try {
-        const response = await fetch('/api/documento/hierarquia');
-        const data = await response.json();
+// ===== SISTEMA DE ABRANGÊNCIAS =====
+function selectAbrangencia(abrangencia, reload = true) {
+    currentAbrangencia = abrangencia;
+    localStorage.setItem('repo_abrangencia', abrangencia);
 
-        document.getElementById('total-geral').textContent = data.total_geral || 0;
+    // Atualiza visual dos tabs
+    document.querySelectorAll('.abrangencia-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.abrangencia === abrangencia) {
+            tab.classList.add('active');
+        }
+    });
 
-        const hierarchyHTML = Object.entries(data.hierarquia || {}).map(([setor, info]) => `
-            <div class="setor-item">
-                <div class="setor-header" onclick="toggleSetor('${setor}', event)" data-setor="${setor}">
+    // Atualiza texto de info
+    document.getElementById('abrangencia-atual').textContent = ABRANGENCIA_NOMES[abrangencia] || abrangencia;
+
+    // Recarrega hierarquia e documentos
+    if (reload) {
+        currentSetor = null;
+        currentTipo = null;
+        updateBreadcrumbs();
+        renderHierarchyForAbrangencia();
+        resetAndLoadDocuments();
+    }
+}
+
+function renderHierarchyForAbrangencia() {
+    if (!hierarchyData) return;
+
+    const container = document.getElementById('sidebar-hierarchy');
+    let filteredHierarchy = {};
+
+    // Filtra hierarquia pela abrangência
+    Object.entries(hierarchyData.hierarquia || {}).forEach(([key, info]) => {
+        // key pode ser "Setor" ou "Setor (ABRANG)"
+        const match = key.match(/^(.+?)\s*\((\w+)\)$/);
+        const setor = match ? match[1].trim() : key;
+        const abrang = match ? match[2] : info.abrangencia || 'CHUFC';
+
+        if (currentAbrangencia === 'TODOS' || abrang === currentAbrangencia) {
+            const displayKey = currentAbrangencia === 'TODOS' ? `${setor} (${abrang})` : setor;
+            filteredHierarchy[displayKey] = { ...info, setor_original: setor, abrangencia: abrang };
+        }
+    });
+
+    // Renderiza
+    const hierarchyHTML = Object.entries(filteredHierarchy).map(([displayName, info]) => {
+        const setorOriginal = info.setor_original || displayName;
+        const abrang = info.abrangencia || 'CHUFC';
+        const abrangBadge = currentAbrangencia === 'TODOS'
+            ? `<span class="setor-abrangencia-badge ${abrang.toLowerCase()}">${abrang}</span>`
+            : '';
+
+        return `
+            <div class="setor-item" data-abrangencia="${abrang}">
+                <div class="setor-header" onclick="toggleSetor('${setorOriginal}', '${abrang}', event)" data-setor="${setorOriginal}" data-abrangencia="${abrang}">
                     <div class="setor-name">
                         <span class="setor-chevron">▶</span>
-                        <span>📂 ${setor}</span>
+                        <span>📂 ${setorOriginal}</span>
+                        ${abrangBadge}
                     </div>
                     <div class="setor-actions">
-                        <a href="/setor/${encodeURIComponent(setor)}"
+                        <a href="/setor/${encodeURIComponent(setorOriginal)}?abrangencia=${abrang}"
                            class="setor-dashboard-btn"
                            title="Ver dashboard completo do setor"
                            onclick="event.stopPropagation()">
@@ -833,32 +1005,47 @@ async function loadHierarchy() {
                         <span class="setor-badge">${info.total}</span>
                     </div>
                 </div>
-                <div class="setor-tipos" id="tipos-${setor.replace(/\s+/g, '-')}">
-                    ${Object.entries(info.tipos).map(([tipo, count]) => `
-                        <a href="#" class="tipo-link" onclick="filterByTipo('${setor}', '${tipo}'); return false;" data-setor="${setor}" data-tipo="${tipo}">
+                <div class="setor-tipos" id="tipos-${setorOriginal.replace(/\s+/g, '-')}-${abrang}">
+                    ${Object.entries(info.tipos || {}).map(([tipo, count]) => `
+                        <a href="#" class="tipo-link" onclick="filterByTipo('${setorOriginal}', '${tipo}', '${abrang}'); return false;" data-setor="${setorOriginal}" data-tipo="${tipo}" data-abrangencia="${abrang}">
                             <span>📄 ${tipo}</span>
                             <span class="tipo-badge">${count}</span>
                         </a>
                     `).join('')}
                 </div>
             </div>
-        `).join('');
+        `;
+    }).join('');
 
-        document.getElementById('sidebar-hierarchy').innerHTML = hierarchyHTML;
+    container.innerHTML = hierarchyHTML || '<p class="text-muted text-center py-3">Nenhum setor encontrado</p>';
+}
+
+// ===== FASE 1: HIERARQUIA E NAVEGAÇÃO =====
+async function loadHierarchy() {
+    try {
+        const response = await fetch('/api/documento/hierarquia');
+        const data = await response.json();
+
+        // Armazena dados para filtragem por abrangência
+        hierarchyData = data;
+        document.getElementById('total-geral').textContent = data.total_geral || 0;
+
+        // Renderiza hierarquia baseada na abrangência atual
+        renderHierarchyForAbrangencia();
     } catch (error) {
         console.error('Erro ao carregar hierarquia:', error);
         document.getElementById('sidebar-hierarchy').innerHTML = '<p class="text-danger small">Erro ao carregar</p>';
     }
 }
 
-function toggleSetor(setor, event) {
+function toggleSetor(setor, abrangencia, event) {
     event.stopPropagation();
-    const setorId = setor.replace(/\s+/g, '-');
+    const setorId = `${setor.replace(/\s+/g, '-')}-${abrangencia}`;
     const tiposDiv = document.getElementById(`tipos-${setorId}`);
     const header = event.currentTarget;
     const chevron = header.querySelector('.setor-chevron');
 
-    if (tiposDiv.classList.contains('show')) {
+    if (tiposDiv && tiposDiv.classList.contains('show')) {
         tiposDiv.classList.remove('show');
         chevron.classList.remove('expanded');
     } else {
@@ -866,20 +1053,44 @@ function toggleSetor(setor, event) {
         document.querySelectorAll('.setor-tipos').forEach(div => div.classList.remove('show'));
         document.querySelectorAll('.setor-chevron').forEach(ch => ch.classList.remove('expanded'));
 
-        tiposDiv.classList.add('show');
-        chevron.classList.add('expanded');
+        if (tiposDiv) {
+            tiposDiv.classList.add('show');
+            chevron.classList.add('expanded');
+        }
     }
 }
 
-function filterByTipo(setor, tipo) {
+let currentSetorAbrangencia = null;
+
+function filterByTipo(setor, tipo, abrangencia) {
     currentSetor = setor;
     currentTipo = tipo;
+    currentSetorAbrangencia = abrangencia || currentAbrangencia;
     currentPage = 1;
     allDocuments = [];
 
     // Atualiza UI
     updateBreadcrumbs();
     updateActiveLinks();
+    loadDocuments(true);
+}
+
+function filterBySetor(setor, abrangencia) {
+    currentSetor = setor;
+    currentTipo = null;
+    currentSetorAbrangencia = abrangencia || currentAbrangencia;
+    currentPage = 1;
+    allDocuments = [];
+
+    updateBreadcrumbs();
+    updateActiveLinks();
+    loadDocuments(true);
+}
+
+function resetAndLoadDocuments() {
+    currentPage = 1;
+    allDocuments = [];
+    hasMore = true;
     loadDocuments(true);
 }
 
@@ -962,6 +1173,9 @@ async function loadDocuments(clear = false) {
         if (currentSetor) params.append('setor', currentSetor);
         if (currentTipo) params.append('tipo', currentTipo);
         if (currentSearch) params.append('q', currentSearch);
+        if (currentAbrangencia && currentAbrangencia !== 'TODOS') {
+            params.append('abrangencia', currentSetorAbrangencia || currentAbrangencia);
+        }
 
         const response = await fetch(`/api/documento/publico?${params}`);
         const data = await response.json();
@@ -1059,7 +1273,10 @@ function createCardHTML(doc) {
                 ` : ''}
 
                 <hr>
-                <p class="small mb-1"><i class="bi bi-building"></i> <strong>Setor:</strong> ${doc.setor || '-'}</p>
+                <p class="small mb-1">
+                    <i class="bi bi-building"></i> <strong>Setor:</strong> ${doc.setor || '-'}
+                    ${doc.abrangencia ? `<span class="badge ms-1 ${getAbrangenciaBadgeClass(doc.abrangencia)}">${doc.abrangencia}</span>` : ''}
+                </p>
                 <p class="small mb-0"><i class="bi bi-calendar-check"></i> <strong>Publicado:</strong> ${formatDate(doc.data_publicacao)}</p>
             </div>
 
@@ -1117,6 +1334,7 @@ function createListHTML(doc) {
                 </span>
                 <div class="list-item-meta">
                     <span><i class="bi bi-building"></i> ${doc.setor || '-'}</span>
+                    ${doc.abrangencia ? `<span class="badge ${getAbrangenciaBadgeClass(doc.abrangencia)}">${doc.abrangencia}</span>` : ''}
                     <span><i class="bi bi-calendar"></i> ${formatDate(doc.data_publicacao)}</span>
                     <span class="badge bg-success">Publicado</span>
                 </div>
@@ -1161,6 +1379,16 @@ function createListHTML(doc) {
             </div>
         </div>
     `;
+}
+
+// ===== FUNÇÃO AUXILIAR: BADGE DE ABRANGÊNCIA =====
+function getAbrangenciaBadgeClass(abrangencia) {
+    const classes = {
+        'CHUFC': 'bg-primary',
+        'HUWC': 'bg-success',
+        'MEAC': 'bg-warning text-dark'
+    };
+    return classes[abrangencia] || 'bg-secondary';
 }
 
 // ===== FASE 2: VIEW MODES =====
