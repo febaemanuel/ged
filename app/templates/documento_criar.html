@@ -64,14 +64,19 @@
                                 <label for="tipo_documento" class="form-label">Tipo de Documento *</label>
                                 <select class="form-select" id="tipo_documento" name="tipo_documento" required>
                                     <option value="">Selecione...</option>
-                                    <option value="POP">POP - Procedimento Operacional Padrão</option>
-                                    <option value="Manual">Manual</option>
-                                    <option value="Protocolo">Protocolo</option>
+                                    {% for tipo in tipos_documento %}
+                                    <option value="{{ tipo.codigo }}">{{ tipo.codigo }} - {{ tipo.nome }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-6">
                                 <label for="setor" class="form-label">Setor *</label>
-                                <input type="text" class="form-control" id="setor" name="setor" value="{{ current_user.setor or '' }}" required>
+                                <select class="form-select" id="setor" name="setor" required>
+                                    <option value="">Selecione...</option>
+                                    {% for setor in setores %}
+                                    <option value="{{ setor.nome }}" {% if current_user.setor == setor.nome %}selected{% endif %}>{{ setor.nome }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                         </div>
 
@@ -143,9 +148,9 @@
                             </label>
                             <select class="form-select" id="tipo-doc-template">
                                 <option value="">Selecione o tipo...</option>
-                                <option value="POP">POP - Procedimento Operacional Padrão</option>
-                                <option value="Manual">Manual</option>
-                                <option value="Protocolo">Protocolo</option>
+                                {% for tipo in tipos_documento %}
+                                <option value="{{ tipo.codigo }}">{{ tipo.codigo }} - {{ tipo.nome }}</option>
+                                {% endfor %}
                             </select>
                         </div>
 

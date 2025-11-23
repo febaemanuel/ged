@@ -106,15 +106,15 @@
                                     <label for="tipo_documento" class="form-label">Tipo de Documento *</label>
                                     <select class="form-select" id="tipo_documento" name="tipo_documento" required>
                                         <option value="">Selecione...</option>
-                                        <option value="POP" {% if documento.tipo_documento == 'POP' %}selected{% endif %}>POP - Procedimento Operacional Padrão</option>
-                                        <option value="Manual" {% if documento.tipo_documento == 'Manual' %}selected{% endif %}>Manual</option>
-                                        <option value="Protocolo" {% if documento.tipo_documento == 'Protocolo' %}selected{% endif %}>Protocolo</option>
-                                        <option value="Política" {% if documento.tipo_documento == 'Política' %}selected{% endif %}>Política</option>
-                                        <option value="Regimento" {% if documento.tipo_documento == 'Regimento' %}selected{% endif %}>Regimento</option>
-                                        <option value="Regulamento" {% if documento.tipo_documento == 'Regulamento' %}selected{% endif %}>Regulamento</option>
+                                        {% for tipo in tipos_documento %}
+                                        <option value="{{ tipo.codigo }}" {% if documento.tipo_documento == tipo.codigo %}selected{% endif %}>{{ tipo.codigo }} - {{ tipo.nome }}</option>
+                                        {% endfor %}
+                                        {% if documento.tipo_documento and documento.tipo_documento not in tipos_documento|map(attribute='codigo')|list %}
+                                        <option value="{{ documento.tipo_documento }}" selected>{{ documento.tipo_documento }}</option>
+                                        {% endif %}
                                     </select>
                                     <small class="form-text text-muted">
-                                        <i class="bi bi-clock"></i> Validade: POP/Manual/Protocolo = 2 anos | Política/Regimento/Regulamento = 4 anos
+                                        <i class="bi bi-clock"></i> A validade será calculada conforme configuração do tipo de documento
                                     </small>
                                 </div>
                                 <div class="col-md-6">
@@ -142,21 +142,13 @@
                             <p class="text-muted small mb-3">Define em qual unidade do Complexo Hospitalar o documento será aplicado.</p>
 
                             <div class="abrangencia-select">
-                                <div class="abrangencia-option chufc {% if documento.abrangencia == 'CHUFC' %}selected{% endif %}"
-                                     data-value="CHUFC" onclick="selectAbrangenciaEdit('CHUFC', this)">
-                                    <i class="bi bi-building"></i> CHUFC
-                                    <small class="d-block text-muted mt-1">Complexo Hospitalar</small>
+                                {% for abrang in abrangencias %}
+                                <div class="abrangencia-option {{ abrang.codigo|lower }} {% if documento.abrangencia == abrang.codigo %}selected{% endif %}"
+                                     data-value="{{ abrang.codigo }}" onclick="selectAbrangenciaEdit('{{ abrang.codigo }}', this)">
+                                    <i class="{{ abrang.icone or 'bi bi-building' }}"></i> {{ abrang.codigo }}
+                                    <small class="d-block text-muted mt-1">{{ abrang.nome }}</small>
                                 </div>
-                                <div class="abrangencia-option huwc {% if documento.abrangencia == 'HUWC' %}selected{% endif %}"
-                                     data-value="HUWC" onclick="selectAbrangenciaEdit('HUWC', this)">
-                                    <i class="bi bi-hospital"></i> HUWC
-                                    <small class="d-block text-muted mt-1">Hospital Walter Cantídio</small>
-                                </div>
-                                <div class="abrangencia-option meac {% if documento.abrangencia == 'MEAC' %}selected{% endif %}"
-                                     data-value="MEAC" onclick="selectAbrangenciaEdit('MEAC', this)">
-                                    <i class="bi bi-heart"></i> MEAC
-                                    <small class="d-block text-muted mt-1">Maternidade Escola</small>
-                                </div>
+                                {% endfor %}
                             </div>
                             <input type="hidden" id="abrangencia" name="abrangencia" value="{{ documento.abrangencia or '' }}">
                         </div>
