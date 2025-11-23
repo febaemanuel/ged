@@ -679,6 +679,7 @@ def repositorio_publico():
             'titulo': doc.titulo,
             'titulo_completo': doc.titulo_completo,
             'tipo_documento': doc.tipo_documento,
+            'tipo_documento_nome': doc.tipo_documento_nome,  # Nome completo do tipo (ex: "Manual" ao invés de "MAN")
             'codigo_definitivo': doc.codigo_definitivo,
             'codigo': doc.codigo_provisorio or doc.codigo_unico,
             'setor': doc.setor,

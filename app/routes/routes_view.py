@@ -1163,6 +1163,54 @@ def repositorio_publico():
     return render_template('repositorio_publico.html', documentos=documentos, abrangencias=abrangencias)
 
 
+@view_bp.route('/repositorio/download/<int:doc_id>')
+def download_documento_publico(doc_id):
+    """
+    Rota de download público para documentos publicados.
+    Usada pelo chatbot WhatsApp para enviar documentos.
+    """
+    import os
+    from flask import send_file, abort, current_app
+
+    documento = Documento.query.get_or_404(doc_id)
+
+    # Só permite download de documentos publicados
+    if documento.status != 'Publicado':
+        abort(403, description="Documento não disponível para download público")
+
+    # Determina o arquivo a ser enviado
+    arquivo_path = documento.arquivo_final_path or documento.arquivo_path
+
+    if not arquivo_path:
+        abort(404, description="Arquivo não encontrado")
+
+    # Monta caminho completo
+    upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+    full_path = os.path.join(upload_folder, arquivo_path)
+
+    # Se o caminho já é absoluto, usa diretamente
+    if os.path.isabs(arquivo_path):
+        full_path = arquivo_path
+
+    if not os.path.exists(full_path):
+        abort(404, description="Arquivo não encontrado no servidor")
+
+    # Determina nome do arquivo para download
+    codigo = documento.codigo_definitivo or documento.codigo_provisorio or f"Doc_{doc_id}"
+    nome_arquivo = f"{codigo}.pdf"
+
+    # Se o arquivo não é PDF, usa a extensão original
+    _, ext = os.path.splitext(arquivo_path)
+    if ext and ext.lower() != '.pdf':
+        nome_arquivo = f"{codigo}{ext}"
+
+    return send_file(
+        full_path,
+        as_attachment=True,
+        download_name=nome_arquivo
+    )
+
+
 @view_bp.route('/setor/<setor_nome>')
 def setor_view(setor_nome):
     """
@@ -1218,10 +1266,14 @@ def concluir_triagem(tarefa_id):
 
     tarefa.parecer = parecer
 
+    # Verifica se é um documento do tipo Manual (aceita MAN, Manual, MANUAL)
+    tipo_doc = tarefa.documento.tipo_documento or ''
+    eh_manual = tipo_doc in ['Manual', 'MAN', 'MANUAL'] or tipo_doc.upper().startswith('MAN')
+
     try:
         if acao == 'aprovar' and checkpoint_1 == 'nao' and checkpoint_3 == 'sim':
             # Todos checkpoints OK
-            if tarefa.documento.tipo_documento == 'Manual':
+            if eh_manual:
                 # Manual precisa de validação do colegiado
                 if checkpoint_2 == 'nao':
                     # Devolve

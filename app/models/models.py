@@ -213,6 +213,23 @@ class Documento(db.Model):
             # Calcula data de vencimento
             self.data_vencimento = self.data_publicacao + timedelta(days=anos * 365)
 
+    @property
+    def tipo_documento_nome(self):
+        """
+        Retorna o nome completo do tipo de documento.
+        Ex: se tipo_documento = 'MAN', retorna 'Manual'
+        """
+        if not self.tipo_documento:
+            return ''
+
+        # Busca o tipo de documento pelo código
+        tipo_obj = TipoDocumento.query.filter_by(codigo=self.tipo_documento).first()
+        if tipo_obj:
+            return tipo_obj.nome
+
+        # Se não encontrar, retorna o próprio código
+        return self.tipo_documento
+
     def esta_vencido(self):
         """Verifica se o documento está vencido"""
         if self.data_vencimento:
