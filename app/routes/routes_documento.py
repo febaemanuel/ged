@@ -999,14 +999,15 @@ def get_setor_dashboard(setor_nome):
     # ===== TIMELINE DE PUBLICAÇÕES (últimos 12 meses) =====
     data_12_meses_atras = datetime.utcnow() - timedelta(days=365)
 
+    # Usando to_char para PostgreSQL (strftime é apenas SQLite)
     publicacoes_timeline = db.session.query(
-        db.func.strftime('%Y-%m', Documento.data_publicacao).label('mes'),
+        db.func.to_char(Documento.data_publicacao, 'YYYY-MM').label('mes'),
         db.func.count(Documento.id).label('count')
     ).filter(
         Documento.setor == setor_nome,
         Documento.status == 'Publicado',
         Documento.data_publicacao >= data_12_meses_atras
-    ).group_by('mes').order_by('mes').all()
+    ).group_by(db.func.to_char(Documento.data_publicacao, 'YYYY-MM')).order_by('mes').all()
 
     # ===== DOCUMENTOS RECENTES =====
     docs_recentes = base_query.order_by(
