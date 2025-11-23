@@ -85,11 +85,17 @@ class Documento(db.Model):
     """
     Modelo de Documento do sistema GED
 
-    Status possíveis:
+    Status possíveis (Workflow UGQ):
     - Novo
-    - Em Análise
+    - Em Triagem (Triador UGQ)
+    - Em Validação (Validador UGQ)
+    - Em Correção (Autor corrige)
+    - Validado (Codificado pelo Validador)
+    - Em Aprovação (Bloco de Assinatura)
+    - Em Ajustes (Reprovado, precisa ajustes)
     - Aprovado
-    - Aprovado e Publicado
+    - Publicado
+    - Vigente
     - Cancelado
     - Obsoleto
     """
@@ -1209,6 +1215,7 @@ class TipoDocumento(db.Model):
     nome = db.Column(db.String(100), nullable=False)  # Nome completo
     descricao = db.Column(db.Text)
     validade_anos = db.Column(db.Integer, default=2)  # Validade padrão em anos
+    prefixo_codigo = db.Column(db.String(20))  # Prefixo para geração de código (ex: POP, MAN)
     ativo = db.Column(db.Boolean, default=True)
     ordem = db.Column(db.Integer, default=0)
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
@@ -1274,6 +1281,7 @@ class PerfilPermissao(db.Model):
     nome = db.Column(db.String(100), nullable=False)  # Nome amigável
     descricao = db.Column(db.Text)
     cor = db.Column(db.String(20), default='#6b7280')  # Cor para badge
+    nivel = db.Column(db.Integer, default=0)  # Nível hierárquico (0=comum, 10=admin)
     ativo = db.Column(db.Boolean, default=True)
 
     # Permissões (JSON com lista de permissões)

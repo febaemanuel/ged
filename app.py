@@ -141,7 +141,7 @@ def verificar_vencimentos():
     documentos_vencidos = Documento.query.filter(
         Documento.data_vencimento != None,
         Documento.data_vencimento < agora,
-        Documento.status == 'Aprovado e Publicado'
+        Documento.status == 'Publicado'
     ).all()
 
     total_atualizados = 0
