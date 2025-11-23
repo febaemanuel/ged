@@ -1635,7 +1635,7 @@ class WhatsAppChatbot:
             self.api.enviar_mensagem(remote_jid, "❌ Opção inválida.\n\nEscolha: *1* (Buscar por Nome) ou *2* (Navegar por Categorias)\n\n_Responda *0* para voltar ao menu._")
 
     def _processar_busca_por_nome(self, usuario, remote_jid, texto, conversacao):
-        """Processa a busca por nome/código"""
+        """Processa a busca por nome/código/palavras-chave/resumo"""
         termo = texto.strip()
 
         if len(termo) < 2:
@@ -1643,12 +1643,15 @@ class WhatsAppChatbot:
             return
 
         # Busca documentos publicados que contenham o termo
+        # Inclui título, código, texto extraído e metadados (palavras-chave e resumo)
         documentos = Documento.query.filter(
             Documento.status == 'Publicado',
             db.or_(
                 Documento.titulo.ilike(f'%{termo}%'),
                 Documento.codigo_definitivo.ilike(f'%{termo}%'),
-                Documento.codigo_provisorio.ilike(f'%{termo}%')
+                Documento.codigo_provisorio.ilike(f'%{termo}%'),
+                Documento.texto_extraido.ilike(f'%{termo}%'),
+                Documento.metadados_json.ilike(f'%{termo}%')
             )
         ).order_by(Documento.titulo.asc()).limit(10).all()
 
@@ -1910,24 +1913,19 @@ class WhatsAppChatbot:
 
     def _enviar_documento(self, usuario, remote_jid, doc, conversacao):
         """Envia o documento como anexo via WhatsApp"""
-        from flask import url_for
         import os
 
         codigo = doc.codigo_definitivo or doc.codigo_provisorio or f"Doc #{doc.id}"
         titulo_formatado = f"{codigo} - {doc.titulo}" if doc.titulo else codigo
 
-        # Verifica se tem arquivo
-        if not doc.arquivo_final_path:
-            # Tenta arquivo principal
-            if doc.arquivo_path:
-                arquivo_path = doc.arquivo_path
-            else:
-                self.api.enviar_mensagem(remote_jid, f"❌ *Documento sem arquivo anexado*\n\n📄 {titulo_formatado}\n\n_Responda *3* para nova busca ou *menu* para voltar._")
-                conversacao.atualizar_estado('menu', {})
-                db.session.commit()
-                return
-        else:
-            arquivo_path = doc.arquivo_final_path
+        # Verifica se tem arquivo (prioridade: final > publicado_pdf > original)
+        arquivo_path = doc.arquivo_final or doc.arquivo_publicado_pdf or doc.arquivo_original
+
+        if not arquivo_path:
+            self.api.enviar_mensagem(remote_jid, f"❌ *Documento sem arquivo anexado*\n\n📄 {titulo_formatado}\n\n_Responda *3* para nova busca ou *menu* para voltar._")
+            conversacao.atualizar_estado('menu', {})
+            db.session.commit()
+            return
 
         # Monta URL pública do documento
         # Assume que há uma rota para download público
