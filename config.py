@@ -123,10 +123,9 @@ class Config:
     STATUS_EM_APROVACAO = 'Em Aprovação'                    # Novo - Workflow UGQ (bloco assinatura)
     STATUS_EM_AJUSTES = 'Em Ajustes'                        # Novo - Workflow UGQ (reprovado)
     STATUS_APROVADO = 'Aprovado'
-    STATUS_PUBLICADO = 'Publicado'                          # Simplificado
+    STATUS_PUBLICADO = 'Publicado'
     STATUS_CANCELADO = 'Cancelado'
     STATUS_OBSOLETO = 'Obsoleto'
-    STATUS_VIGENTE = 'Vigente'                              # Novo - Workflow UGQ
 
     # Tipos de documentos
     TIPO_POP = 'POP'

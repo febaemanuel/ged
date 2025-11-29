@@ -44,7 +44,7 @@ def estatisticas_gerais():
 
     # Documentos
     total_documentos = Documento.query.count()
-    docs_vigentes = Documento.query.filter_by(status=Config.STATUS_VIGENTE).count()
+    docs_publicados = Documento.query.filter_by(status=Config.STATUS_PUBLICADO).count()
     docs_em_aprovacao = Documento.query.filter_by(status=Config.STATUS_EM_APROVACAO).count()
     docs_em_triagem = Documento.query.filter_by(status=Config.STATUS_EM_TRIAGEM).count()
     docs_em_validacao = Documento.query.filter_by(status=Config.STATUS_EM_VALIDACAO).count()
@@ -64,21 +64,21 @@ def estatisticas_gerais():
         Documento.data_vencimento != None,
         Documento.data_vencimento > agora,
         Documento.data_vencimento <= data_30,
-        Documento.status == Config.STATUS_VIGENTE
+        Documento.status == Config.STATUS_PUBLICADO
     ).count()
 
     docs_vencendo_60 = Documento.query.filter(
         Documento.data_vencimento != None,
         Documento.data_vencimento > data_30,
         Documento.data_vencimento <= data_60,
-        Documento.status == Config.STATUS_VIGENTE
+        Documento.status == Config.STATUS_PUBLICADO
     ).count()
 
     docs_vencendo_90 = Documento.query.filter(
         Documento.data_vencimento != None,
         Documento.data_vencimento > data_60,
         Documento.data_vencimento <= data_90,
-        Documento.status == Config.STATUS_VIGENTE
+        Documento.status == Config.STATUS_PUBLICADO
     ).count()
 
     # Tarefas
@@ -105,7 +105,7 @@ def estatisticas_gerais():
     return jsonify({
         'documentos': {
             'total': total_documentos,
-            'vigentes': docs_vigentes,
+            'publicados': docs_publicados,
             'em_aprovacao': docs_em_aprovacao,
             'em_triagem': docs_em_triagem,
             'em_validacao': docs_em_validacao,
@@ -250,7 +250,7 @@ def documentos_vencendo():
         Documento.data_vencimento != None,
         Documento.data_vencimento > agora,
         Documento.data_vencimento <= data_limite,
-        Documento.status == Config.STATUS_VIGENTE
+        Documento.status == Config.STATUS_PUBLICADO
     ).order_by(Documento.data_vencimento.asc()).all()
 
     # Agrupa por tipo (busca do banco)

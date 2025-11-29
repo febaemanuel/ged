@@ -658,7 +658,7 @@
         <div class="stat-card success fade-in-up" style="animation-delay: 0.2s;">
             <div class="stat-icon">✅</div>
             <div class="stat-value" id="stat-vigentes">-</div>
-            <div class="stat-label">Documentos Vigentes</div>
+            <div class="stat-label">Documentos Publicados</div>
         </div>
 
         <div class="stat-card warning fade-in-up" style="animation-delay: 0.3s;">
@@ -934,7 +934,7 @@
         chartVencimento = new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: ['Vigentes', 'Perto de Vencer', 'Vencidos'],
+                labels: ['Válidos', 'Perto de Vencer', 'Vencidos'],
                 datasets: [{
                     data: [
                         stats.documentos_vigentes,

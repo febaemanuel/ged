@@ -164,8 +164,8 @@ def visualizar_documento(id):
 
     # Verifica permissão de visualização
     if not current_user.is_admin():
-        # TODOS podem ver documentos Publicados/Vigentes (repositório público)
-        if documento.status in ['Publicado', 'Vigente']:
+        # TODOS podem ver documentos Publicados (repositório público)
+        if documento.status == 'Publicado':
             pass  # Acesso permitido para todos
         # Gerente pode ver documentos do próprio setor
         elif current_user.is_gerente_ou_superior():
@@ -629,10 +629,8 @@ def repositorio_publico():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 30, type=int)  # Aumentado para 30 (lazy loading)
 
-    # Mostra documentos Publicados ou Vigentes (repositório público)
-    query = Documento.query.filter(
-        Documento.status.in_(['Publicado', 'Vigente'])
-    )
+    # Mostra documentos Publicados (repositório público)
+    query = Documento.query.filter_by(status='Publicado')
 
     # Apenas documentos válidos (não vencidos)
     query = query.filter(
