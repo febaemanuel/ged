@@ -58,6 +58,7 @@
                     {% endwith %}
 
                     <form method="POST" action="{{ url_for('view.login') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="mb-3">
                             <label for="email" class="form-label">
                                 <i class="bi bi-envelope"></i> Email
@@ -84,12 +85,13 @@
                         </button>
                     </form>
 
+                    {% if config.get('DEBUG') %}
                     <hr class="my-4">
-
                     <div class="text-center text-muted small">
-                        <p><strong>Credenciais padrão:</strong></p>
-                        <p>Admin: admin@example.com / admin123</p>
+                        <p><strong>⚠️ MODO DESENVOLVIMENTO ⚠️</strong></p>
+                        <p class="small">Credenciais de teste disponíveis apenas em ambiente de desenvolvimento</p>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

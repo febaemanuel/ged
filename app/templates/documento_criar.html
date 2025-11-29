@@ -51,6 +51,7 @@
                     <!-- ETAPA 2: Formulário de upload -->
                     <div id="etapa-2" class="etapa" style="display: none;">
                         <form method="POST" action="{{ url_for('view.documento_criar') }}" enctype="multipart/form-data" id="formDocumento">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="mb-3">
                             <label for="titulo" class="form-label">Título <small class="text-muted">(opcional - será extraído pela IA)</small></label>
                             <input type="text" class="form-control" id="titulo" name="titulo" placeholder="Deixe em branco para extrair automaticamente">

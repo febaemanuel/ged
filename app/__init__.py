@@ -4,6 +4,7 @@ Inicialização do aplicativo Flask GED
 from flask import Flask, render_template
 from flask_login import LoginManager
 from flask_mail import Mail
+from flask_wtf.csrf import CSRFProtect
 import os
 import logging
 from logging.handlers import RotatingFileHandler
@@ -14,6 +15,7 @@ from app.models import db, Usuario
 
 login_manager = LoginManager()
 mail = Mail()
+csrf = CSRFProtect()
 
 
 def create_app(config_name='default'):
@@ -37,6 +39,7 @@ def create_app(config_name='default'):
     login_manager.login_view = 'view.login'
     login_manager.login_message = 'Por favor, faça login para acessar esta página.'
     mail.init_app(app)
+    csrf.init_app(app)
 
     # Configura logging
     if not app.debug and not app.testing:
@@ -93,6 +96,17 @@ def create_app(config_name='default'):
     def home():
         """Página inicial com documentação básica"""
         return render_template('index.html')
+
+    # Health check endpoint para Docker
+    @app.route('/health')
+    def health_check():
+        """Health check endpoint para monitoramento"""
+        try:
+            # Testa conexão com banco de dados
+            db.session.execute('SELECT 1')
+            return {'status': 'healthy', 'database': 'connected'}, 200
+        except Exception as e:
+            return {'status': 'unhealthy', 'error': str(e)}, 503
 
     # Handler de erro 404
     @app.errorhandler(404)

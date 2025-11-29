@@ -1,0 +1,154 @@
+version: '3.8'
+
+# ============================================
+# Docker Compose - Sistema GED EBSERH
+# ============================================
+#
+# Serviços:
+# - db: PostgreSQL 15
+# - web: Aplicação Flask
+# - evolution-api (opcional): WhatsApp Integration
+#
+# Uso:
+#   docker-compose up -d
+#   docker-compose logs -f
+#   docker-compose down
+# ============================================
+
+services:
+  # ==========================================
+  # Banco de Dados PostgreSQL
+  # ==========================================
+  db:
+    image: postgres:15-alpine
+    container_name: ged_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ged_db
+      POSTGRES_USER: ged_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ged_password_CHANGE_IN_PRODUCTION}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=pt_BR.UTF-8 --lc-ctype=pt_BR.UTF-8"
+      LANG: pt_BR.UTF-8
+      LC_ALL: pt_BR.UTF-8
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    networks:
+      - ged_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ged_user -d ged_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # Aplicação Flask GED
+  # ==========================================
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ged_web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Flask
+      FLASK_ENV: ${FLASK_ENV:-production}
+      FLASK_APP: app.py
+
+      # Segurança
+      SECRET_KEY: ${SECRET_KEY:-GENERATE_WITH_python_-c_import_secrets_print_secrets_token_hex_32}
+
+      # Database
+      DATABASE_URL: postgresql://ged_user:${DB_PASSWORD:-ged_password_CHANGE_IN_PRODUCTION}@db:5432/ged_db
+
+      # AI (DeepSeek)
+      AI_API_BASE_URL: ${AI_API_BASE_URL:-https://api.deepseek.com}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_API_MODEL: ${AI_API_MODEL:-deepseek-chat}
+      AI_API_TIMEOUT: ${AI_API_TIMEOUT:-30}
+
+      # Email
+      MAIL_SERVER: ${MAIL_SERVER:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USE_TLS: ${MAIL_USE_TLS:-True}
+      MAIL_USE_SSL: ${MAIL_USE_SSL:-False}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_DEFAULT_SENDER: ${MAIL_DEFAULT_SENDER:-noreply@ged.com}
+
+      # Evolution API (WhatsApp)
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-http://evolution-api:8080}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
+      EVOLUTION_INSTANCE_NAME: ${EVOLUTION_INSTANCE_NAME:-ged-instance}
+
+    volumes:
+      # Persistência de uploads
+      - uploads_documentos:/app/app/uploads/documentos
+      - uploads_publicados:/app/app/uploads/publicados
+      - uploads_assinaturas:/app/uploads/assinaturas
+      - logs:/app/logs
+      # Desenvolvimento (descomente para hot-reload)
+      # - .:/app
+    ports:
+      - "${WEB_PORT:-5000}:5000"
+    networks:
+      - ged_network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==========================================
+  # Evolution API (WhatsApp) - OPCIONAL
+  # ==========================================
+  # Descomente para habilitar integração WhatsApp
+  # evolution-api:
+  #   image: atendai/evolution-api:latest
+  #   container_name: ged_evolution_api
+  #   restart: unless-stopped
+  #   environment:
+  #     AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-sua-chave-super-secreta}
+  #     DATABASE_ENABLED: true
+  #     DATABASE_CONNECTION_URI: postgresql://ged_user:${DB_PASSWORD:-ged_password_CHANGE_IN_PRODUCTION}@db:5432/evolution_db
+  #     DATABASE_CONNECTION_CLIENT_NAME: evolution_db
+  #   ports:
+  #     - "${EVOLUTION_PORT:-8080}:8080"
+  #   networks:
+  #     - ged_network
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   volumes:
+  #     - evolution_instances:/evolution/instances
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  ged_network:
+    driver: bridge
+    name: ged_network
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  postgres_data:
+    name: ged_postgres_data
+  uploads_documentos:
+    name: ged_uploads_documentos
+  uploads_publicados:
+    name: ged_uploads_publicados
+  uploads_assinaturas:
+    name: ged_uploads_assinaturas
+  logs:
+    name: ged_logs
+  # evolution_instances:
+  #   name: ged_evolution_instances

@@ -403,6 +403,7 @@
                     </div>
 
                     <form method="POST" action="{{ url_for('view.criar_bloco_assinatura', documento_id=documento.id) }}" id="formBlocoAssinatura">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <!-- Modo de Assinatura -->
                         <div class="mb-4">
                             <label class="form-label"><strong>Modo de Assinatura *</strong></label>

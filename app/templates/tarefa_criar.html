@@ -20,6 +20,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('view.tarefa_criar') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="mb-3">
                             <label for="documento_id" class="form-label">Documento *</label>
                             <select class="form-select" id="documento_id" name="documento_id" required>

@@ -32,8 +32,57 @@ bp_api = Blueprint('documentos_api', __name__, url_prefix='/api/documentos')
 
 def allowed_file(filename):
     """Verifica se a extensão do arquivo é permitida"""
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
+    if '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in current_app.config['ALLOWED_EXTENSIONS']
+
+
+def validate_file_type(file_obj, filename):
+    """
+    Valida tipo de arquivo usando MIME type
+
+    Args:
+        file_obj: Objeto de arquivo Flask
+        filename: Nome do arquivo
+
+    Returns:
+        bool: True se arquivo é válido
+    """
+    import magic
+
+    # Mapeamento de extensões para MIME types permitidos
+    allowed_mimes = {
+        'pdf': {'application/pdf'},
+        'doc': {'application/msword'},
+        'docx': {
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/zip'  # DOCX é um arquivo ZIP
+        },
+        'odt': {
+            'application/vnd.oasis.opendocument.text',
+            'application/zip'  # ODT é um arquivo ZIP
+        }
+    }
+
+    # Verifica extensão
+    if not allowed_file(filename):
+        return False
+
+    ext = filename.rsplit('.', 1)[1].lower()
+
+    # Lê primeiros bytes para validação MIME
+    file_obj.seek(0)
+    file_header = file_obj.read(2048)
+    file_obj.seek(0)  # Reset para início
+
+    try:
+        mime = magic.from_buffer(file_header, mime=True)
+        return mime in allowed_mimes.get(ext, set())
+    except Exception:
+        # Se falhar validação MIME, permite baseado em extensão
+        # (fallback para ambientes sem libmagic)
+        return True
 
 
 @bp.route('/lista', methods=['GET'])
@@ -114,8 +163,13 @@ def visualizar_documento(id):
     documento = Documento.query.get_or_404(id)
 
     # Verifica permissão de visualização
-    if not current_user.is_admin() and not current_user.is_gerente_ou_superior():
-        if documento.criador_id != current_user.id:
+    if not current_user.is_admin():
+        # Gerente pode ver apenas documentos do próprio setor
+        if current_user.is_gerente_ou_superior():
+            if documento.setor != current_user.setor and documento.criador_id != current_user.id:
+                return jsonify({'erro': 'Sem permissão para visualizar este documento'}), 403
+        # Usuário comum só pode ver seus próprios documentos ou documentos públicos/vigentes
+        elif documento.criador_id != current_user.id and documento.status not in ['Publicado', 'Vigente']:
             return jsonify({'erro': 'Sem permissão para visualizar este documento'}), 403
 
     # Timeline de tarefas
@@ -184,8 +238,10 @@ def criar_documento():
     if arquivo.filename == '':
         return jsonify({'erro': 'Nenhum arquivo selecionado'}), 400
 
-    if not allowed_file(arquivo.filename):
-        return jsonify({'erro': 'Tipo de arquivo não permitido'}), 400
+    # Valida tipo de arquivo (extensão + MIME type)
+    if not validate_file_type(arquivo, arquivo.filename):
+        extensoes = ', '.join(current_app.config['ALLOWED_EXTENSIONS'])
+        return jsonify({'erro': f'Tipo de arquivo não permitido ou inválido. Extensões aceitas: {extensoes}'}), 400
 
     titulo = request.form.get('titulo')
     tipo_documento = request.form.get('tipo_documento')
@@ -419,11 +475,11 @@ def substituir_arquivo(id):
     if arquivo.filename == '':
         return jsonify({'erro': 'Nenhum arquivo selecionado'}), 400
 
-    # Valida extensão do arquivo
-    if not allowed_file(arquivo.filename):
+    # Valida tipo de arquivo (extensão + MIME type)
+    if not validate_file_type(arquivo, arquivo.filename):
         extensoes_permitidas = ', '.join(current_app.config['ALLOWED_EXTENSIONS'])
         return jsonify({
-            'erro': f'Tipo de arquivo não permitido. Extensões aceitas: {extensoes_permitidas}'
+            'erro': f'Tipo de arquivo não permitido ou inválido. Extensões aceitas: {extensoes_permitidas}'
         }), 400
 
     motivo = request.form.get('motivo', 'Arquivo substituído pelo validador/triador')
@@ -947,6 +1003,7 @@ def buscar_documentos():
 
 
 @bp.route('/setor/<setor_nome>/dashboard', methods=['GET'])
+@login_required
 def get_setor_dashboard(setor_nome):
     """
     Retorna dashboard completo de um setor com estatísticas e gráficos
@@ -970,6 +1027,11 @@ def get_setor_dashboard(setor_nome):
     # Decodifica nome do setor (URL encoded)
     from urllib.parse import unquote
     setor_nome = unquote(setor_nome)
+
+    # Verifica permissão: admin ou usuário do próprio setor
+    if not current_user.is_admin():
+        if current_user.setor != setor_nome:
+            return jsonify({'erro': 'Sem permissão para visualizar dashboard de outro setor'}), 403
 
     # Query base: documentos publicados do setor
     base_query = Documento.query.filter_by(
