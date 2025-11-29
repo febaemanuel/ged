@@ -283,6 +283,15 @@ def criar_documento():
     db.session.add(documento)
     db.session.commit()
 
+    # Processa documento com IA em background (se configurado)
+    try:
+        from tasks import processar_documento_ia
+        processar_documento_ia.delay(documento.id)
+        logger.info(f"Tarefa de processamento IA agendada para documento {documento.id}")
+    except Exception as e:
+        logger.warning(f"Não foi possível agendar processamento IA: {str(e)}")
+        # Continua normalmente mesmo se Celery não estiver disponível
+
     return jsonify({
         'mensagem': 'Documento criado com sucesso',
         'documento': {

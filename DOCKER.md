@@ -50,8 +50,31 @@ docker-compose logs -f web
 - **Aplicação:** http://localhost:5000
 - **Health Check:** http://localhost:5000/health
 - **PostgreSQL:** localhost:5432
+- **Redis:** localhost:6379 (não exposto por padrão)
+- **Flower (Celery UI):** http://localhost:5555 (opcional - descomente em docker-compose.yml)
 
-### 4. Criar Usuários Iniciais
+### 4. Verificar Serviços Background Tasks (Celery)
+
+```bash
+# Ver status dos workers
+docker-compose ps celery_worker celery_beat
+
+# Ver tarefas em execução
+docker exec ged_celery_worker celery -A celery_app inspect active
+
+# Ver logs do worker
+docker-compose logs -f celery_worker
+
+# Ver logs do beat (tarefas agendadas)
+docker-compose logs -f celery_beat
+
+# Testar conexão com Redis
+docker exec ged_redis redis-cli ping  # Deve retornar PONG
+```
+
+**📖 Para mais informações sobre Celery:** Veja [CELERY.md](CELERY.md)
+
+### 5. Criar Usuários Iniciais
 
 ```bash
 # Executar script de seed
@@ -125,6 +148,33 @@ docker-compose exec web flask verificar-vencimentos
 # Executar comando Python
 docker-compose exec web python -c "print('Hello from container')"
 ```
+
+### Comandos Celery (Background Tasks)
+
+```bash
+# Ver workers ativos
+docker exec ged_celery_worker celery -A celery_app inspect active
+
+# Ver tarefas agendadas (cron)
+docker exec ged_celery_worker celery -A celery_app inspect scheduled
+
+# Estatísticas dos workers
+docker exec ged_celery_worker celery -A celery_app inspect stats
+
+# Reiniciar worker após mudanças no código
+docker-compose restart celery_worker
+
+# Reiniciar beat após mudanças nas tarefas agendadas
+docker-compose restart celery_beat
+
+# Limpar fila de tarefas (CUIDADO!)
+docker exec ged_celery_worker celery -A celery_app purge
+
+# Testar tarefa manualmente
+docker-compose exec web python -c "from tasks import processar_documento_ia; print(processar_documento_ia(1))"
+```
+
+**📖 Documentação completa:** [CELERY.md](CELERY.md)
 
 ### Gerenciamento de Volumes
 

@@ -44,6 +44,24 @@ services:
       retries: 5
 
   # ==========================================
+  # Redis (Celery Broker/Backend)
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: ged_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - ged_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
   # Aplicação Flask GED
   # ==========================================
   web:
@@ -55,6 +73,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       # Flask
       FLASK_ENV: ${FLASK_ENV:-production}
@@ -65,6 +85,9 @@ services:
 
       # Database
       DATABASE_URL: postgresql://ged_user:${DB_PASSWORD:-ged_password_CHANGE_IN_PRODUCTION}@db:5432/ged_db
+
+      # Redis/Celery
+      REDIS_URL: redis://redis:6379/0
 
       # AI (DeepSeek)
       AI_API_BASE_URL: ${AI_API_BASE_URL:-https://api.deepseek.com}
@@ -106,6 +129,126 @@ services:
       start_period: 40s
 
   # ==========================================
+  # Celery Worker (Background Tasks)
+  # ==========================================
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ged_celery_worker
+    restart: unless-stopped
+    command: celery -A celery_app worker --loglevel=info --concurrency=4 --max-tasks-per-child=1000
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Flask
+      FLASK_ENV: ${FLASK_ENV:-production}
+      FLASK_APP: app.py
+
+      # Segurança
+      SECRET_KEY: ${SECRET_KEY:-GENERATE_WITH_python_-c_import_secrets_print_secrets_token_hex_32}
+
+      # Database
+      DATABASE_URL: postgresql://ged_user:${DB_PASSWORD:-ged_password_CHANGE_IN_PRODUCTION}@db:5432/ged_db
+      DB_NAME: ged_db
+      DB_USER: ged_user
+      DB_PASSWORD: ${DB_PASSWORD:-ged_password_CHANGE_IN_PRODUCTION}
+      DB_HOST: db
+
+      # Redis/Celery
+      REDIS_URL: redis://redis:6379/0
+
+      # AI (DeepSeek)
+      AI_API_BASE_URL: ${AI_API_BASE_URL:-https://api.deepseek.com}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_API_MODEL: ${AI_API_MODEL:-deepseek-chat}
+      AI_API_TIMEOUT: ${AI_API_TIMEOUT:-30}
+
+      # Email
+      MAIL_SERVER: ${MAIL_SERVER:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USE_TLS: ${MAIL_USE_TLS:-True}
+      MAIL_USE_SSL: ${MAIL_USE_SSL:-False}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_DEFAULT_SENDER: ${MAIL_DEFAULT_SENDER:-noreply@ged.com}
+
+    volumes:
+      # Acesso aos uploads para processamento
+      - uploads_documentos:/app/app/uploads/documentos
+      - uploads_publicados:/app/app/uploads/publicados
+      - logs:/app/logs
+      # Backups
+      - backups:/app/backups
+    networks:
+      - ged_network
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A celery_app inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ==========================================
+  # Celery Beat (Tarefas Agendadas)
+  # ==========================================
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ged_celery_beat
+    restart: unless-stopped
+    command: celery -A celery_app beat --loglevel=info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Flask
+      FLASK_ENV: ${FLASK_ENV:-production}
+      FLASK_APP: app.py
+
+      # Segurança
+      SECRET_KEY: ${SECRET_KEY:-GENERATE_WITH_python_-c_import_secrets_print_secrets_token_hex_32}
+
+      # Database
+      DATABASE_URL: postgresql://ged_user:${DB_PASSWORD:-ged_password_CHANGE_IN_PRODUCTION}@db:5432/ged_db
+
+      # Redis/Celery
+      REDIS_URL: redis://redis:6379/0
+
+    volumes:
+      - logs:/app/logs
+    networks:
+      - ged_network
+
+  # ==========================================
+  # Flower (Monitoramento Celery) - OPCIONAL
+  # ==========================================
+  # Descomente para habilitar interface de monitoramento
+  # flower:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: ged_flower
+  #   restart: unless-stopped
+  #   command: celery -A celery_app flower --port=5555
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   environment:
+  #     REDIS_URL: redis://redis:6379/0
+  #     FLOWER_BASIC_AUTH: ${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin}
+  #   ports:
+  #     - "${FLOWER_PORT:-5555}:5555"
+  #   networks:
+  #     - ged_network
+
+  # ==========================================
   # Evolution API (WhatsApp) - OPCIONAL
   # ==========================================
   # Descomente para habilitar integração WhatsApp
@@ -142,6 +285,8 @@ networks:
 volumes:
   postgres_data:
     name: ged_postgres_data
+  redis_data:
+    name: ged_redis_data
   uploads_documentos:
     name: ged_uploads_documentos
   uploads_publicados:
@@ -150,5 +295,7 @@ volumes:
     name: ged_uploads_assinaturas
   logs:
     name: ged_logs
+  backups:
+    name: ged_backups
   # evolution_instances:
   #   name: ged_evolution_instances
