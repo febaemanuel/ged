@@ -164,12 +164,15 @@ def visualizar_documento(id):
 
     # Verifica permissão de visualização
     if not current_user.is_admin():
-        # Gerente pode ver apenas documentos do próprio setor
-        if current_user.is_gerente_ou_superior():
+        # TODOS podem ver documentos Publicados/Vigentes (repositório público)
+        if documento.status in ['Publicado', 'Vigente']:
+            pass  # Acesso permitido para todos
+        # Gerente pode ver documentos do próprio setor
+        elif current_user.is_gerente_ou_superior():
             if documento.setor != current_user.setor and documento.criador_id != current_user.id:
                 return jsonify({'erro': 'Sem permissão para visualizar este documento'}), 403
-        # Usuário comum só pode ver seus próprios documentos ou documentos públicos/vigentes
-        elif documento.criador_id != current_user.id and documento.status not in ['Publicado', 'Vigente']:
+        # Usuário comum só pode ver seus próprios documentos (quando não publicados)
+        elif documento.criador_id != current_user.id:
             return jsonify({'erro': 'Sem permissão para visualizar este documento'}), 403
 
     # Timeline de tarefas
