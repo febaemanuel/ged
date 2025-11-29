@@ -629,8 +629,10 @@ def repositorio_publico():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 30, type=int)  # Aumentado para 30 (lazy loading)
 
-    # FIX: Corrigido status para 'Publicado' (Config.STATUS_PUBLICADO)
-    query = Documento.query.filter_by(status='Publicado')
+    # Mostra documentos Publicados ou Vigentes (repositório público)
+    query = Documento.query.filter(
+        Documento.status.in_(['Publicado', 'Vigente'])
+    )
 
     # Apenas documentos válidos (não vencidos)
     query = query.filter(
