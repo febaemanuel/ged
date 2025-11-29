@@ -653,7 +653,9 @@ def repositorio_publico():
     # Busca por palavras-chave extraídas pela IA
     palavras_chave = request.args.get('palavras_chave')
     if palavras_chave:
-        query = query.filter(Documento.metadados_json.ilike(f'%{palavras_chave}%'))
+        # Proteção contra SQL injection via ILIKE - escapa caracteres especiais
+        palavras_chave_safe = palavras_chave.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        query = query.filter(Documento.metadados_json.ilike(f'%{palavras_chave_safe}%'))
 
     tipo = request.args.get('tipo')
     if tipo:
