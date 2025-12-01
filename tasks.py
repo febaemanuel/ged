@@ -115,8 +115,19 @@ def processar_documento_ia(self, documento_id):
 
         logger.info(f"Processamento IA concluído para documento {documento_id}")
 
-        # Envia notificação (opcional)
+        # ✅ CRIA NOTIFICAÇÃO NO SISTEMA (para UI)
         if documento.criador:
+            from app.models.models import Notificacao
+            Notificacao.criar(
+                usuario_id=documento.criador_id,
+                tipo='processamento_ia',
+                titulo='✅ Documento processado pela IA',
+                mensagem=f'O documento "{documento.titulo}" foi analisado automaticamente e está pronto!',
+                link=f'/documento/{documento_id}'
+            )
+            logger.info(f"Notificação criada para usuário {documento.criador_id}")
+
+            # Também envia email (opcional)
             enviar_notificacao_email.delay(
                 usuario_id=documento.criador_id,
                 assunto='Documento processado',

@@ -50,7 +50,7 @@
 
                     <!-- ETAPA 2: Formulário de upload -->
                     <div id="etapa-2" class="etapa" style="display: none;">
-                        <form method="POST" action="{{ url_for('view.documento_criar') }}" enctype="multipart/form-data" id="formDocumento">
+                        <form method="POST" action="{{ url_for('view.documento_criar') }}" enctype="multipart/form-data" id="formDocumento" data-loading="true">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="mb-3">
                             <label for="titulo" class="form-label">Título <small class="text-muted">(opcional - será extraído pela IA)</small></label>
@@ -106,15 +106,18 @@
                         </div>
 
                         <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> <strong>Fluxo Automático de Aprovação:</strong>
+                            <i class="bi bi-info-circle"></i> <strong>Fluxo Automático de Aprovação UGQ:</strong>
                             <ul class="mb-0 mt-2">
-                                <li><strong>1. Análise:</strong> Chefia Imediata avalia pertinência</li>
-                                <li><strong>2. Validação Técnica:</strong> Especialista valida conteúdo</li>
-                                <li><strong>3. Padronização:</strong> Qualidade valida formatação</li>
-                                <li><strong>4. Aprovação Final:</strong> Superintendência aprova</li>
-                                <li><strong>5. Publicação:</strong> Gestão gera PDF e publica</li>
+                                <li><strong>1. Triagem:</strong> UGQ Triador avalia pertinência (3 checkpoints)</li>
+                                <li><strong>2. Validação Técnica:</strong> UGQ Validador valida conteúdo técnico</li>
+                                <li><strong>3. Padronização:</strong> UGQ Qualidade valida formatação ABNT</li>
+                                <li><strong>4. Aprovação:</strong> UGQ Superintendente aprova publicação</li>
+                                <li><strong>5. Publicação:</strong> UGQ Gestor gera PDF oficial e publica</li>
                             </ul>
-                            <small class="text-muted mt-2 d-block">Código provisório será gerado automaticamente. A IA processará o documento para classificação e resumo.</small>
+                            <small class="text-muted mt-2 d-block">
+                                Documento será enviado automaticamente para o <strong>Triador UGQ</strong> após criação.
+                                A IA processará o documento em segundo plano para classificação e resumo.
+                            </small>
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
@@ -301,5 +304,53 @@ function mostrarEtapa(numero) {
     });
     document.getElementById(`etapa-${numero}`).style.display = 'block';
 }
+
+// ============================================================================
+// VALIDAÇÃO DE ARQUIVO
+// ============================================================================
+
+// Valida tamanho do arquivo antes do upload
+document.addEventListener('DOMContentLoaded', function() {
+    const inputArquivo = document.getElementById('arquivo');
+    if (!inputArquivo) return;
+
+    inputArquivo.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Validação de tamanho (16MB)
+        const maxSize = 16 * 1024 * 1024; // 16MB em bytes
+        if (file.size > maxSize) {
+            const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+            alert(`❌ Arquivo muito grande!\n\nTamanho: ${sizeMB}MB\nMáximo permitido: 16MB\n\nPor favor, selecione um arquivo menor.`);
+            this.value = ''; // Limpa seleção
+            return;
+        }
+
+        // Mostra informações do arquivo
+        const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+        console.log(`📄 Arquivo selecionado: ${file.name}`);
+        console.log(`💾 Tamanho: ${sizeMB}MB`);
+        console.log(`📋 Tipo: ${file.type}`);
+
+        // Mostra preview (opcional - adiciona elemento de feedback)
+        const label = this.previousElementSibling;
+        if (label && label.tagName === 'LABEL') {
+            const preview = document.createElement('div');
+            preview.className = 'mt-2 alert alert-success';
+            preview.innerHTML = `
+                <i class="bi bi-check-circle"></i>
+                <strong>${file.name}</strong> (${sizeMB}MB)
+            `;
+
+            // Remove preview anterior se existir
+            const oldPreview = this.parentElement.querySelector('.alert-success');
+            if (oldPreview) oldPreview.remove();
+
+            // Adiciona novo preview
+            this.parentElement.appendChild(preview);
+        }
+    });
+});
 </script>
 {% endblock %}

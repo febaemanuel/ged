@@ -304,54 +304,20 @@ def documento_criar():
         db.session.add(documento)
         db.session.commit()
 
-        # Processar documento com IA em background (se possível)
+        # ✅ PROCESSAR COM CELERY (ASSÍNCRONO) - Não bloqueia o request HTTP!
+        processamento_agendado = False
         try:
-            from app.services.ai_client import extract_text, classify_document, summarize_text, extract_authors, extract_title
-
-            # Extrai texto do documento
-            caminho = documento.get_caminho_arquivo()
-            if caminho and os.path.exists(caminho):
-                resultado_extracao = extract_text(caminho)
-                documento.texto_extraido = resultado_extracao['texto']
-
-                # Classifica o documento usando IA
-                if documento.texto_extraido:
-                    try:
-                        # Se título não foi fornecido, extrai pela IA
-                        if not documento.titulo or documento.titulo.strip() == '':
-                            titulo_extraido = extract_title(documento.texto_extraido)
-                            if titulo_extraido:
-                                documento.titulo = titulo_extraido
-                                logger.info(f"[IA] Título extraído automaticamente: {titulo_extraido}")
-
-                        resultado_classificacao = classify_document(documento.texto_extraido)
-
-                        # Gera resumo
-                        resultado_resumo = summarize_text(documento.texto_extraido, max_length=500)
-
-                        # Extrai autores
-                        autores_list = extract_authors(documento.texto_extraido)
-                        if autores_list:
-                            documento.autores = ', '.join(autores_list)
-
-                        # Salva metadados da IA
-                        metadados = {
-                            'classificacao': resultado_classificacao,
-                            'resumo': resultado_resumo,
-                            'autores': autores_list,
-                            'processado_em': datetime.utcnow().isoformat()
-                        }
-                        documento.set_metadados(metadados)
-
-                        db.session.commit()
-                        flash(f'Documento {documento.codigo} criado e processado com IA!', 'success')
-                    except Exception as e:
-                        # Se falhar IA, continua mesmo assim
-                        flash(f'Documento {documento.codigo} criado (processamento IA falhou)', 'warning')
-                else:
-                    flash(f'Documento {documento.codigo} criado (sem texto extraído)', 'info')
+            from tasks import processar_documento_ia
+            processar_documento_ia.delay(documento.id)
+            processamento_agendado = True
+            flash(f'Documento {documento.codigo} criado com sucesso!', 'success')
+            flash('🤖 Processamento IA iniciado em segundo plano. Você será notificado quando concluir.', 'info')
+            logger.info(f"[CELERY] Tarefa de processamento IA agendada para documento {documento.id}")
+        except ImportError:
+            logger.warning("Celery não disponível - processamento IA não foi agendado")
+            flash(f'Documento {documento.codigo} criado!', 'success')
         except Exception as e:
-            # Se falhar completamente, apenas avisa
+            logger.warning(f"Não foi possível agendar processamento IA: {str(e)}")
             flash(f'Documento {documento.codigo} criado!', 'success')
 
         # INICIA WORKFLOW UGQ OFICIAL EBSERH

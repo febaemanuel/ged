@@ -1335,3 +1335,88 @@ class PerfilPermissao(db.Model):
 
     def __repr__(self):
         return f'<PerfilPermissao {self.codigo}>'
+
+
+class Notificacao(db.Model):
+    """
+    Modelo de Notificações do Sistema
+
+    Tipos de notificação:
+    - processamento_ia: Documento processado pela IA
+    - tarefa_atribuida: Nova tarefa atribuída
+    - documento_aprovado: Documento aprovado
+    - documento_reprovado: Documento reprovado/ajustes
+    - documento_vencendo: Documento próximo de vencer
+    - documento_vencido: Documento venceu
+    - comentario: Novo comentário em documento
+    """
+    __tablename__ = 'notificacoes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)
+    tipo = db.Column(db.String(50), nullable=False, index=True)  # processamento_ia, tarefa_atribuida, etc
+    titulo = db.Column(db.String(200), nullable=False)
+    mensagem = db.Column(db.Text, nullable=False)
+    link = db.Column(db.String(500))  # URL para onde a notificação aponta
+    lida = db.Column(db.Boolean, default=False, index=True)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    data_leitura = db.Column(db.DateTime)
+
+    # Relacionamentos
+    usuario = db.relationship('Usuario', backref=db.backref('notificacoes', lazy='dynamic'))
+
+    def marcar_como_lida(self):
+        """Marca notificação como lida"""
+        if not self.lida:
+            self.lida = True
+            self.data_leitura = datetime.utcnow()
+            db.session.commit()
+
+    @classmethod
+    def criar(cls, usuario_id, tipo, titulo, mensagem, link=None):
+        """
+        Método helper para criar notificação
+
+        Args:
+            usuario_id: ID do usuário
+            tipo: Tipo de notificação
+            titulo: Título
+            mensagem: Mensagem
+            link: URL de destino (opcional)
+
+        Returns:
+            Notificacao: Objeto criado
+        """
+        notificacao = cls(
+            usuario_id=usuario_id,
+            tipo=tipo,
+            titulo=titulo,
+            mensagem=mensagem,
+            link=link
+        )
+        db.session.add(notificacao)
+        db.session.commit()
+        return notificacao
+
+    @classmethod
+    def nao_lidas_usuario(cls, usuario_id):
+        """Retorna notificações não lidas de um usuário"""
+        return cls.query.filter_by(usuario_id=usuario_id, lida=False).order_by(cls.data_criacao.desc()).all()
+
+    @classmethod
+    def contar_nao_lidas(cls, usuario_id):
+        """Conta notificações não lidas de um usuário"""
+        return cls.query.filter_by(usuario_id=usuario_id, lida=False).count()
+
+    @classmethod
+    def marcar_todas_lidas(cls, usuario_id):
+        """Marca todas notificações de um usuário como lidas"""
+        notificacoes = cls.query.filter_by(usuario_id=usuario_id, lida=False).all()
+        for notif in notificacoes:
+            notif.lida = True
+            notif.data_leitura = datetime.utcnow()
+        db.session.commit()
+        return len(notificacoes)
+
+    def __repr__(self):
+        return f'<Notificacao {self.id} - {self.tipo} - Usuario {self.usuario_id}>'

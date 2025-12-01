@@ -13,6 +13,7 @@ from .routes_comentario import bp as comentario_bp
 from .routes_dashboard_executivo import bp as dashboard_executivo_bp
 from .routes_whatsapp import webhook_bp, admin_bp as whatsapp_admin_bp
 from .routes_admin import admin_bp
+from .routes_notificacao import bp as notificacao_bp
 
 __all__ = [
     'documento_bp',
@@ -28,5 +29,6 @@ __all__ = [
     'dashboard_executivo_bp',
     'webhook_bp',
     'whatsapp_admin_bp',
-    'admin_bp'
+    'admin_bp',
+    'notificacao_bp'
 ]

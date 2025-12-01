@@ -1179,3 +1179,39 @@ def get_setor_dashboard(setor_nome):
             'metadados': parse_metadados(doc)
         } for doc in docs_recentes]
     })
+
+
+@bp_api.route('/<int:id>/status-ia', methods=['GET'])
+@login_required
+def status_ia(id):
+    """
+    Retorna status do processamento IA do documento
+
+    Returns:
+        JSON com:
+        - processado: bool (se já foi processado pela IA)
+        - texto_extraido: bool (se texto foi extraído)
+        - titulo_extraido: bool (se título foi extraído pela IA)
+        - tem_metadados: bool (se tem metadados de IA)
+        - metadados: dict (metadados da IA)
+    """
+    documento = Documento.query.get_or_404(id)
+
+    # Verifica se usuário tem permissão para ver este documento
+    if not (documento.criador_id == current_user.id or
+            current_user.is_gerente_ou_superior() or
+            current_user.is_admin()):
+        return jsonify({'erro': 'Acesso negado'}), 403
+
+    # Verifica se tem metadados (significa que foi processado)
+    metadados_dict = documento.get_metadados() if hasattr(documento, 'get_metadados') else {}
+    tem_metadados = metadados_dict is not None and len(metadados_dict) > 0
+
+    return jsonify({
+        'processado': tem_metadados,
+        'texto_extraido': documento.texto_extraido is not None and len(documento.texto_extraido or '') > 0,
+        'titulo_extraido': 'titulo_extraido_ia' in metadados_dict if metadados_dict else False,
+        'tem_metadados': tem_metadados,
+        'metadados': metadados_dict,
+        'documento_id': id
+    })

@@ -94,6 +94,45 @@
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">
+                    <!-- Notificações -->
+                    <li class="nav-item dropdown me-2">
+                        <a class="nav-link position-relative" href="#" id="notificationDropdown"
+                           role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-bell-fill fs-5"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                  id="notification-badge" style="display: none;">
+                                0
+                            </span>
+                        </a>
+
+                        <ul class="dropdown-menu dropdown-menu-end p-0 shadow" style="width: 380px; max-height: 500px;">
+                            <!-- Header -->
+                            <li class="dropdown-header bg-primary text-white d-flex justify-content-between align-items-center py-2 px-3">
+                                <span><i class="bi bi-bell"></i> Notificações</span>
+                                <button class="btn btn-sm btn-link text-white text-decoration-none p-0"
+                                        onclick="marcarTodasLidas()" title="Marcar todas como lidas">
+                                    <i class="bi bi-check-all"></i>
+                                </button>
+                            </li>
+
+                            <!-- Lista de notificações -->
+                            <div id="notifications-list" style="max-height: 380px; overflow-y: auto;">
+                                <li class="text-center py-4 text-muted">
+                                    <i class="bi bi-inbox fs-1"></i>
+                                    <p class="mb-0 mt-2">Nenhuma notificação</p>
+                                </li>
+                            </div>
+
+                            <!-- Footer -->
+                            <li class="dropdown-footer text-center border-top py-2">
+                                <small class="text-muted">
+                                    Notificações são atualizadas automaticamente
+                                </small>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <!-- Usuário -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-person-circle"></i> {{ current_user.nome }}
@@ -144,6 +183,177 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    {% if current_user.is_authenticated %}
+    <!-- Sistema de Notificações -->
+    <script>
+    // ============================================================================
+    // SISTEMA DE NOTIFICAÇÕES
+    // ============================================================================
+
+    /**
+     * Atualiza contador de notificações não lidas
+     */
+    async function atualizarContadorNotificacoes() {
+        try {
+            const response = await fetch('/api/notificacoes/count');
+            const data = await response.json();
+
+            const badge = document.getElementById('notification-badge');
+            if (data.count > 0) {
+                badge.textContent = data.count > 99 ? '99+' : data.count;
+                badge.style.display = 'inline';
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('[Notificações] Erro ao atualizar contador:', error);
+        }
+    }
+
+    /**
+     * Carrega e exibe lista de notificações
+     */
+    async function carregarNotificacoes() {
+        try {
+            const response = await fetch('/api/notificacoes');
+            const data = await response.json();
+
+            const container = document.getElementById('notifications-list');
+
+            if (data.notificacoes.length === 0) {
+                container.innerHTML = `
+                    <li class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox fs-1"></i>
+                        <p class="mb-0 mt-2">Nenhuma notificação</p>
+                    </li>
+                `;
+                return;
+            }
+
+            container.innerHTML = data.notificacoes.map(n => `
+                <li class="border-bottom">
+                    <a class="dropdown-item py-3 notificacao-item" href="${n.link || '#'}"
+                       onclick="marcarComoLida(${n.id})" style="white-space: normal;">
+                        <div class="d-flex">
+                            <div class="me-2">
+                                ${getIconeNotificacao(n.tipo)}
+                            </div>
+                            <div class="flex-grow-1">
+                                <strong class="d-block">${n.titulo}</strong>
+                                <p class="mb-1 small text-muted" style="line-height: 1.4;">
+                                    ${n.mensagem}
+                                </p>
+                                <small class="text-muted">
+                                    <i class="bi bi-clock"></i> ${n.tempo_relativo}
+                                </small>
+                            </div>
+                        </div>
+                    </a>
+                </li>
+            `).join('');
+
+        } catch (error) {
+            console.error('[Notificações] Erro ao carregar notificações:', error);
+            const container = document.getElementById('notifications-list');
+            container.innerHTML = `
+                <li class="text-center py-4 text-danger">
+                    <i class="bi bi-exclamation-triangle fs-1"></i>
+                    <p class="mb-0 mt-2">Erro ao carregar notificações</p>
+                </li>
+            `;
+        }
+    }
+
+    /**
+     * Retorna ícone baseado no tipo de notificação
+     */
+    function getIconeNotificacao(tipo) {
+        const icones = {
+            'processamento_ia': '<span class="badge bg-success rounded-circle"><i class="bi bi-robot"></i></span>',
+            'tarefa_atribuida': '<span class="badge bg-primary rounded-circle"><i class="bi bi-list-check"></i></span>',
+            'documento_aprovado': '<span class="badge bg-success rounded-circle"><i class="bi bi-check-circle"></i></span>',
+            'documento_reprovado': '<span class="badge bg-warning rounded-circle"><i class="bi bi-x-circle"></i></span>',
+            'documento_vencendo': '<span class="badge bg-warning rounded-circle"><i class="bi bi-clock"></i></span>',
+            'documento_vencido': '<span class="badge bg-danger rounded-circle"><i class="bi bi-exclamation-triangle"></i></span>',
+            'comentario': '<span class="badge bg-info rounded-circle"><i class="bi bi-chat-dots"></i></span>'
+        };
+        return icones[tipo] || '<span class="badge bg-secondary rounded-circle"><i class="bi bi-bell"></i></span>';
+    }
+
+    /**
+     * Marca uma notificação como lida
+     */
+    async function marcarComoLida(id) {
+        try {
+            await fetch(`/api/notificacoes/${id}/marcar-lida`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            // Atualiza contador
+            await atualizarContadorNotificacoes();
+
+        } catch (error) {
+            console.error('[Notificações] Erro ao marcar como lida:', error);
+        }
+    }
+
+    /**
+     * Marca todas notificações como lidas
+     */
+    async function marcarTodasLidas() {
+        try {
+            const response = await fetch('/api/notificacoes/marcar-todas-lidas', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.sucesso) {
+                // Atualiza interface
+                await carregarNotificacoes();
+                await atualizarContadorNotificacoes();
+
+                // Mostra toast se disponível
+                if (typeof showToast === 'function') {
+                    showToast(data.mensagem, 'success');
+                }
+            }
+
+        } catch (error) {
+            console.error('[Notificações] Erro ao marcar todas como lidas:', error);
+        }
+    }
+
+    // ============================================================================
+    // INICIALIZAÇÃO
+    // ============================================================================
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Carrega contador inicial
+        atualizarContadorNotificacoes();
+
+        // Ao clicar no sino, carrega notificações
+        const dropdown = document.getElementById('notificationDropdown');
+        if (dropdown) {
+            dropdown.addEventListener('click', function() {
+                carregarNotificacoes();
+            });
+        }
+
+        // Auto-refresh a cada 30 segundos
+        setInterval(atualizarContadorNotificacoes, 30000);
+
+        console.log('[Notificações] Sistema inicializado');
+    });
+    </script>
+    {% endif %}
 
     {% block extra_js %}{% endblock %}
 </body>
