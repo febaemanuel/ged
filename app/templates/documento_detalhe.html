@@ -150,9 +150,22 @@
                     <div>
                         <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> {{ documento.titulo_completo }}</h5>
                     </div>
-                    <span class="status-badge badge bg-{% if documento.status == 'Publicado' %}success{% elif documento.status == 'Aprovado' %}primary{% elif documento.status in ['Em Triagem', 'Em Validação', 'Em Aprovação'] %}warning{% else %}secondary{% endif %}">
-                        {{ documento.status }}
-                    </span>
+                    <div class="d-flex gap-2">
+                        <span class="status-badge badge bg-{% if documento.status == 'Publicado' %}success{% elif documento.status == 'Aprovado' %}primary{% elif documento.status in ['Em Triagem', 'Em Validação', 'Em Aprovação'] %}warning{% else %}secondary{% endif %}">
+                            {{ documento.status }}
+                        </span>
+                        <!-- Badge de Processamento IA -->
+                        {% if documento.get_metadados() and documento.get_metadados()|length > 0 %}
+                        <span class="badge bg-success" style="font-size: 0.85rem;">
+                            <i class="bi bi-check-circle-fill"></i> IA Processado
+                        </span>
+                        {% else %}
+                        <span class="badge bg-warning" id="badge-processando-ia" style="font-size: 0.85rem;">
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            Processando IA...
+                        </span>
+                        {% endif %}
+                    </div>
                 </div>
                 <div class="card-body">
                     <!-- Informações Principais -->
@@ -925,5 +938,75 @@ function confirmarExclusao() {
         });
     }
 }
+
+// ============================================================================
+// AUTO-REFRESH: Verifica status do processamento IA
+// ============================================================================
+
+/**
+ * Verifica status do processamento IA a cada 5 segundos
+ * Atualiza badge quando processamento concluir
+ */
+function verificarProcessamentoIA() {
+    const badge = document.getElementById('badge-processando-ia');
+    if (!badge) return; // Badge não existe = já foi processado
+
+    let tentativas = 0;
+    const MAX_TENTATIVAS = 60; // 60 tentativas * 5s = 5 minutos
+
+    const interval = setInterval(async () => {
+        tentativas++;
+
+        // Para após 5 minutos
+        if (tentativas >= MAX_TENTATIVAS) {
+            clearInterval(interval);
+            badge.className = 'badge bg-secondary';
+            badge.innerHTML = '<i class="bi bi-clock"></i> Processamento pendente';
+            console.log('[IA] Timeout - processamento demorou mais de 5 minutos');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/documentos/{{ documento.id }}/status-ia');
+
+            if (!response.ok) {
+                console.error('[IA] Erro ao verificar status:', response.status);
+                return;
+            }
+
+            const data = await response.json();
+            console.log('[IA] Status:', data);
+
+            if (data.processado) {
+                clearInterval(interval);
+
+                // Atualiza badge para sucesso
+                badge.className = 'badge bg-success';
+                badge.innerHTML = '<i class="bi bi-check-circle-fill"></i> IA Processado';
+
+                // Mostra toast de sucesso
+                if (typeof showToast === 'function') {
+                    showToast('✅ Processamento IA concluído com sucesso!', 'success');
+                } else {
+                    console.log('✅ Processamento IA concluído!');
+                }
+
+                // Recarrega página após 2 segundos para mostrar metadados atualizados
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('[IA] Erro ao verificar status:', error);
+        }
+    }, 5000); // Verifica a cada 5 segundos
+
+    console.log('[IA] Monitoramento iniciado - verificando a cada 5s');
+}
+
+// Inicia verificação quando página carregar
+document.addEventListener('DOMContentLoaded', function() {
+    verificarProcessamentoIA();
+});
 </script>
 {% endblock %}
