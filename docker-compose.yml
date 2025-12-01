@@ -26,7 +26,7 @@ services:
     environment:
       POSTGRES_DB: ged_db
       POSTGRES_USER: ged_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-ged_password_CHANGE_IN_PRODUCTION}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}  # ✅ SEM fallback inseguro
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=pt_BR.UTF-8 --lc-ctype=pt_BR.UTF-8"
       LANG: pt_BR.UTF-8
       LC_ALL: pt_BR.UTF-8
@@ -50,13 +50,15 @@ services:
     image: redis:7-alpine
     container_name: ged_redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}  # ✅ Autenticação obrigatória
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     networks:
       - ged_network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -81,13 +83,13 @@ services:
       FLASK_APP: app.py
 
       # Segurança
-      SECRET_KEY: ${SECRET_KEY:-GENERATE_WITH_python_-c_import_secrets_print_secrets_token_hex_32}
+      SECRET_KEY: ${SECRET_KEY}  # ✅ Obrigatório, sem fallback
 
       # Database
-      DATABASE_URL: postgresql://ged_user:${DB_PASSWORD:-ged_password_CHANGE_IN_PRODUCTION}@db:5432/ged_db
+      DATABASE_URL: postgresql://ged_user:${DB_PASSWORD}@db:5432/ged_db
 
       # Redis/Celery
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0  # ✅ Com autenticação
 
       # AI (DeepSeek)
       AI_API_BASE_URL: ${AI_API_BASE_URL:-https://api.deepseek.com}
@@ -149,17 +151,17 @@ services:
       FLASK_APP: app.py
 
       # Segurança
-      SECRET_KEY: ${SECRET_KEY:-GENERATE_WITH_python_-c_import_secrets_print_secrets_token_hex_32}
+      SECRET_KEY: ${SECRET_KEY}  # ✅ Obrigatório, sem fallback
 
       # Database
-      DATABASE_URL: postgresql://ged_user:${DB_PASSWORD:-ged_password_CHANGE_IN_PRODUCTION}@db:5432/ged_db
+      DATABASE_URL: postgresql://ged_user:${DB_PASSWORD}@db:5432/ged_db
       DB_NAME: ged_db
       DB_USER: ged_user
       DB_PASSWORD: ${DB_PASSWORD:-ged_password_CHANGE_IN_PRODUCTION}
       DB_HOST: db
 
       # Redis/Celery
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0  # ✅ Com autenticação
 
       # AI (DeepSeek)
       AI_API_BASE_URL: ${AI_API_BASE_URL:-https://api.deepseek.com}
@@ -213,13 +215,13 @@ services:
       FLASK_APP: app.py
 
       # Segurança
-      SECRET_KEY: ${SECRET_KEY:-GENERATE_WITH_python_-c_import_secrets_print_secrets_token_hex_32}
+      SECRET_KEY: ${SECRET_KEY}  # ✅ Obrigatório, sem fallback
 
       # Database
-      DATABASE_URL: postgresql://ged_user:${DB_PASSWORD:-ged_password_CHANGE_IN_PRODUCTION}@db:5432/ged_db
+      DATABASE_URL: postgresql://ged_user:${DB_PASSWORD}@db:5432/ged_db
 
       # Redis/Celery
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0  # ✅ Com autenticação
 
     volumes:
       - logs:/app/logs

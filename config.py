@@ -33,14 +33,11 @@ class Config:
     # Configurações do banco de dados PostgreSQL
     _db_uri = os.environ.get('DATABASE_URL')
     if not _db_uri:
-        # Apenas em desenvolvimento permite fallback
-        if os.environ.get('FLASK_ENV') != 'production':
-            _db_uri = 'postgresql://ged_user:ged_password@localhost:5432/ged_db'
-        else:
-            raise ValueError(
-                "DATABASE_URL não definida em produção! "
-                "Por favor, defina a variável de ambiente DATABASE_URL."
-            )
+        raise ValueError(
+            "DATABASE_URL não definida! "
+            "Por favor, defina a variável de ambiente DATABASE_URL.\n"
+            "Exemplo: postgresql://usuario:senha@localhost:5432/ged_db"
+        )
 
     # Garante que ?client_encoding=utf8 está na URI
     if '?' in _db_uri:
@@ -73,7 +70,11 @@ class Config:
     # Configurações de sessão
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
     SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SAMESITE = 'Strict'  # ✅ Mais restritivo contra CSRF
+    SESSION_COOKIE_SECURE = os.environ.get('FLASK_ENV') == 'production'  # ✅ HTTPS em prod
+    SESSION_COOKIE_DOMAIN = None  # ✅ Previne cookie leaking
+    SESSION_COOKIE_PATH = '/'
+    SESSION_COOKIE_MAX_AGE = 86400  # 24h em segundos
 
     # Configurações da API de IA (DeepSeek)
     AI_API_BASE_URL = os.environ.get('AI_API_BASE_URL') or 'https://api.deepseek.com'
