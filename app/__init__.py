@@ -100,20 +100,68 @@ def create_app(config_name='default'):
         """Página inicial com documentação básica"""
         return render_template('index.html')
 
-    # Health check endpoint para Docker
+    # ✅ Health check endpoint detalhado para Docker
     @app.route('/health')
     def health_check():
-        """Health check endpoint para monitoramento"""
+        """Health check endpoint detalhado para monitoramento"""
+        from datetime import datetime
+        import shutil
+
+        health = {
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'checks': {}
+        }
+
+        # 1. Database
         try:
-            # Testa conexão com banco de dados (SQLAlchemy 2.0)
             db.session.execute(text('SELECT 1')).scalar()
             db.session.commit()
-            return {'status': 'healthy', 'database': 'connected'}, 200
+            health['checks']['database'] = 'ok'
         except Exception as e:
             db.session.rollback()
-            # Log do erro (não expõe detalhes em produção)
-            app.logger.error(f'Health check failed: {str(e)}')
-            return {'status': 'unhealthy', 'database': 'disconnected'}, 503
+            health['checks']['database'] = f'error: {str(e)}'
+            health['status'] = 'unhealthy'
+            app.logger.error(f'Database health check failed: {str(e)}')
+
+        # 2. Redis/Celery Broker
+        try:
+            from celery_app import celery
+            celery.broker_connection().ensure_connection(max_retries=1, timeout=2)
+            health['checks']['redis'] = 'ok'
+        except Exception as e:
+            health['checks']['redis'] = f'error: {str(e)}'
+            health['status'] = 'degraded'
+            app.logger.warning(f'Redis health check failed: {str(e)}')
+
+        # 3. Celery Workers (opcional - não bloqueia)
+        try:
+            from celery_app import celery
+            stats = celery.control.inspect(timeout=1).stats()
+            if stats:
+                health['checks']['celery_workers'] = f"{len(stats)} active"
+            else:
+                health['checks']['celery_workers'] = 'no workers'
+                health['status'] = 'degraded' if health['status'] == 'healthy' else health['status']
+        except Exception as e:
+            health['checks']['celery_workers'] = 'unknown'
+            app.logger.debug(f'Celery workers check failed: {str(e)}')
+
+        # 4. Espaço em Disco
+        try:
+            disk = shutil.disk_usage('/app')
+            disk_free_pct = (disk.free / disk.total) * 100
+            health['checks']['disk_free'] = f"{disk_free_pct:.1f}%"
+            if disk_free_pct < 10:
+                health['status'] = 'degraded' if health['status'] == 'healthy' else health['status']
+                app.logger.warning(f'Low disk space: {disk_free_pct:.1f}%')
+        except Exception as e:
+            health['checks']['disk_free'] = 'unknown'
+            app.logger.debug(f'Disk check failed: {str(e)}')
+
+        # Status code baseado no status
+        status_code = 200 if health['status'] == 'healthy' else 503
+        return health, status_code
 
     # Handler de erro 404
     @app.errorhandler(404)

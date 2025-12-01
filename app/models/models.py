@@ -103,11 +103,11 @@ class Documento(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     # Informações básicas
-    titulo = db.Column(db.String(200), nullable=False)
-    tipo_documento = db.Column(db.String(50), nullable=False)  # POP, Manual, Protocolo, Política, Regimento, Regulamento
+    titulo = db.Column(db.String(200), nullable=False, index=True)  # ✅ Índice para busca
+    tipo_documento = db.Column(db.String(50), nullable=False, index=True)  # ✅ Índice para filtros
     descricao = db.Column(db.Text)
-    setor = db.Column(db.String(100))
-    abrangencia = db.Column(db.String(100))  # CHUFC, HUWC, MEAC, etc
+    setor = db.Column(db.String(100), index=True)  # ✅ Índice para filtros por setor
+    abrangencia = db.Column(db.String(100), index=True)  # ✅ Índice para filtros por abrangência
     autores = db.Column(db.Text)  # Autores extraídos pela IA (formato JSON ou texto)
 
     # Arquivos
@@ -125,25 +125,41 @@ class Documento(db.Model):
     versao_anterior_id = db.Column(db.Integer, db.ForeignKey('documentos.id'))  # Documento que esta versão substituiu
 
     # Datas e vencimento
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_publicacao = db.Column(db.DateTime)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)  # ✅ Índice
+    data_publicacao = db.Column(db.DateTime, index=True)  # ✅ Índice para ordenação
     validade_anos = db.Column(db.Integer, default=5)
-    data_vencimento = db.Column(db.DateTime)
+    data_vencimento = db.Column(db.DateTime, index=True)  # ✅ Índice para alertas de vencimento
 
     # Status e controle
     status = db.Column(db.String(50), default='Novo', nullable=False, index=True)
+
+    # ✅ SOFT DELETE - Para auditoria e recuperação
+    deleted_at = db.Column(db.DateTime, nullable=True, index=True)
+
+    # ✅ AUDITORIA - Rastreamento de alterações
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
 
     # IA - texto e metadados extraídos
     texto_extraido = db.Column(db.Text)
     metadados_json = db.Column(db.Text)  # JSON string com resultados da IA
 
     # Relacionamentos
-    criador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    criador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)  # ✅ Índice
     chefia_imediata_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)  # Chefia para aprovação
     tarefas = db.relationship('Tarefa', backref='documento', lazy='dynamic',
                              cascade='all, delete-orphan')
     logs_ia = db.relationship('LogAI', backref='documento', lazy='dynamic',
                              cascade='all, delete-orphan')
+
+    # ✅ ÍNDICES COMPOSTOS para queries complexas
+    __table_args__ = (
+        db.Index('ix_doc_setor_tipo', 'setor', 'tipo_documento'),
+        db.Index('ix_doc_status_vencimento', 'status', 'data_vencimento'),
+        db.Index('ix_doc_abrangencia_setor', 'abrangencia', 'setor'),
+        db.Index('ix_doc_criador_status', 'criador_id', 'status'),
+        db.Index('ix_doc_data_criacao_status', 'data_criacao', 'status'),
+    )
 
     def __init__(self, *args, **kwargs):
         super(Documento, self).__init__(*args, **kwargs)
@@ -400,6 +416,26 @@ class Documento(db.Model):
         versao_posterior = Documento.query.filter_by(versao_anterior_id=self.id).first()
         return versao_posterior is None
 
+    # ✅ MÉTODOS DE SOFT DELETE
+    def soft_delete(self, usuario_id=None):
+        """Marca documento como deletado sem remover do banco"""
+        self.deleted_at = datetime.utcnow()
+        self.status = 'Deletado'
+        if usuario_id:
+            self.updated_by_id = usuario_id
+
+    def restore(self, usuario_id=None):
+        """Restaura documento deletado"""
+        self.deleted_at = None
+        self.status = 'Novo'
+        if usuario_id:
+            self.updated_by_id = usuario_id
+
+    @classmethod
+    def query_active(cls):
+        """Retorna query apenas de documentos não deletados"""
+        return cls.query.filter(cls.deleted_at == None)
+
     def restaurar_versao(self, usuario_id, motivo="Restauração de versão anterior"):
         """
         Restaura uma versão anterior criando uma nova versão baseada nesta
@@ -516,6 +552,13 @@ class Tarefa(db.Model):
 
     # Metadados extras (para bloco de assinatura, etc)
     metadata_json = db.Column(db.Text)  # JSON com dados extras (bloco_id, item_id, modo, etc)
+
+    # ✅ ÍNDICES COMPOSTOS para queries de tarefas
+    __table_args__ = (
+        db.Index('ix_tarefas_responsavel_concluida', 'responsavel_id', 'concluida'),
+        db.Index('ix_tarefas_documento_concluida', 'documento_id', 'concluida'),
+        db.Index('ix_tarefas_prazo_concluida', 'prazo', 'concluida'),
+    )
 
     def esta_atrasada(self):
         """Verifica se a tarefa está atrasada"""

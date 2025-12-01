@@ -6,8 +6,14 @@ import os
 from celery import Celery
 from celery.schedules import crontab
 
-# Configuração do broker (Redis)
-REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+# ✅ Configuração do broker (Redis com autenticação)
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
+if REDIS_PASSWORD:
+    # Redis com autenticação: redis://:senha@host:port/db
+    REDIS_URL = os.getenv('REDIS_URL', f'redis://:{REDIS_PASSWORD}@localhost:6379/0')
+else:
+    # Fallback para desenvolvimento (sem senha)
+    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
 # Cria instância do Celery
 celery = Celery(
@@ -40,6 +46,10 @@ celery.conf.update(
     # Performance
     worker_prefetch_multiplier=1,  # Pega 1 tarefa por vez (melhor para tarefas longas)
     worker_max_tasks_per_child=1000,  # Recria worker após 1000 tarefas (previne memory leak)
+
+    # ✅ TIMEOUTS - Previne tarefas infinitas
+    task_time_limit=600,  # Hard limit: 10 minutos (mata a tarefa)
+    task_soft_time_limit=540,  # Soft limit: 9 minutos (levanta exceção SoftTimeLimitExceeded)
 
     # Tarefas agendadas (Celery Beat)
     beat_schedule={
