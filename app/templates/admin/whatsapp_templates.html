@@ -32,6 +32,7 @@
 
             <!-- Formulário de Templates -->
             <form method="POST" action="{{ url_for('whatsapp_admin.templates') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="row">
                     <!-- Coluna Esquerda -->
                     <div class="col-md-6">

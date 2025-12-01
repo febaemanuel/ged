@@ -98,6 +98,7 @@
                     {% if tarefa.tipo_tarefa == 'Documento Recebido' or tarefa.tipo_tarefa == 'Triagem de Documento' %}
                     <h5><i class="bi bi-funnel"></i> Triagem UGQ - 3 Checkpoints</h5>
                     <form method="POST" action="{{ url_for('view.concluir_triagem', tarefa_id=tarefa.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="alert alert-info">
                             <strong>Instruções:</strong> Verifique os 3 checkpoints obrigatórios antes de aprovar o documento.
                         </div>
@@ -226,6 +227,7 @@
 
                     <!-- Formulário de Codificação -->
                     <form method="POST" action="{{ url_for('view.codificar_documento', tarefa_id=tarefa.id) }}" id="formCodificar">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="alert alert-info">
                             <strong>Validador UGQ:</strong> Defina o código definitivo e versão do documento, ou devolva para correção.
                         </div>
@@ -301,6 +303,7 @@
                     <!-- Opção de Devolução -->
                     <h6 class="text-warning"><i class="bi bi-arrow-return-left"></i> Devolver Documento</h6>
                     <form method="POST" action="{{ url_for('view.validador_devolver_documento', tarefa_id=tarefa.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="alert alert-warning">
                             <strong>Atenção:</strong> Use esta opção caso o documento precise de correções antes de prosseguir.
                         </div>
@@ -331,6 +334,7 @@
                     {% elif 'Assinar Documento' in tarefa.tipo_tarefa %}
                     <h5><i class="bi bi-pen"></i> Assinatura Digital de Documento</h5>
                     <form method="POST" action="{{ url_for('view.assinar_documento', tarefa_id=tarefa.id) }}" id="formAssinatura">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="alert alert-primary">
                             <strong><i class="bi bi-shield-check"></i> Assinatura Digital:</strong> Revise o documento e confirme com sua senha.
                             Sua assinatura será registrada com hash SHA-256 para garantir autenticidade.
@@ -387,6 +391,7 @@
                     {% elif tarefa.tipo_tarefa == 'Publicar Documento Aprovado' %}
                     <h5><i class="bi bi-cloud-upload"></i> Publicar Documento</h5>
                     <form method="POST" action="{{ url_for('view.publicar_documento', tarefa_id=tarefa.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="alert alert-success">
                             <i class="bi bi-check-circle"></i> <strong>Documento aprovado por todos os aprovadores!</strong><br>
                             Revise os dados abaixo e confirme a publicação.
@@ -460,8 +465,8 @@
                         <div class="alert alert-info">
                             <p class="mb-2"><strong>Ao publicar:</strong></p>
                             <ul class="mb-0">
-                                <li>Documento será marcado como <strong>VIGENTE</strong></li>
-                                <li>Será adicionado à <strong>Lista Mestra oficial</strong></li>
+                                <li>Documento será marcado como <strong>PUBLICADO</strong></li>
+                                <li>Será adicionado à <strong>Lista Mestra oficial</strong> com status VIGENTE</li>
                                 <li>Título final: <strong>{{ tarefa.documento.codigo_definitivo or 'CODIGO' }} - {{ tarefa.documento.titulo or 'TITULO' }}</strong></li>
                             </ul>
                         </div>
@@ -495,6 +500,7 @@
                     {% endif %}
 
                     <form method="POST" action="{{ url_for('view.tarefa_concluir', id=tarefa.id) }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="mb-3">
                             <label for="parecer" class="form-label">Parecer *</label>
                             <textarea class="form-control" id="parecer" name="parecer" rows="4" required></textarea>

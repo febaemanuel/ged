@@ -95,7 +95,6 @@ class Documento(db.Model):
     - Em Ajustes (Reprovado, precisa ajustes)
     - Aprovado
     - Publicado
-    - Vigente
     - Cancelado
     - Obsoleto
     """

@@ -97,6 +97,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('whatsapp_admin.salvar_configuracao') }}" id="formConfig">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
                         <!-- Status Ativo/Inativo -->
                         <div class="alert alert-{% if config.ativo %}success{% else %}warning{% endif %} border-{% if config.ativo %}success{% else %}warning{% endif %} alert-permanent" id="alertStatus">

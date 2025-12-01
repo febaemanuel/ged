@@ -91,6 +91,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('view.documento_editar', id=documento.id) }}" enctype="multipart/form-data" id="formDocumento">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
                         <!-- Seção: Informações Básicas -->
                         <div class="edit-section">

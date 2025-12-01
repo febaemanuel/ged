@@ -272,6 +272,14 @@ def concluir_tarefa(id):
         documento.gerar_codigo_definitivo()
         documento.status = 'Publicado'
 
+        # Gera PDF adicional em background (se necessário)
+        # Nota: o PDF já foi enviado acima, mas podemos gerar versão com cabeçalhos/metadados
+        # try:
+        #     from tasks import gerar_pdf_publicado
+        #     gerar_pdf_publicado.delay(documento.id)
+        # except Exception as e:
+        #     logger.warning(f"Não foi possível agendar geração de PDF: {str(e)}")
+
     # Conclui tarefa
     tarefa.concluir(parecer=parecer, aprovado=aprovado, arquivo=arquivo_nome)
 

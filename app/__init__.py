@@ -4,6 +4,8 @@ Inicialização do aplicativo Flask GED
 from flask import Flask, render_template
 from flask_login import LoginManager
 from flask_mail import Mail
+from flask_wtf.csrf import CSRFProtect
+from sqlalchemy import text
 import os
 import logging
 from logging.handlers import RotatingFileHandler
@@ -14,6 +16,7 @@ from app.models import db, Usuario
 
 login_manager = LoginManager()
 mail = Mail()
+csrf = CSRFProtect()
 
 
 def create_app(config_name='default'):
@@ -37,6 +40,7 @@ def create_app(config_name='default'):
     login_manager.login_view = 'view.login'
     login_manager.login_message = 'Por favor, faça login para acessar esta página.'
     mail.init_app(app)
+    csrf.init_app(app)
 
     # Configura logging
     if not app.debug and not app.testing:
@@ -94,6 +98,21 @@ def create_app(config_name='default'):
         """Página inicial com documentação básica"""
         return render_template('index.html')
 
+    # Health check endpoint para Docker
+    @app.route('/health')
+    def health_check():
+        """Health check endpoint para monitoramento"""
+        try:
+            # Testa conexão com banco de dados (SQLAlchemy 2.0)
+            db.session.execute(text('SELECT 1')).scalar()
+            db.session.commit()
+            return {'status': 'healthy', 'database': 'connected'}, 200
+        except Exception as e:
+            db.session.rollback()
+            # Log do erro (não expõe detalhes em produção)
+            app.logger.error(f'Health check failed: {str(e)}')
+            return {'status': 'unhealthy', 'database': 'disconnected'}, 503
+
     # Handler de erro 404
     @app.errorhandler(404)
     def not_found(error):
@@ -102,7 +121,10 @@ def create_app(config_name='default'):
     # Handler de erro 500
     @app.errorhandler(500)
     def internal_error(error):
+        """Handler para erros internos do servidor"""
         db.session.rollback()
+        # Log do erro completo para debug
+        app.logger.error(f'Internal server error: {error}', exc_info=True)
         return {'erro': 'Erro interno do servidor'}, 500
 
     return app

@@ -81,6 +81,7 @@
             </div>
             <div class="col-md-4 text-end">
                 <form action="{{ url_for('admin.inicializar_dados') }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn btn-outline-light btn-sm" onclick="return confirm('Inicializar dados padrão?')">
                         <i class="bi bi-database-add"></i> Inicializar Dados Padrão
                     </button>
@@ -150,6 +151,7 @@
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form action="{{ url_for('admin.abrangencia_excluir', id=a.id) }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Excluir?')"><i class="bi bi-trash"></i></button>
                                     </form>
                                 </div>
@@ -189,6 +191,7 @@
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form action="{{ url_for('admin.tipo_documento_excluir', id=t.id) }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Excluir?')"><i class="bi bi-trash"></i></button>
                                     </form>
                                 </div>
@@ -234,6 +237,7 @@
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form action="{{ url_for('admin.setor_excluir', id=s.id) }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Excluir?')"><i class="bi bi-trash"></i></button>
                                     </form>
                                 </td>
@@ -271,6 +275,7 @@
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form action="{{ url_for('admin.perfil_excluir', id=p.id) }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Excluir?')"><i class="bi bi-trash"></i></button>
                                     </form>
                                 </div>
@@ -311,6 +316,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <form id="formAbrangencia" method="POST" action="{{ url_for('admin.abrangencia_criar') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="modal-header"><h5 class="modal-title" id="tituloModalAbrangencia">Nova Abrangência</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body">
                     <input type="hidden" id="abrangencia_id" name="id">
@@ -334,6 +340,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <form id="formTipo" method="POST" action="{{ url_for('admin.tipo_documento_criar') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="modal-header"><h5 class="modal-title" id="tituloModalTipo">Novo Tipo de Documento</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body">
                     <input type="hidden" id="tipo_id" name="id">
@@ -354,6 +361,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <form id="formSetor" method="POST" action="{{ url_for('admin.setor_criar') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="modal-header"><h5 class="modal-title" id="tituloModalSetor">Novo Setor</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body">
                     <input type="hidden" id="setor_id" name="id">
@@ -386,6 +394,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <form id="formPerfil" method="POST" action="{{ url_for('admin.perfil_criar') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="modal-header"><h5 class="modal-title" id="tituloModalPerfil">Novo Perfil</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body">
                     <input type="hidden" id="perfil_id" name="id">

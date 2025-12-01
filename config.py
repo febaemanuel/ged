@@ -21,16 +21,26 @@ class Config:
     # IMPORTANTE: SECRET_KEY deve SEMPRE ser definida via variável de ambiente
     SECRET_KEY = os.environ.get('SECRET_KEY')
     if not SECRET_KEY:
-        raise ValueError(
-            "SECRET_KEY não definida! "
-            "Por favor, defina a variável de ambiente SECRET_KEY com uma chave segura. "
-            "Você pode gerar uma com: python -c 'import secrets; print(secrets.token_hex(32))'"
-        )
+        # Em produção, SECRET_KEY é obrigatória
+        if os.environ.get('FLASK_ENV') == 'production':
+            raise ValueError(
+                "SECRET_KEY não definida em produção! "
+                "Por favor, defina a variável de ambiente SECRET_KEY com uma chave segura. "
+                "Você pode gerar uma com: python -c 'import secrets; print(secrets.token_hex(32))'"
+            )
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
     # Configurações do banco de dados PostgreSQL
-    _db_uri = os.environ.get('DATABASE_URL') or \
-        'postgresql://ged_user:ged_password@localhost:5432/ged_db'
+    _db_uri = os.environ.get('DATABASE_URL')
+    if not _db_uri:
+        # Apenas em desenvolvimento permite fallback
+        if os.environ.get('FLASK_ENV') != 'production':
+            _db_uri = 'postgresql://ged_user:ged_password@localhost:5432/ged_db'
+        else:
+            raise ValueError(
+                "DATABASE_URL não definida em produção! "
+                "Por favor, defina a variável de ambiente DATABASE_URL."
+            )
 
     # Garante que ?client_encoding=utf8 está na URI
     if '?' in _db_uri:
@@ -113,10 +123,9 @@ class Config:
     STATUS_EM_APROVACAO = 'Em Aprovação'                    # Novo - Workflow UGQ (bloco assinatura)
     STATUS_EM_AJUSTES = 'Em Ajustes'                        # Novo - Workflow UGQ (reprovado)
     STATUS_APROVADO = 'Aprovado'
-    STATUS_PUBLICADO = 'Publicado'                          # Simplificado
+    STATUS_PUBLICADO = 'Publicado'
     STATUS_CANCELADO = 'Cancelado'
     STATUS_OBSOLETO = 'Obsoleto'
-    STATUS_VIGENTE = 'Vigente'                              # Novo - Workflow UGQ
 
     # Tipos de documentos
     TIPO_POP = 'POP'
@@ -318,8 +327,13 @@ class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = True
 
-    # Em desenvolvimento, permite chave fraca SE não estiver definida
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-only-key-CHANGE-IN-PRODUCTION-OR-APP-WILL-FAIL'
+    # Em desenvolvimento, gera chave aleatória se não definida
+    if not Config.SECRET_KEY:
+        import secrets
+        SECRET_KEY = secrets.token_hex(32)
+        print("⚠️  DESENVOLVIMENTO: SECRET_KEY gerada automaticamente (não persistente)")
+    else:
+        SECRET_KEY = Config.SECRET_KEY
 
 
 class ProductionConfig(Config):

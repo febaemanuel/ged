@@ -43,7 +43,18 @@ def login():
 
         usuario = Usuario.query.filter_by(email=email).first()
 
-        if usuario and check_password_hash(usuario.senha_hash, senha):
+        # Proteção contra timing attack: sempre faz hash check
+        # mesmo se usuário não existe (usa hash dummy)
+        if usuario:
+            senha_valida = check_password_hash(usuario.senha_hash, senha)
+        else:
+            # Hash dummy para manter timing constante
+            # Formato bcrypt: $2b$12$...
+            hash_dummy = '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5lW.oYdQeWqXe'
+            check_password_hash(hash_dummy, senha)
+            senha_valida = False
+
+        if usuario and senha_valida:
             login_user(usuario, remember=lembrar)
             usuario.ultimo_acesso = datetime.utcnow()
             db.session.commit()
@@ -601,26 +612,30 @@ def tarefas():
 
     # NOVO: Primeiro, buscar documentos onde o usuário está envolvido
     # (como criador, responsável de tarefa, ou participante do fluxo)
+    # OTIMIZADO: Usa subqueries ao invés de carregar objetos completos
     if current_user.is_admin():
-        # Admin vê todos os documentos
-        documentos_ids = [d.id for d in Documento.query.all()]
+        # Admin vê todos os documentos - usa subquery eficiente
+        documentos_ids_subquery = db.session.query(Documento.id)
     else:
-        # Busca documentos onde o usuário está envolvido
-        documentos_ids_set = set()
+        # Busca documentos onde o usuário está envolvido - UNION de subqueries
+        from sqlalchemy import union
 
         # 1. Documentos criados pelo usuário
-        docs_criados = Documento.query.filter_by(criador_id=current_user.id).all()
-        documentos_ids_set.update([d.id for d in docs_criados])
+        docs_criados_subquery = db.session.query(Documento.id).filter(
+            Documento.criador_id == current_user.id
+        )
 
         # 2. Documentos onde o usuário tem/teve tarefas
-        tarefas_usuario = Tarefa.query.filter_by(responsavel_id=current_user.id).all()
-        documentos_ids_set.update([t.documento_id for t in tarefas_usuario])
+        docs_com_tarefas_subquery = db.session.query(Tarefa.documento_id).filter(
+            Tarefa.responsavel_id == current_user.id
+        )
 
-        documentos_ids = list(documentos_ids_set)
+        # UNION das duas queries
+        documentos_ids_subquery = union(docs_criados_subquery, docs_com_tarefas_subquery)
 
     # NOVO: Busca TODAS as tarefas desses documentos (não só as do usuário)
-    # Isso permite ver o fluxo completo
-    query = Tarefa.query.filter(Tarefa.documento_id.in_(documentos_ids))
+    # Isso permite ver o fluxo completo - usa IN com subquery
+    query = Tarefa.query.filter(Tarefa.documento_id.in_(documentos_ids_subquery))
 
     # Aplicar filtros
     if tipo:
@@ -1142,7 +1157,9 @@ def repositorio_publico():
         query = query.filter_by(setor=setor)
     if palavras_chave:
         # Busca em palavras-chave extraídas pela IA (armazenadas em metadados_json)
-        query = query.filter(Documento.metadados_json.ilike(f'%{palavras_chave}%'))
+        # Proteção contra SQL injection via ILIKE - escapa caracteres especiais
+        palavras_chave_safe = palavras_chave.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        query = query.filter(Documento.metadados_json.ilike(f'%{palavras_chave_safe}%'))
 
     # Ordenação
     if order_by == 'setor_tipo':
