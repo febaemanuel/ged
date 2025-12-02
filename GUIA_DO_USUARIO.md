@@ -141,7 +141,7 @@ Segue p/ Validação     Volta p/ Autor corrigir
 
 **O que você faz:**
 - ✅ Valida tecnicamente documentos triados
-- ✅ **Gera código definitivo** (ex: POP-DEF-20241202-0001)
+- ✅ **Gera código definitivo** (ex: POP.UGQ-CHUFC.001 v1)
 - ✅ Monta **Bloco de Assinatura** com aprovadores
 - ✅ Define modo de aprovação:
   - **Sequencial:** Um por vez, em ordem
@@ -413,14 +413,21 @@ POP-PROV-20241202143052
 
 #### 3️⃣ Código Definitivo (gerado pela UGQ)
 ```
-POP-DEF-20241202-0001
-│    │    │        │
-│    │    │        └────── Sequencial do dia
-│    │    └─────────────── Data de publicação
-│    └──────────────────── Indica definitivo
-└───────────────────────── Tipo do documento
+POP.UGQ-CHUFC.001 v3
+│   │   │     │   │
+│   │   │     │   └─── Versão (v1, v2, v3...)
+│   │   │     └─────── Sequencial (3 dígitos)
+│   │   └───────────── Abrangência (CHUFC, HUWC, MEAC)
+│   └───────────────── Setor (UGQ, Enfermagem, etc)
+└───────────────────── Tipo (POP, MAN, PROT, POL, etc)
 ```
-**Uso:** Código oficial após publicação
+
+**Exemplos reais:**
+- `POP.UGQ-CHUFC.001 v1` - Primeiro POP da UGQ no CHUFC
+- `MAN.Enfermagem-HUWC.015 v2` - Manual 15 da Enfermagem no HUWC, versão 2
+- `PROT.CCIH-MEAC.007 v3` - Protocolo 7 da CCIH no MEAC, versão 3
+
+**Uso:** Código oficial após publicação e registro na Lista Mestra
 
 > **💡 Dica:** Ao buscar documentos, prefira usar o código definitivo!
 
@@ -586,7 +593,7 @@ Para tarefas de aprovação:
    🎯 Validador:
 
    • Valida tecnicamente o conteúdo
-   • Gera código definitivo (ex: POP-DEF-20241202-0001)
+   • Gera código definitivo (ex: POP.UGQ-CHUFC.001 v1)
    • Monta Bloco de Assinatura:
      - Seleciona aprovadores
      - Define ordem (sequencial/concomitante)
@@ -777,11 +784,11 @@ O GED EBSERH integra com WhatsApp via **Evolution API**, permitindo:
 
 📋 Você tem 2 documentos pendentes de aprovação:
 
-1️⃣ POP-DEF-20241202-0001
+1️⃣ POP.UGQ-CHUFC.001 v1
    Manual de Procedimentos da UTI
    ⏰ Prazo: Hoje, 17:00
 
-2️⃣ PROT-DEF-20241201-0015
+2️⃣ PROT.CCIH-CHUFC.015 v2
    Protocolo de Sepse
    ⏰ Prazo: 05/12/2024
 
@@ -791,7 +798,7 @@ O GED EBSERH integra com WhatsApp via **Evolution API**, permitindo:
 **Você digita:** `1`
 
 ```
-📄 POP-DEF-20241202-0001
+📄 POP.UGQ-CHUFC.001 v1
 Manual de Procedimentos da UTI
 
 👤 Autor: Maria Silva (Enfermagem)
@@ -832,7 +839,7 @@ Manual de Procedimentos da UTI
 ```
 ✅ ASSINATURA REGISTRADA COM SUCESSO!
 
-📋 POP-DEF-20241202-0001
+📋 POP.UGQ-CHUFC.001 v1
    Manual de Procedimentos da UTI
 
 ⏰ Data/Hora: 02/12/2024 14:35:27
@@ -924,9 +931,10 @@ Acesse: `Menu → Buscar Documentos`
 
 **Busca por código:**
 ```
-✅ POP-DEF-20241202-0001     → Encontra exatamente
-✅ POP-DEF-20241202          → Encontra todos do dia
-✅ POP-DEF                   → Encontra todos os POPs definitivos
+✅ POP.UGQ-CHUFC.001         → Encontra exatamente
+✅ POP.UGQ-CHUFC             → Encontra todos da UGQ no CHUFC
+✅ POP.                       → Encontra todos os POPs
+✅ -CHUFC                     → Encontra todos do CHUFC
 ```
 
 **Busca por texto:**
@@ -952,12 +960,12 @@ Acesse: `Menu → Buscar Documentos`
 │  Encontrados: 15 documentos                    │
 │  Ordenar por: [Mais recentes ▼]               │
 ├────────────────────────────────────────────────┤
-│  📄 POP-DEF-20241202-0001                      │
+│  📄 POP.UGQ-CHUFC.001 v1                       │
 │  Manual de Procedimentos da UTI                │
 │  👤 Maria Silva | 📅 02/12/2024 | ✅ Publicado│
 │  [Ver] [Download PDF]                          │
 ├────────────────────────────────────────────────┤
-│  📄 POP-DEF-20241201-0008                      │
+│  📄 PROT.CCIH-HUWC.008 v2                      │
 │  Protocolo de Higienização Hospitalar         │
 │  👤 João Santos | 📅 01/12/2024 | 🟡 Aprovação│
 │  [Ver]                                         │
@@ -1041,7 +1049,7 @@ Quando você é mencionado:
 
 💬 Você foi mencionado em um comentário
 
-📄 POP-DEF-20241202-0001
+📄 POP.UGQ-CHUFC.001 v1
    Manual de Procedimentos da UTI
 
 👤 João Silva comentou:
@@ -1383,9 +1391,11 @@ A: `Relatórios → Relatório do Setor → Selecionar Período → Gerar`.
 **Q: Qual a diferença entre código provisório e definitivo?**
 A:
 - **Provisório**: Gerado automaticamente na criação (ex: POP-PROV-20241202143052)
-- **Definitivo**: Gerado pelo Validador UGQ após aprovação (ex: POP-DEF-20241202-0001)
+- **Definitivo**: Gerado pelo Validador UGQ após validação (ex: POP.UGQ-CHUFC.001 v1)
 
-O definitivo é o código oficial que vai para a Lista Mestra.
+O definitivo segue o padrão: **TIPO.SETOR-ABRANGENCIA.SEQUENCIAL vVERSÃO**
+
+É o código oficial que vai para a Lista Mestra e aparece no repositório público.
 
 ---
 
