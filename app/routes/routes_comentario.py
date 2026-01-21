@@ -36,7 +36,6 @@ def enviar_email_comentario(destinatario_email, destinatario_nome, assunto, mens
         EmailService._enviar_email(destinatario_email, assunto, corpo_html)
     except Exception as e:
         logger.warning(f'Erro ao enviar email de comentário: {e}')
-        pass
 
 
 @bp.route('/documento/<int:documento_id>', methods=['GET'])

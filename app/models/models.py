@@ -198,7 +198,7 @@ class Documento(db.Model):
         if ultimo:
             try:
                 seq = int(ultimo.codigo_definitivo.split('-')[-1]) + 1
-            except:
+            except (ValueError, IndexError, AttributeError):
                 seq = 1
         else:
             seq = 1
@@ -284,7 +284,7 @@ class Documento(db.Model):
         if self.metadados_json:
             try:
                 return json.loads(self.metadados_json)
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 return {}
         return {}
 
@@ -356,18 +356,35 @@ class Documento(db.Model):
 
         Returns:
             list: Lista de documentos ordenados por data_criacao
+
+        Note:
+            Inclui proteção contra ciclos de versionamento para evitar loops infinitos.
         """
         versoes = []
+        visited_ids = set()  # Proteção contra ciclos
 
         # Busca versão anterior recursivamente
         versao_atual = self
         while versao_atual.versao_anterior_id:
+            # Proteção contra ciclos - evita loop infinito
+            if versao_atual.versao_anterior_id in visited_ids:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Ciclo detectado no versionamento do documento {self.id}. "
+                    f"ID repetido: {versao_atual.versao_anterior_id}"
+                )
+                break
+
+            visited_ids.add(versao_atual.versao_anterior_id)
             versao_anterior = Documento.query.get(versao_atual.versao_anterior_id)
             if versao_anterior:
-                versoes.insert(0, versao_anterior)
+                versoes.append(versao_anterior)  # Usando append ao invés de insert(0)
                 versao_atual = versao_anterior
             else:
                 break
+
+        # Reverte a lista para ordem cronológica correta (mais eficiente que insert(0))
+        versoes.reverse()
 
         # Adiciona versão atual
         versoes.append(self)
@@ -390,13 +407,28 @@ class Documento(db.Model):
 
         Returns:
             list: Lista de documentos que são versões posteriores
+
+        Note:
+            Inclui proteção contra ciclos de versionamento para evitar loops infinitos.
         """
         versoes = []
+        visited_ids = set()  # Proteção contra ciclos
+        visited_ids.add(self.id)  # Marca o atual como visitado
 
         # Busca documentos que apontam para este como versao_anterior_id
         proxima_versao = Documento.query.filter_by(versao_anterior_id=self.id).first()
 
         while proxima_versao:
+            # Proteção contra ciclos - evita loop infinito
+            if proxima_versao.id in visited_ids:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Ciclo detectado nas versões posteriores do documento {self.id}. "
+                    f"ID repetido: {proxima_versao.id}"
+                )
+                break
+
+            visited_ids.add(proxima_versao.id)
             versoes.append(proxima_versao)
             # Busca próxima versão recursivamente
             proxima_versao = Documento.query.filter_by(versao_anterior_id=proxima_versao.id).first()
@@ -434,7 +466,7 @@ class Documento(db.Model):
     @classmethod
     def query_active(cls):
         """Retorna query apenas de documentos não deletados"""
-        return cls.query.filter(cls.deleted_at == None)
+        return cls.query.filter(cls.deleted_at.is_(None))
 
     def restaurar_versao(self, usuario_id, motivo="Restauração de versão anterior"):
         """
@@ -458,9 +490,9 @@ class Documento(db.Model):
         if versao_atual.versao:
             try:
                 # Extrai número da versão (ex: "v2.0" -> 2.0)
-                numero_versao = float(versao_atual.versao.replace('v', ''))
+                numero_versao = float(versao_atual.versao.replace('v', '').replace('V', ''))
                 proxima_versao = f"v{numero_versao + 1:.1f}"
-            except:
+            except (ValueError, AttributeError):
                 proxima_versao = "v2.0"
         else:
             proxima_versao = "v2.0"
@@ -591,7 +623,7 @@ class Tarefa(db.Model):
         if self.metadata_json:
             try:
                 return json.loads(self.metadata_json)
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 return {}
         return {}
 
@@ -793,32 +825,96 @@ class ValidacaoUGQ(db.Model):
 
 class Notificacao(db.Model):
     """
-    Notificações para usuários (não são tarefas)
-    Usado para informar sobre publicações, atualizações, etc.
+    Modelo de Notificações do Sistema
+
+    Tipos de notificação:
+    - processamento_ia: Documento processado pela IA
+    - tarefa_atribuida: Nova tarefa atribuída
+    - documento_aprovado: Documento aprovado
+    - documento_reprovado: Documento reprovado/ajustes
+    - documento_vencendo: Documento próximo de vencer
+    - documento_vencido: Documento venceu
+    - comentario: Novo comentário em documento
+    - publicacao: Documento publicado
+    - atualizacao: Documento atualizado
+    - mencao_comentario: Usuário mencionado em comentário
+    - resposta_comentario: Resposta a comentário
+    - revisao: Nova versão de documento
     """
     __tablename__ = 'notificacoes'
 
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)
     documento_id = db.Column(db.Integer, db.ForeignKey('documentos.id'), nullable=True, index=True)
-    tipo = db.Column(db.String(50), nullable=False)  # 'publicacao', 'atualizacao', 'aprovacao', etc.
+    tipo = db.Column(db.String(50), nullable=False, index=True)
     titulo = db.Column(db.String(200), nullable=False)
     mensagem = db.Column(db.Text, nullable=False)
+    link = db.Column(db.String(500))  # URL para onde a notificação aponta
     lida = db.Column(db.Boolean, default=False, index=True)
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     data_leitura = db.Column(db.DateTime)
 
     # Relacionamentos
-    usuario = db.relationship('Usuario', backref='notificacoes')
+    usuario = db.relationship('Usuario', backref=db.backref('notificacoes', lazy='dynamic'))
     documento = db.relationship('Documento', backref='notificacoes')
 
     def marcar_como_lida(self):
         """Marca notificação como lida"""
-        self.lida = True
-        self.data_leitura = datetime.utcnow()
+        if not self.lida:
+            self.lida = True
+            self.data_leitura = datetime.utcnow()
+            db.session.commit()
+
+    @classmethod
+    def criar(cls, usuario_id, tipo, titulo, mensagem, link=None, documento_id=None):
+        """
+        Método helper para criar notificação
+
+        Args:
+            usuario_id: ID do usuário
+            tipo: Tipo de notificação
+            titulo: Título
+            mensagem: Mensagem
+            link: URL de destino (opcional)
+            documento_id: ID do documento relacionado (opcional)
+
+        Returns:
+            Notificacao: Objeto criado
+        """
+        notificacao = cls(
+            usuario_id=usuario_id,
+            tipo=tipo,
+            titulo=titulo,
+            mensagem=mensagem,
+            link=link,
+            documento_id=documento_id
+        )
+        db.session.add(notificacao)
+        db.session.commit()
+        return notificacao
+
+    @classmethod
+    def nao_lidas_usuario(cls, usuario_id):
+        """Retorna notificações não lidas de um usuário"""
+        return cls.query.filter_by(usuario_id=usuario_id, lida=False).order_by(cls.data_criacao.desc()).all()
+
+    @classmethod
+    def contar_nao_lidas(cls, usuario_id):
+        """Conta notificações não lidas de um usuário"""
+        return cls.query.filter_by(usuario_id=usuario_id, lida=False).count()
+
+    @classmethod
+    def marcar_todas_lidas(cls, usuario_id):
+        """Marca todas notificações de um usuário como lidas"""
+        notificacoes = cls.query.filter_by(usuario_id=usuario_id, lida=False).all()
+        for notif in notificacoes:
+            notif.lida = True
+            notif.data_leitura = datetime.utcnow()
+        db.session.commit()
+        return len(notificacoes)
 
     def __repr__(self):
-        return f'<Notificacao {self.tipo} para User {self.usuario_id}>'
+        return f'<Notificacao {self.id} - {self.tipo} - Usuario {self.usuario_id}>'
 
 
 class TemplateDocumento(db.Model):
@@ -854,7 +950,7 @@ class TemplateDocumento(db.Model):
         if self.campos_json:
             try:
                 return json.loads(self.campos_json)
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 return {}
         return {}
 
@@ -920,7 +1016,7 @@ class Comentario(db.Model):
         if self.mencoes_json:
             try:
                 return json.loads(self.mencoes_json)
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 return []
         return []
 
@@ -1055,7 +1151,7 @@ class ConfiguracaoWhatsApp(db.Model):
         if self.templates_json:
             try:
                 return json.loads(self.templates_json)
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 return self._templates_padrao()
         return self._templates_padrao()
 
@@ -1133,7 +1229,7 @@ class ConversacaoWhatsApp(db.Model):
         if self.contexto_json:
             try:
                 return json.loads(self.contexto_json)
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 return {}
         return {}
 
@@ -1354,7 +1450,7 @@ class PerfilPermissao(db.Model):
         if self.permissoes_json:
             try:
                 return json.loads(self.permissoes_json)
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 return []
         return []
 
@@ -1380,86 +1476,5 @@ class PerfilPermissao(db.Model):
         return f'<PerfilPermissao {self.codigo}>'
 
 
-class Notificacao(db.Model):
-    """
-    Modelo de Notificações do Sistema
-
-    Tipos de notificação:
-    - processamento_ia: Documento processado pela IA
-    - tarefa_atribuida: Nova tarefa atribuída
-    - documento_aprovado: Documento aprovado
-    - documento_reprovado: Documento reprovado/ajustes
-    - documento_vencendo: Documento próximo de vencer
-    - documento_vencido: Documento venceu
-    - comentario: Novo comentário em documento
-    """
-    __tablename__ = 'notificacoes'
-
-    id = db.Column(db.Integer, primary_key=True)
-    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)
-    tipo = db.Column(db.String(50), nullable=False, index=True)  # processamento_ia, tarefa_atribuida, etc
-    titulo = db.Column(db.String(200), nullable=False)
-    mensagem = db.Column(db.Text, nullable=False)
-    link = db.Column(db.String(500))  # URL para onde a notificação aponta
-    lida = db.Column(db.Boolean, default=False, index=True)
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    data_leitura = db.Column(db.DateTime)
-
-    # Relacionamentos
-    usuario = db.relationship('Usuario', backref=db.backref('notificacoes', lazy='dynamic'))
-
-    def marcar_como_lida(self):
-        """Marca notificação como lida"""
-        if not self.lida:
-            self.lida = True
-            self.data_leitura = datetime.utcnow()
-            db.session.commit()
-
-    @classmethod
-    def criar(cls, usuario_id, tipo, titulo, mensagem, link=None):
-        """
-        Método helper para criar notificação
-
-        Args:
-            usuario_id: ID do usuário
-            tipo: Tipo de notificação
-            titulo: Título
-            mensagem: Mensagem
-            link: URL de destino (opcional)
-
-        Returns:
-            Notificacao: Objeto criado
-        """
-        notificacao = cls(
-            usuario_id=usuario_id,
-            tipo=tipo,
-            titulo=titulo,
-            mensagem=mensagem,
-            link=link
-        )
-        db.session.add(notificacao)
-        db.session.commit()
-        return notificacao
-
-    @classmethod
-    def nao_lidas_usuario(cls, usuario_id):
-        """Retorna notificações não lidas de um usuário"""
-        return cls.query.filter_by(usuario_id=usuario_id, lida=False).order_by(cls.data_criacao.desc()).all()
-
-    @classmethod
-    def contar_nao_lidas(cls, usuario_id):
-        """Conta notificações não lidas de um usuário"""
-        return cls.query.filter_by(usuario_id=usuario_id, lida=False).count()
-
-    @classmethod
-    def marcar_todas_lidas(cls, usuario_id):
-        """Marca todas notificações de um usuário como lidas"""
-        notificacoes = cls.query.filter_by(usuario_id=usuario_id, lida=False).all()
-        for notif in notificacoes:
-            notif.lida = True
-            notif.data_leitura = datetime.utcnow()
-        db.session.commit()
-        return len(notificacoes)
-
-    def __repr__(self):
-        return f'<Notificacao {self.id} - {self.tipo} - Usuario {self.usuario_id}>'
+# NOTA: Classe Notificacao foi removida desta posição para evitar duplicação.
+# A definição principal está nas linhas 794-822 acima.

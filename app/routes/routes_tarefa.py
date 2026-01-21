@@ -180,7 +180,7 @@ def criar_tarefa():
     if prazo_str:
         try:
             prazo = datetime.fromisoformat(prazo_str.replace('Z', '+00:00'))
-        except:
+        except (ValueError, AttributeError):
             return jsonify({'erro': 'Formato de prazo inválido'}), 400
 
     # Cria tarefa

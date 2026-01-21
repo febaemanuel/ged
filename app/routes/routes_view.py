@@ -421,8 +421,8 @@ def documento_editar(id):
                 if caminho_antigo and os.path.exists(caminho_antigo):
                     try:
                         os.remove(caminho_antigo)
-                    except:
-                        pass
+                    except OSError as e:
+                        logger.warning(f"Não foi possível remover arquivo antigo {caminho_antigo}: {e}")
 
             documento.arquivo_original = filename_final
 

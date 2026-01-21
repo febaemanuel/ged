@@ -137,8 +137,9 @@ def criar_template():
         try:
             import json
             template.set_campos(json.loads(campos))
-        except:
-            pass
+        except (json.JSONDecodeError, TypeError, ValueError) as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Erro ao parsear campos JSON do template: {e}")
 
     db.session.add(template)
     db.session.commit()
