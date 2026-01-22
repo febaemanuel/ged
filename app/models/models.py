@@ -298,10 +298,10 @@ class Documento(db.Model):
             return True
 
         # Autor pode editar SOMENTE se tem tarefa de correção pendente pra ele
-        # OU se o documento ainda está em status inicial (Novo)
+        # OU se o documento ainda está em status inicial (Novo ou Em Correção)
         if usuario.id == self.criador_id:
-            # Pode editar se está em status inicial
-            if self.status in ['Novo', 'Em Análise']:
+            # Pode editar se está em status inicial ou em correção (Workflow UGQ)
+            if self.status in ['Novo', 'Em Correção', 'Em Triagem']:
                 return True
 
             # OU se tem tarefa de correção pendente
@@ -506,7 +506,7 @@ class Documento(db.Model):
             versao=proxima_versao,
             versao_anterior_id=versao_atual.id,  # Aponta para a versão atual
             criador_id=usuario_id,
-            status='Em Análise',  # Volta para análise
+            status='Em Triagem',  # Workflow UGQ: volta para triagem
             validade_anos=self.validade_anos,
             codigo_definitivo=versao_atual.codigo_definitivo,  # Mantém mesmo código definitivo
             texto_extraido=self.texto_extraido,
