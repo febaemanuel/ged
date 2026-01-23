@@ -184,10 +184,12 @@ document.getElementById('formNovoComentario').addEventListener('submit', async f
     const secao = document.getElementById('secao-comentario').value.trim();
 
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
         const response = await fetch('/comentario/criar', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({
                 documento_id: documentoId,
@@ -266,13 +268,16 @@ function criarElementoComentario(comentario) {
     clone.querySelector('.comment-perfil').className =
         `badge ${getPerfilBadgeClass(comentario.usuario.perfil)} ms-1`;
 
-    // Data
+    // Data - usando textContent para evitar XSS
     const data = new Date(comentario.data_criacao);
-    let dataTexto = data.toLocaleString('pt-BR');
+    const dataContainer = clone.querySelector('.comment-data');
+    dataContainer.textContent = data.toLocaleString('pt-BR');
     if (comentario.editado) {
-        dataTexto += ` • <span class="comment-editado">editado em ${new Date(comentario.data_edicao).toLocaleString('pt-BR')}</span>`;
+        const editadoSpan = document.createElement('span');
+        editadoSpan.className = 'comment-editado';
+        editadoSpan.textContent = ` • editado em ${new Date(comentario.data_edicao).toLocaleString('pt-BR')}`;
+        dataContainer.appendChild(editadoSpan);
     }
-    clone.querySelector('.comment-data').innerHTML = dataTexto;
 
     // Seção
     if (comentario.secao) {
@@ -284,21 +289,25 @@ function criarElementoComentario(comentario) {
     // Texto
     clone.querySelector('.comment-texto').textContent = comentario.texto;
 
-    // Ações
+    // Ações - usando createElement para evitar XSS
     const actionsContainer = clone.querySelector('.comment-actions');
     if (comentario.pode_editar) {
-        actionsContainer.innerHTML += `
-            <button class="btn btn-sm btn-link" onclick="editarComentario(${comentario.id})">
-                <i class="bi bi-pencil"></i>
-            </button>
-        `;
+        const btnEditar = document.createElement('button');
+        btnEditar.className = 'btn btn-sm btn-link';
+        btnEditar.onclick = () => editarComentario(comentario.id);
+        const iconEditar = document.createElement('i');
+        iconEditar.className = 'bi bi-pencil';
+        btnEditar.appendChild(iconEditar);
+        actionsContainer.appendChild(btnEditar);
     }
     if (comentario.pode_deletar) {
-        actionsContainer.innerHTML += `
-            <button class="btn btn-sm btn-link text-danger" onclick="deletarComentario(${comentario.id})">
-                <i class="bi bi-trash"></i>
-            </button>
-        `;
+        const btnDeletar = document.createElement('button');
+        btnDeletar.className = 'btn btn-sm btn-link text-danger';
+        btnDeletar.onclick = () => deletarComentario(comentario.id);
+        const iconDeletar = document.createElement('i');
+        iconDeletar.className = 'bi bi-trash';
+        btnDeletar.appendChild(iconDeletar);
+        actionsContainer.appendChild(btnDeletar);
     }
 
     // Botão responder
@@ -346,10 +355,12 @@ async function enviarResposta(e, comentarioPaiId) {
     const texto = form.querySelector('textarea').value.trim();
 
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
         const response = await fetch(`/comentario/${comentarioPaiId}/responder`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({ texto })
         });
@@ -376,8 +387,12 @@ async function deletarComentario(comentarioId) {
     }
 
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
         const response = await fetch(`/comentario/${comentarioId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
         });
 
         const data = await response.json();

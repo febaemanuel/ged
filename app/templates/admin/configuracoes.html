@@ -136,13 +136,13 @@
                 <div class="row">
                     {% for a in abrangencias %}
                     <div class="col-lg-4 col-md-6 mb-3">
-                        <div class="item-card {{ 'inactive' if not a.ativo }}" style="border-left-color: {{ a.cor }}">
+                        <div class="item-card {{ 'inactive' if not a.ativo }}" style="border-left-color: {{ a.cor | e }}">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <h6 class="mb-1"><i class="{{ a.icone }}"></i> {{ a.codigo }}</h6>
                                     <small class="text-muted">{{ a.nome }}</small>
                                     <div class="mt-1">
-                                        <span class="color-badge" style="background: {{ a.cor }}"></span>
+                                        <span class="color-badge" style="background: {{ a.cor | e }}"></span>
                                         <small class="ms-1">{{ a.setores.count() }} setores</small>
                                     </div>
                                 </div>
@@ -229,7 +229,7 @@
                             {% for s in setores %}
                             <tr class="{{ 'text-muted' if not s.ativo }}">
                                 <td>{{ s.nome }}</td>
-                                <td><span class="badge" style="background: {{ s.abrangencia_rel.cor if s.abrangencia_rel else '#6b7280' }}">{{ s.abrangencia_rel.codigo if s.abrangencia_rel else '-' }}</span></td>
+                                <td><span class="badge" style="background: {{ (s.abrangencia_rel.cor if s.abrangencia_rel else '#6b7280') | e }}">{{ s.abrangencia_rel.codigo if s.abrangencia_rel else '-' }}</span></td>
                                 <td>{{ s.sigla or '-' }}</td>
                                 <td>{% if s.ativo %}<span class="badge bg-success">Ativo</span>{% else %}<span class="badge bg-secondary">Inativo</span>{% endif %}</td>
                                 <td>
@@ -263,10 +263,10 @@
                 <div class="row">
                     {% for p in perfis %}
                     <div class="col-lg-6 mb-3">
-                        <div class="item-card {{ 'inactive' if not p.ativo }}" style="border-left-color: {{ p.cor }}">
+                        <div class="item-card {{ 'inactive' if not p.ativo }}" style="border-left-color: {{ p.cor | e }}">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="mb-1"><span class="badge" style="background: {{ p.cor }}">{{ p.codigo }}</span> {{ p.nome }}</h6>
+                                    <h6 class="mb-1"><span class="badge" style="background: {{ p.cor | e }}">{{ p.codigo }}</span> {{ p.nome }}</h6>
                                     <small class="text-muted">{{ p.descricao or '-' }}</small>
                                     <div class="mt-1"><small>Usuários: {{ stats.perfis.get(p.codigo, 0) }}</small></div>
                                 </div>
@@ -470,7 +470,7 @@ document.querySelectorAll('.modal').forEach(modal => {
             form.reset();
             form.action = form.action.replace(/\/\d+\/editar/, '/criar');
             const titulo = this.querySelector('.modal-title');
-            if (titulo) titulo.textContent = titulo.textContent.replace('Editar', 'Nov');
+            if (titulo) titulo.textContent = titulo.textContent.replace('Editar', 'Nova');
         }
     });
 });
