@@ -548,8 +548,8 @@ def documento_download_assinaturas(id):
     caminho_pdf = os.path.join(Config.ASSINATURAS_FOLDER, documento.arquivo_final)
 
     if not os.path.exists(caminho_pdf):
-        flash(f'Arquivo PDF de assinaturas não encontrado no caminho: {caminho_pdf}', 'danger')
-        logger.error(f"PDF não encontrado: {caminho_pdf}")
+        flash('Arquivo PDF de assinaturas não encontrado. Contate o administrador.', 'danger')
+        logger.error(f"PDF de assinaturas não encontrado para documento {id}: {caminho_pdf}")
         return redirect(url_for('view.documento_detalhe', id=id))
 
     return send_file(

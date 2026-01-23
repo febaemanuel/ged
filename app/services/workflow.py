@@ -876,6 +876,10 @@ class WorkflowUGQ:
             )
             db.session.add(tarefa_ajuste)
 
+            # CRÍTICO: Commit para persistir a rejeição e nova tarefa
+            db.session.commit()
+            log_debug("✅ Rejeição commitada no banco de dados")
+
             resultado['proximo'] = 'ajustes'
             resultado['tarefa_id'] = tarefa_ajuste.id
 
@@ -921,9 +925,15 @@ class WorkflowUGQ:
                     resultado['proximo'] = 'publicacao'
 
             elif modo == 'concomitante':
-                # CRÍTICO: Busca itens diretamente do banco para evitar cache
+                # CRÍTICO: Lock de banco de dados para evitar race condition
+                # Usando FOR UPDATE para serializar verificações concorrentes
                 import sys
-                print(f"[WORKFLOW] 🔍 VERIFICANDO STATUS DO BLOCO CONCOMITANTE", file=sys.stderr, flush=True)
+                print(f"[WORKFLOW] 🔍 VERIFICANDO STATUS DO BLOCO CONCOMITANTE (COM LOCK)", file=sys.stderr, flush=True)
+
+                # Adquire lock no bloco para evitar race condition
+                bloco_locked = BlocoAssinatura.query.with_for_update().get(bloco.id)
+                if not bloco_locked:
+                    raise ValueError("Bloco de assinatura não encontrado")
 
                 total_itens = ItemBlocoAssinatura.query.filter_by(bloco_id=bloco.id).count()
                 itens_aprovados = ItemBlocoAssinatura.query.filter_by(
@@ -934,15 +944,20 @@ class WorkflowUGQ:
                     bloco_id=bloco.id,
                     status='Pendente'
                 ).count()
+                itens_reprovados = ItemBlocoAssinatura.query.filter_by(
+                    bloco_id=bloco.id,
+                    status='Reprovado'
+                ).count()
 
                 print(f"[WORKFLOW] Total de aprovadores: {total_itens}", file=sys.stderr, flush=True)
                 print(f"[WORKFLOW] Já aprovaram: {itens_aprovados}", file=sys.stderr, flush=True)
                 print(f"[WORKFLOW] Pendentes: {itens_pendentes}", file=sys.stderr, flush=True)
 
-                log_debug(f"📊 Modo concomitante - STATUS DO BLOCO:")
+                log_debug(f"📊 Modo concomitante - STATUS DO BLOCO (COM LOCK):")
                 log_debug(f"   Total de aprovadores: {total_itens}")
                 log_debug(f"   Já aprovaram: {itens_aprovados}")
                 log_debug(f"   Pendentes: {itens_pendentes}")
+                log_debug(f"   Reprovados: {itens_reprovados}")
 
                 # Debug: Lista todos os itens
                 log_debug(f"   DEBUG - Status de cada item:")
@@ -953,9 +968,10 @@ class WorkflowUGQ:
                     print(f"[WORKFLOW]    {status_msg}", file=sys.stderr, flush=True)
 
                 # Verifica se todos aprovaram usando dados frescos do banco
-                print(f"[WORKFLOW] 🧮 Verificando: {itens_aprovados} == {total_itens} and {itens_pendentes} == 0", file=sys.stderr, flush=True)
+                # Condição: todos aprovados E nenhum pendente E nenhum reprovado
+                print(f"[WORKFLOW] 🧮 Verificando: {itens_aprovados} == {total_itens} and {itens_pendentes} == 0 and {itens_reprovados} == 0", file=sys.stderr, flush=True)
 
-                if itens_aprovados == total_itens and itens_pendentes == 0:
+                if itens_aprovados == total_itens and itens_pendentes == 0 and itens_reprovados == 0:
                     print(f"[WORKFLOW] 🎉 TODOS APROVARAM! Chamando _finalizar_bloco_assinatura", file=sys.stderr, flush=True)
                     log_debug("🎉 Todos aprovadores assinaram! Bloco completo!")
 
@@ -1522,7 +1538,8 @@ class WorkflowUGQ:
         # Atualiza status do documento
         documento.status = Config.STATUS_EM_TRIAGEM
 
-        db.session.flush()  # Gera nova_tarefa.id
+        # CRÍTICO: Commit para persistir tarefa e status do documento
+        db.session.commit()
 
         log_debug(f"✅ Nova tarefa #{nova_tarefa.id} criada para Triador UGQ")
         log_debug(f"📊 Documento status: {documento.status}")
@@ -1598,7 +1615,8 @@ class WorkflowUGQ:
         # Atualiza status do documento
         documento.status = Config.STATUS_EM_VALIDACAO
 
-        db.session.flush()  # Gera nova_tarefa.id
+        # CRÍTICO: Commit para persistir tarefa e status do documento
+        db.session.commit()
 
         log_debug(f"✅ Nova tarefa #{nova_tarefa.id} criada para Validador UGQ")
         log_debug(f"📊 Documento status: {documento.status}")

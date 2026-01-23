@@ -570,8 +570,8 @@ def substituir_arquivo(id):
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Erro ao substituir arquivo: {str(e)}")
-        return jsonify({'erro': f'Erro ao substituir arquivo: {str(e)}'}), 500
+        logger.error(f"Erro ao substituir arquivo: {str(e)}", exc_info=True)
+        return jsonify({'erro': 'Erro ao processar arquivo. Por favor, tente novamente.'}), 500
 
 
 @bp.route('/hierarquia', methods=['GET'])
