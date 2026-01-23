@@ -90,14 +90,18 @@ def buscar():
             dt_inicio = datetime.strptime(data_inicio, '%Y-%m-%d')
             query = query.filter(Documento.data_criacao >= dt_inicio)
         except ValueError:
-            pass
+            # Formato de data inválido - ignora filtro
+            import logging
+            logging.getLogger(__name__).debug(f"Formato de data_inicio inválido: {data_inicio}")
 
     if data_fim:
         try:
             dt_fim = datetime.strptime(data_fim, '%Y-%m-%d')
             query = query.filter(Documento.data_criacao <= dt_fim)
         except ValueError:
-            pass
+            # Formato de data inválido - ignora filtro
+            import logging
+            logging.getLogger(__name__).debug(f"Formato de data_fim inválido: {data_fim}")
 
     # Executa busca
     documentos = query.order_by(Documento.data_criacao.desc()).limit(100).all()

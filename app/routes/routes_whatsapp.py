@@ -60,7 +60,7 @@ def webhook():
 
     except Exception as e:
         logger.error(f"Erro no webhook WhatsApp: {str(e)}", exc_info=True)
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({'status': 'error', 'message': 'Erro interno no processamento'}), 500
 
 
 @webhook_bp.route('/webhook', methods=['GET'])
@@ -187,7 +187,7 @@ def salvar_configuracao():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Erro ao salvar configurações WhatsApp: {str(e)}", exc_info=True)
-        flash(f'Erro ao salvar configurações: {str(e)}', 'danger')
+        flash('Erro ao salvar configurações. Por favor, tente novamente.', 'danger')
         return redirect(url_for('whatsapp_admin.configuracao'))
 
 

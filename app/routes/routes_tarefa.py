@@ -15,8 +15,12 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import os
+import logging
 
 from app.models import db, Tarefa, Documento, Usuario
+from config import Config
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('tarefa', __name__, url_prefix='/api/tarefa')
 
@@ -180,7 +184,7 @@ def criar_tarefa():
     if prazo_str:
         try:
             prazo = datetime.fromisoformat(prazo_str.replace('Z', '+00:00'))
-        except:
+        except (ValueError, AttributeError):
             return jsonify({'erro': 'Formato de prazo inválido'}), 400
 
     # Cria tarefa
@@ -196,9 +200,10 @@ def criar_tarefa():
 
     db.session.add(tarefa)
 
-    # Atualiza status do documento para "Em Análise" se for a primeira tarefa
-    if documento.status == 'Novo':
-        documento.status = 'Em Análise'
+    # Atualiza status do documento para "Em Triagem" se for a primeira tarefa
+    # Workflow UGQ: documento novo vai para triagem
+    if documento.status == Config.STATUS_NOVO:
+        documento.status = Config.STATUS_EM_TRIAGEM
 
     db.session.commit()
 
@@ -296,15 +301,17 @@ def concluir_tarefa(id):
     proxima_tarefa_info = None
     workflow_erro = None
 
-    # Lógica de mudança de status do documento (mantida para compatibilidade)
+    # Lógica de mudança de status do documento (usando status do Workflow UGQ)
     documento = tarefa.documento
 
+    # IMPORTANTE: Workflow UGQ principal é gerenciado em routes_view.py
+    # Esta lógica é para compatibilidade com o workflow antigo e API REST
     if tarefa.tipo_tarefa == 'Aprovar' and aprovado:
-        documento.status = 'Aprovado'
+        documento.status = Config.STATUS_APROVADO
     elif tarefa.tipo_tarefa == 'Aprovar' and not aprovado:
-        documento.status = 'Em Análise'  # Volta para análise
-    elif tarefa.tipo_tarefa == 'Realizar Correção':
-        documento.status = 'Em Análise'
+        documento.status = Config.STATUS_EM_AJUSTES  # Workflow UGQ: volta para ajustes
+    elif tarefa.tipo_tarefa == Config.TAREFA_REALIZAR_CORRECAO:
+        documento.status = Config.STATUS_EM_TRIAGEM  # Workflow UGQ: volta para triagem
 
     db.session.commit()
 

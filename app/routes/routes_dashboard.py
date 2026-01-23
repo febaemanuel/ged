@@ -65,12 +65,15 @@ def index():
 
         total_documentos = query_docs.count()
         docs_publicados = query_docs.filter_by(status='Publicado').count()
-        docs_em_analise = query_docs.filter_by(status='Em Análise').count()
+        # Workflow UGQ: conta documentos em processamento (triagem, validação, aprovação)
+        docs_em_analise = query_docs.filter(
+            Documento.status.in_(['Em Triagem', 'Em Validação', 'Em Aprovação', 'Validado', 'Novo'])
+        ).count()
 
         # Documentos vencendo em 30 dias
         data_limite = datetime.utcnow() + timedelta(days=current_app.config['DIAS_ALERTA_VENCIMENTO'])
         docs_vencendo = query_docs.filter(
-            Documento.data_vencimento != None,
+            Documento.data_vencimento.isnot(None),
             Documento.data_vencimento <= data_limite,
             Documento.data_vencimento > datetime.utcnow(),
             Documento.status == 'Publicado'

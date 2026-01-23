@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Sistema GED{% endblock %}</title>
 
     <!-- Bootstrap CSS -->
@@ -192,6 +193,16 @@
     // ============================================================================
 
     /**
+     * Escapa caracteres HTML para prevenir XSS
+     */
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    /**
      * Atualiza contador de notificações não lidas
      */
     async function atualizarContadorNotificacoes() {
@@ -233,19 +244,19 @@
 
             container.innerHTML = data.notificacoes.map(n => `
                 <li class="border-bottom">
-                    <a class="dropdown-item py-3 notificacao-item" href="${n.link || '#'}"
-                       onclick="marcarComoLida(${n.id})" style="white-space: normal;">
+                    <a class="dropdown-item py-3 notificacao-item" href="${escapeHtml(n.link) || '#'}"
+                       onclick="marcarComoLida(${parseInt(n.id) || 0})" style="white-space: normal;">
                         <div class="d-flex">
                             <div class="me-2">
-                                ${getIconeNotificacao(n.tipo)}
+                                ${getIconeNotificacao(escapeHtml(n.tipo))}
                             </div>
                             <div class="flex-grow-1">
-                                <strong class="d-block">${n.titulo}</strong>
+                                <strong class="d-block">${escapeHtml(n.titulo)}</strong>
                                 <p class="mb-1 small text-muted" style="line-height: 1.4;">
-                                    ${n.mensagem}
+                                    ${escapeHtml(n.mensagem)}
                                 </p>
                                 <small class="text-muted">
-                                    <i class="bi bi-clock"></i> ${n.tempo_relativo}
+                                    <i class="bi bi-clock"></i> ${escapeHtml(n.tempo_relativo)}
                                 </small>
                             </div>
                         </div>
@@ -347,10 +358,15 @@
             });
         }
 
-        // Auto-refresh a cada 30 segundos
-        setInterval(atualizarContadorNotificacoes, 30000);
+        // Auto-refresh a cada 30 segundos com cleanup
+        const notificacoesInterval = setInterval(atualizarContadorNotificacoes, 30000);
 
-        console.log('[Notificações] Sistema inicializado');
+        // Limpa interval quando usuário sai da página (evita memory leak)
+        window.addEventListener('beforeunload', function() {
+            clearInterval(notificacoesInterval);
+        });
+
+        // Sistema de notificações inicializado
     });
     </script>
     {% endif %}

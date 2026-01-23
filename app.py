@@ -139,7 +139,7 @@ def verificar_vencimentos():
     agora = datetime.utcnow()
 
     documentos_vencidos = Documento.query.filter(
-        Documento.data_vencimento != None,
+        Documento.data_vencimento.isnot(None),
         Documento.data_vencimento < agora,
         Documento.status == 'Publicado'
     ).all()

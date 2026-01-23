@@ -56,7 +56,8 @@ def processar_documento_ia(self, documento_id):
     """
     from app.models import db
     from app.models.models import Documento, LogAI
-    from app.services.ai_client import AIClient
+    from app.services import ai_client as ai_client_module
+    import json
 
     try:
         logger.info(f"Iniciando processamento IA do documento {documento_id}")
@@ -89,24 +90,29 @@ def processar_documento_ia(self, documento_id):
         documento.texto_extraido = texto[:50000]  # Limita a 50k caracteres
 
         # Processa com IA (se API key configurada)
+        resultado_ia = None
         if os.getenv('AI_API_KEY'):
             logger.info("Processando com IA DeepSeek")
-            ai_client = AIClient()
 
-            # Análise do documento
-            resultado_ia = ai_client.analisar_documento(texto[:10000])  # Primeiros 10k chars
+            # Análise do documento usando funções do módulo
+            try:
+                resultado_ia = ai_client_module.analisar_documento(texto[:10000])  # Primeiros 10k chars
 
-            # Salva metadados
-            documento.metadados_json = resultado_ia.get('metadados', {})
+                # Salva metadados (convertendo dict para JSON string)
+                metadados = resultado_ia.get('metadados', {}) if resultado_ia else {}
+                documento.metadados_json = json.dumps(metadados, ensure_ascii=False)
+            except Exception as e:
+                logger.warning(f"Erro ao processar com IA: {str(e)}")
+                resultado_ia = {}
 
-            # Log da operação
+            # Log da operação (campos corretos do modelo LogAI)
             log = LogAI(
                 documento_id=documento_id,
-                tipo_operacao='analise_completa',
-                prompt_enviado=f"Analisar documento: {documento.titulo}",
-                resposta_recebida=str(resultado_ia),
-                modelo_utilizado=os.getenv('AI_API_MODEL', 'deepseek-chat'),
-                tokens_usados=resultado_ia.get('tokens', 0)
+                usuario_id=documento.criador_id,
+                funcao_ia='analise_completa',
+                parametros_json=json.dumps({'titulo': documento.titulo}, ensure_ascii=False),
+                resposta_json=json.dumps(resultado_ia if resultado_ia else {}, ensure_ascii=False),
+                sucesso=resultado_ia is not None and len(resultado_ia) > 0
             )
             db.session.add(log)
 
@@ -232,7 +238,7 @@ def verificar_documentos_vencidos():
 
         # Busca documentos vencidos
         documentos_vencidos = Documento.query.filter(
-            Documento.data_vencimento != None,
+            Documento.data_vencimento.isnot(None),
             Documento.data_vencimento < agora,
             Documento.status == 'Publicado'
         ).all()
@@ -277,7 +283,7 @@ def alertar_documentos_vencendo():
 
         # Busca documentos vencendo em 30 dias
         documentos = Documento.query.filter(
-            Documento.data_vencimento != None,
+            Documento.data_vencimento.isnot(None),
             Documento.data_vencimento >= agora,
             Documento.data_vencimento <= data_limite,
             Documento.status == 'Publicado'
@@ -379,14 +385,14 @@ def limpar_logs_antigos():
 
         cutoff_date = datetime.utcnow() - timedelta(days=90)
 
-        # Remove logs de IA
+        # Remove logs de IA (campo correto: data_chamada)
         logs_ia_deletados = LogAI.query.filter(
-            LogAI.data_hora < cutoff_date
+            LogAI.data_chamada < cutoff_date
         ).delete()
 
-        # Remove logs de WhatsApp
+        # Remove logs de WhatsApp (campo correto: criado_em)
         logs_whats_deletados = LogWhatsApp.query.filter(
-            LogWhatsApp.data_hora < cutoff_date
+            LogWhatsApp.criado_em < cutoff_date
         ).delete()
 
         db.session.commit()

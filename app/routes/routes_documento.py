@@ -98,8 +98,8 @@ def listar_documentos():
         - page: Página (paginação)
         - per_page: Itens por página
     """
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = min(100, max(1, request.args.get('per_page', 20, type=int)))  # Limita entre 1 e 100
 
     query = Documento.query
 
@@ -364,7 +364,7 @@ def atualizar_documento(id):
                 if len(partes) >= 1:
                     major = int(partes[0])
                     documento.versao = f'v{major + 1}.0'
-            except:
+            except (ValueError, IndexError, AttributeError):
                 documento.versao = 'v2.0'
 
     db.session.commit()
@@ -419,13 +419,23 @@ def download_arquivo(id, tipo):
     if tipo == 'original':
         if not documento.arquivo_original:
             return jsonify({'erro': 'Arquivo original não encontrado'}), 404
-        caminho = os.path.join(current_app.config['UPLOAD_FOLDER'], documento.arquivo_original)
-        nome_download = documento.arquivo_original
+        # Proteção contra path traversal
+        nome_arquivo = os.path.basename(documento.arquivo_original)
+        if nome_arquivo != documento.arquivo_original or '..' in documento.arquivo_original:
+            logger.warning(f"Tentativa de path traversal detectada: {documento.arquivo_original}")
+            return jsonify({'erro': 'Nome de arquivo inválido'}), 400
+        caminho = os.path.join(current_app.config['UPLOAD_FOLDER'], nome_arquivo)
+        nome_download = nome_arquivo
     elif tipo == 'publicado':
         if not documento.arquivo_publicado_pdf:
             return jsonify({'erro': 'Arquivo publicado não encontrado'}), 404
-        caminho = os.path.join(current_app.config['PUBLISHED_FOLDER'], documento.arquivo_publicado_pdf)
-        nome_download = documento.arquivo_publicado_pdf
+        # Proteção contra path traversal
+        nome_arquivo = os.path.basename(documento.arquivo_publicado_pdf)
+        if nome_arquivo != documento.arquivo_publicado_pdf or '..' in documento.arquivo_publicado_pdf:
+            logger.warning(f"Tentativa de path traversal detectada: {documento.arquivo_publicado_pdf}")
+            return jsonify({'erro': 'Nome de arquivo inválido'}), 400
+        caminho = os.path.join(current_app.config['PUBLISHED_FOLDER'], nome_arquivo)
+        nome_download = nome_arquivo
     else:
         return jsonify({'erro': 'Tipo de arquivo inválido'}), 400
 
@@ -560,15 +570,17 @@ def substituir_arquivo(id):
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Erro ao substituir arquivo: {str(e)}")
-        return jsonify({'erro': f'Erro ao substituir arquivo: {str(e)}'}), 500
+        logger.error(f"Erro ao substituir arquivo: {str(e)}", exc_info=True)
+        return jsonify({'erro': 'Erro ao processar arquivo. Por favor, tente novamente.'}), 500
 
 
 @bp.route('/hierarquia', methods=['GET'])
+@login_required
 def get_hierarquia():
     """
     Retorna estrutura hierárquica de setores e tipos com contadores
     Usado para popular a sidebar de navegação
+    Requer autenticação para proteger informações organizacionais.
 
     Returns:
         JSON com estrutura: {"Setor (ABRANG)": {total: X, tipos: {tipo: count}, abrangencia: "ABRANG"}}
@@ -635,15 +647,18 @@ def repositorio_publico():
         - palavras_chave: Busca por palavras-chave da IA
         - page: Página
     """
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 30, type=int)  # Aumentado para 30 (lazy loading)
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = min(100, max(1, request.args.get('per_page', 30, type=int)))  # Limita entre 1 e 100
 
     # Mostra documentos Publicados (repositório público)
     query = Documento.query.filter_by(status='Publicado')
 
     # Apenas documentos válidos (não vencidos)
     query = query.filter(
-        (Documento.data_vencimento == None) | (Documento.data_vencimento > datetime.utcnow())
+        or_(
+            Documento.data_vencimento.is_(None),
+            Documento.data_vencimento > datetime.utcnow()
+        )
     )
 
     # Filtros
@@ -731,7 +746,8 @@ def repositorio_publico():
                 'resumo': resumo_texto,
                 'topicos_principais': topicos_principais
             }
-        except Exception as e:
+        except (json.JSONDecodeError, TypeError, KeyError, AttributeError) as e:
+            logger.debug(f"Erro ao parsear metadados: {e}")
             return {'palavras_chave': [], 'resumo': '', 'topicos_principais': []}
 
     # Estatísticas do repositório (para organização visual)
@@ -773,7 +789,7 @@ def repositorio_publico():
 @login_required
 def mudar_status(id):
     """
-    Muda status do documento
+    Muda status do documento com validação de transições permitidas
 
     JSON body:
         - novo_status: Novo status do documento
@@ -792,11 +808,36 @@ def mudar_status(id):
     if not novo_status:
         return jsonify({'erro': 'Novo status não informado'}), 400
 
+    # Validação de status permitidos
+    status_permitidos = [
+        'Novo', 'Em Triagem', 'Em Validação', 'Em Correção', 'Validado',
+        'Em Aprovação', 'Em Ajustes', 'Aprovado', 'Publicado', 'Cancelado', 'Obsoleto'
+    ]
+
+    if novo_status not in status_permitidos:
+        return jsonify({'erro': f'Status inválido. Permitidos: {", ".join(status_permitidos)}'}), 400
+
+    # Transições não permitidas (protege documentos publicados)
+    transicoes_bloqueadas = {
+        'Publicado': ['Novo', 'Em Triagem'],  # Documento publicado não volta ao início
+        'Obsoleto': ['Novo', 'Em Triagem', 'Em Validação', 'Publicado'],  # Obsoleto não ressuscita
+    }
+
+    if documento.status in transicoes_bloqueadas:
+        if novo_status in transicoes_bloqueadas[documento.status]:
+            return jsonify({
+                'erro': f'Não é permitido mudar de "{documento.status}" para "{novo_status}"'
+            }), 400
+
+    status_anterior = documento.status
     documento.status = novo_status
     db.session.commit()
 
+    logger.info(f"Status do documento {id} alterado de '{status_anterior}' para '{novo_status}' por {current_user.nome}. Motivo: {motivo}")
+
     return jsonify({
         'mensagem': 'Status alterado com sucesso',
+        'status_anterior': status_anterior,
         'novo_status': novo_status
     })
 
@@ -838,9 +879,9 @@ def criar_nova_versao(id):
     # Incrementa versão
     versao_atual = documento_original.versao or 'v1.0'
     try:
-        major, minor = versao_atual.replace('v', '').split('.')
+        major, minor = versao_atual.replace('v', '').replace('V', '').split('.')
         nova_versao = f"v{int(major)}.{int(minor) + 1}"
-    except:
+    except (ValueError, AttributeError):
         nova_versao = 'v2.0'
 
     # Cria novo documento (nova versão)
@@ -913,8 +954,8 @@ def criar_nova_versao(id):
     try:
         WorkflowUGQ.autor_submete_documento(novo_documento)
     except Exception as e:
-        # Se falhar, pelo menos salva o documento
-        pass
+        # Se falhar, registra o erro mas continua com o documento salvo
+        logger.warning(f"Erro ao criar tarefa para Triador UGQ: {str(e)}")
 
     db.session.commit()
 
@@ -1058,22 +1099,24 @@ def get_setor_dashboard(setor_nome):
 
     # Documentos vencidos
     documentos_vencidos = base_query.filter(
-        Documento.data_vencimento != None,
+        Documento.data_vencimento.isnot(None),
         Documento.data_vencimento < datetime.utcnow()
     ).all()
 
     # Documentos perto de vencer (próximos 90 dias)
     data_limite_90dias = datetime.utcnow() + timedelta(days=90)
     documentos_perto_vencer = base_query.filter(
-        Documento.data_vencimento != None,
+        Documento.data_vencimento.isnot(None),
         Documento.data_vencimento >= datetime.utcnow(),
         Documento.data_vencimento <= data_limite_90dias
     ).all()
 
     # Documentos vigentes (não vencidos)
     documentos_vigentes = base_query.filter(
-        (Documento.data_vencimento == None) |
-        (Documento.data_vencimento > datetime.utcnow())
+        or_(
+            Documento.data_vencimento.is_(None),
+            Documento.data_vencimento > datetime.utcnow()
+        )
     ).count()
 
     # ===== DOCUMENTOS POR TIPO =====
@@ -1128,7 +1171,7 @@ def get_setor_dashboard(setor_nome):
                 'palavras_chave': palavras_chave,
                 'resumo': resumo_texto[:200] + '...' if len(resumo_texto) > 200 else resumo_texto
             }
-        except:
+        except (json.JSONDecodeError, TypeError, KeyError, AttributeError):
             return {'palavras_chave': [], 'resumo': ''}
 
     # ===== MONTA RESPOSTA =====
