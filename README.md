@@ -74,14 +74,18 @@ sudo scripts/deploy.sh
 
 ### 🔄 Workflow UGQ (Centralizado na Qualidade)
 ```
-Autor → Triagem UGQ → Validação UGQ → Bloco Assinatura → Publicação
-         (3 checkpoints)  (codificação)   (aprovadores)    (validador)
+Novo → Em Triagem → Em Validação → Validado → Em Aprovação → Aprovado → Publicado
+  │         │              │           │            │
+  │         ↓              ↓           │            ↓
+  │    Em Correção ←───────┘           │      Em Ajustes
+  │         │                          │            │
+  └─────────┘                          └────────────┘
 ```
 
-- ✅ Triagem com 3 checkpoints de qualidade
-- ✅ Validação técnica + codificação definitiva
-- ✅ Bloco de assinatura (sequencial ou concomitante)
-- ✅ Publicação oficial com PDF final
+- ✅ **Triagem** (Triador UGQ): 3 checkpoints de qualidade obrigatórios
+- ✅ **Validação** (Validador UGQ): Análise técnica + codificação definitiva
+- ✅ **Assinatura** (Aprovadores): Bloco sequencial ou concomitante
+- ✅ **Publicação** (Validador UGQ): PDF final com código definitivo
 
 ### 🤖 Inteligência Artificial (DeepSeek)
 - ✅ Extração automática de texto
@@ -326,26 +330,41 @@ python-dotenv==1.0.0
 
 ```mermaid
 graph TD
-    A[Autor cria documento] --> B[Triagem UGQ]
-    B --> C{Aprovado?}
-    C -->|Sim| D[Validação UGQ]
-    C -->|Não| E[Devolve para correção]
-    E --> A
-    D --> F{Validado?}
-    F -->|Sim| G[Codifica definitivo]
-    F -->|Não| E
-    G --> H[Bloco de Assinatura]
-    H --> I{Todos assinaram?}
-    I -->|Sim| J[Publicação]
-    I -->|Não| K[Aguardando assinaturas]
-    J --> L[Documento Publicado]
+    A[👤 Autor cria documento] -->|Status: Novo| B[📋 Triagem UGQ]
+    B -->|Status: Em Triagem| C{Triador aprova?}
+    C -->|✅ Sim| D[🔍 Validação UGQ]
+    C -->|❌ Não| E[📝 Correção pelo Autor]
+    E -->|Status: Em Correção| A
+    D -->|Status: Em Validação| F{Validador aprova?}
+    F -->|✅ Sim| G[🏷️ Codifica + Lista Mestra]
+    F -->|❌ Não| E
+    G -->|Status: Validado| H[✍️ Bloco de Assinatura]
+    H -->|Status: Em Aprovação| I{Aprovadores}
+    I -->|✅ Todos assinaram| J[📢 Publicação]
+    I -->|❌ Reprovado| K[🔄 Ajustes pelo Validador]
+    I -->|⏳ Pendente| L[Aguardando assinaturas]
+    K -->|Status: Em Ajustes| H
+    J -->|Status: Aprovado| M[📄 Documento Publicado]
+    M -->|Status: Publicado| N[✅ FIM]
 ```
 
-**Etapas do Workflow:**
-1. **Triagem UGQ** (Triador): 3 checkpoints de qualidade
-2. **Validação UGQ** (Validador): Análise técnica + codificação definitiva
-3. **Bloco de Assinatura**: Aprovadores assinam (sequencial ou concomitante)
-4. **Publicação**: Validador publica PDF final com código
+**Status do Documento no Workflow:**
+| Etapa | Status | Responsável |
+|-------|--------|-------------|
+| Submissão | `Novo` → `Em Triagem` | Autor |
+| Triagem | `Em Triagem` → `Em Validação` ou `Em Correção` | Triador UGQ |
+| Correção | `Em Correção` → `Em Triagem` | Autor |
+| Validação | `Em Validação` → `Validado` ou `Em Correção` | Validador UGQ |
+| Assinatura | `Validado` → `Em Aprovação` → `Aprovado` ou `Em Ajustes` | Aprovadores |
+| Ajustes | `Em Ajustes` → `Em Aprovação` | Validador UGQ |
+| Publicação | `Aprovado` → `Publicado` | Validador UGQ |
+
+**Etapas Detalhadas:**
+1. **ETAPA 0 - Submissão** (Autor): Cria documento, gera código provisório
+2. **ETAPA 1 - Triagem UGQ** (Triador): 3 checkpoints de qualidade obrigatórios
+3. **ETAPA 2 - Validação UGQ** (Validador): Análise técnica + codificação definitiva + Lista Mestra
+4. **ETAPA 3 - Bloco de Assinatura** (Aprovadores): Modo sequencial ou concomitante
+5. **ETAPA 4 - Publicação** (Validador): Gera PDF final com assinaturas
 
 ### 🔐 Segurança Implementada
 
