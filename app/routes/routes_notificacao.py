@@ -66,8 +66,8 @@ def listar_todas():
         JSON: Lista de todas as notificações
     """
     try:
-        limit = request.args.get('limit', 50, type=int)
-        offset = request.args.get('offset', 0, type=int)
+        limit = min(100, max(1, request.args.get('limit', 50, type=int)))  # Limita entre 1 e 100
+        offset = max(0, request.args.get('offset', 0, type=int))  # Garante offset não negativo
 
         notificacoes = Notificacao.query.filter_by(
             usuario_id=current_user.id

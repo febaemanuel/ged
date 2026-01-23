@@ -190,8 +190,8 @@ class Documento(db.Model):
         prefixo = self.tipo_documento[:3].upper() if self.tipo_documento else 'DOC'
         data = datetime.utcnow().strftime('%Y%m%d')
 
-        # Busca último código do dia para gerar sequencial
-        ultimo = Documento.query.filter(
+        # Busca último código do dia para gerar sequencial (excluindo documentos deletados)
+        ultimo = Documento.query_active().filter(
             Documento.codigo_definitivo.like(f"{prefixo}-DEF-{data}-%")
         ).order_by(Documento.codigo_definitivo.desc()).first()
 
@@ -376,7 +376,8 @@ class Documento(db.Model):
                 break
 
             visited_ids.add(versao_atual.versao_anterior_id)
-            versao_anterior = Documento.query.get(versao_atual.versao_anterior_id)
+            # Usa query_active() para excluir documentos deletados do histórico
+            versao_anterior = Documento.query_active().filter_by(id=versao_atual.versao_anterior_id).first()
             if versao_anterior:
                 versoes.append(versao_anterior)  # Usando append ao invés de insert(0)
                 versao_atual = versao_anterior
@@ -396,9 +397,9 @@ class Documento(db.Model):
         return versoes
 
     def obter_versao_anterior(self):
-        """Retorna o documento que esta versão substituiu"""
+        """Retorna o documento que esta versão substituiu (excluindo deletados)"""
         if self.versao_anterior_id:
-            return Documento.query.get(self.versao_anterior_id)
+            return Documento.query_active().filter_by(id=self.versao_anterior_id).first()
         return None
 
     def obter_versoes_posteriores(self):
@@ -415,8 +416,8 @@ class Documento(db.Model):
         visited_ids = set()  # Proteção contra ciclos
         visited_ids.add(self.id)  # Marca o atual como visitado
 
-        # Busca documentos que apontam para este como versao_anterior_id
-        proxima_versao = Documento.query.filter_by(versao_anterior_id=self.id).first()
+        # Busca documentos que apontam para este como versao_anterior_id (excluindo deletados)
+        proxima_versao = Documento.query_active().filter_by(versao_anterior_id=self.id).first()
 
         while proxima_versao:
             # Proteção contra ciclos - evita loop infinito
@@ -430,8 +431,8 @@ class Documento(db.Model):
 
             visited_ids.add(proxima_versao.id)
             versoes.append(proxima_versao)
-            # Busca próxima versão recursivamente
-            proxima_versao = Documento.query.filter_by(versao_anterior_id=proxima_versao.id).first()
+            # Busca próxima versão recursivamente (excluindo deletados)
+            proxima_versao = Documento.query_active().filter_by(versao_anterior_id=proxima_versao.id).first()
 
         return versoes
 
@@ -444,8 +445,8 @@ class Documento(db.Model):
 
     def eh_versao_atual(self):
         """Verifica se este documento é a versão mais recente"""
-        # Se não existe versão posterior, é a atual
-        versao_posterior = Documento.query.filter_by(versao_anterior_id=self.id).first()
+        # Se não existe versão posterior não deletada, é a atual
+        versao_posterior = Documento.query_active().filter_by(versao_anterior_id=self.id).first()
         return versao_posterior is None
 
     # ✅ MÉTODOS DE SOFT DELETE

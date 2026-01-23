@@ -378,7 +378,33 @@ def documento_editar(id):
         if current_user.is_admin() or current_user.is_validador_ugq():
             status = request.form.get('status')
             if status:
-                documento.status = status
+                # SEGURANÇA: Validar transição de status via workflow
+                # Apenas permite mudanças dentro de estados válidos do workflow
+                from config import Config
+                status_permitidos_direto = [
+                    Config.STATUS_CANCELADO,  # Admin pode cancelar
+                    Config.STATUS_OBSOLETO,   # Admin pode marcar obsoleto
+                ]
+                status_workflow = [
+                    Config.STATUS_NOVO,
+                    Config.STATUS_EM_TRIAGEM,
+                    Config.STATUS_EM_VALIDACAO,
+                    Config.STATUS_EM_CORRECAO,
+                    Config.STATUS_VALIDADO,
+                    Config.STATUS_EM_APROVACAO,
+                    Config.STATUS_EM_AJUSTES,
+                    Config.STATUS_APROVADO,
+                    Config.STATUS_PUBLICADO,
+                ]
+                if status in status_permitidos_direto:
+                    # Admin pode definir Cancelado/Obsoleto diretamente
+                    documento.status = status
+                    logger.info(f"Admin {current_user.id} alterou status de doc {documento.id} para {status}")
+                elif status in status_workflow and current_user.is_admin():
+                    # Apenas admin pode forçar outros status (com log)
+                    logger.warning(f"ADMIN BYPASS: {current_user.id} forçou status de doc {documento.id} para {status}")
+                    documento.status = status
+                # Validadores NÃO podem pular etapas do workflow
 
             versao = request.form.get('versao')
             if versao:
@@ -1418,19 +1444,56 @@ def criar_bloco_assinatura(documento_id):
     modo = request.form.get('modo', 'sequencial')
     observacoes = request.form.get('observacoes', '')
 
-    # Coleta aprovadores
+    # Coleta aprovadores com validação
     aprovadores_ids = []
     ordem = 1
     while True:
         aprovador_id = request.form.get(f'aprovador_{ordem}', type=int)
         if not aprovador_id:
             break
+
+        # VALIDAÇÃO: Verificar se aprovador existe e está ativo
+        aprovador = Usuario.query.get(aprovador_id)
+        if not aprovador:
+            flash(f'Aprovador #{ordem} não encontrado no sistema', 'danger')
+            return redirect(request.url)
+
+        if not aprovador.ativo:
+            flash(f'Aprovador {aprovador.nome} está inativo', 'danger')
+            return redirect(request.url)
+
+        # VALIDAÇÃO: Não permitir auto-aprovação
+        if aprovador_id == documento.criador_id:
+            flash('O criador do documento não pode ser aprovador', 'danger')
+            return redirect(request.url)
+
+        # VALIDAÇÃO: Verificar permissão para aprovar
+        if not aprovador.is_gerente_ou_superior():
+            flash(f'{aprovador.nome} não tem permissão para aprovar documentos', 'danger')
+            return redirect(request.url)
+
+        # VALIDAÇÃO: Evitar aprovadores duplicados
+        if aprovador_id in aprovadores_ids:
+            flash(f'{aprovador.nome} já está na lista de aprovadores', 'warning')
+            continue
+
         aprovadores_ids.append(aprovador_id)
         ordem += 1
 
     if not aprovadores_ids:
-        flash('Adicione pelo menos um aprovador', 'danger')
+        flash('Adicione pelo menos um aprovador válido', 'danger')
         return redirect(request.url)
+
+    # VALIDAÇÃO: Verificar se já existe bloco ativo para este documento
+    from app.models.models import BlocoAssinatura
+    bloco_existente = BlocoAssinatura.query.filter_by(
+        documento_id=documento.id,
+        status='Em Andamento'
+    ).first()
+
+    if bloco_existente:
+        flash(f'Já existe um bloco de assinatura ativo (#{bloco_existente.id}) para este documento', 'danger')
+        return redirect(url_for('view.documento_detalhe', id=documento_id))
 
     try:
         bloco = WorkflowUGQ.validador_cria_bloco_assinatura(

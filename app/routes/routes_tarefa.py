@@ -15,8 +15,12 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import os
+import logging
 
 from app.models import db, Tarefa, Documento, Usuario
+from config import Config
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('tarefa', __name__, url_prefix='/api/tarefa')
 

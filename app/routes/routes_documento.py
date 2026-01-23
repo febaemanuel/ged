@@ -98,8 +98,8 @@ def listar_documentos():
         - page: Página (paginação)
         - per_page: Itens por página
     """
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = min(100, max(1, request.args.get('per_page', 20, type=int)))  # Limita entre 1 e 100
 
     query = Documento.query
 
@@ -647,8 +647,8 @@ def repositorio_publico():
         - palavras_chave: Busca por palavras-chave da IA
         - page: Página
     """
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 30, type=int)  # Aumentado para 30 (lazy loading)
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = min(100, max(1, request.args.get('per_page', 30, type=int)))  # Limita entre 1 e 100
 
     # Mostra documentos Publicados (repositório público)
     query = Documento.query.filter_by(status='Publicado')
