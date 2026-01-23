@@ -358,10 +358,15 @@
             });
         }
 
-        // Auto-refresh a cada 30 segundos
-        setInterval(atualizarContadorNotificacoes, 30000);
+        // Auto-refresh a cada 30 segundos com cleanup
+        const notificacoesInterval = setInterval(atualizarContadorNotificacoes, 30000);
 
-        console.log('[Notificações] Sistema inicializado');
+        // Limpa interval quando usuário sai da página (evita memory leak)
+        window.addEventListener('beforeunload', function() {
+            clearInterval(notificacoesInterval);
+        });
+
+        // Sistema de notificações inicializado
     });
     </script>
     {% endif %}

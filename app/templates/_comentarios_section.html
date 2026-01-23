@@ -409,6 +409,45 @@ async function deletarComentario(comentarioId) {
     }
 }
 
+async function editarComentario(comentarioId) {
+    // Busca o comentário atual
+    const comentario = comentariosData.find(c => c.id === comentarioId);
+    if (!comentario) {
+        showNotification('Comentário não encontrado', 'error');
+        return;
+    }
+
+    // Prompt para editar (pode ser substituído por modal)
+    const novoTexto = prompt('Editar comentário:', comentario.texto);
+    if (novoTexto === null || novoTexto.trim() === '') {
+        return; // Usuário cancelou ou texto vazio
+    }
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        const response = await fetch(`/comentario/${comentarioId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ texto: novoTexto.trim() })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            carregarComentarios();
+            showNotification('Comentário editado com sucesso', 'success');
+        } else {
+            showNotification(data.erro || 'Erro ao editar comentário', 'error');
+        }
+    } catch (error) {
+        showNotification('Erro ao editar comentário', 'error');
+        console.error(error);
+    }
+}
+
 function getPerfilBadgeClass(perfil) {
     const classes = {
         'comum': 'bg-secondary',
@@ -421,7 +460,11 @@ function getPerfilBadgeClass(perfil) {
 }
 
 function showNotification(message, type) {
-    // Implementação simples de notificação
-    alert(message);
+    // Usa toast se disponível, senão alert
+    if (typeof window.showToast === 'function') {
+        window.showToast(message, type);
+    } else {
+        alert(message);
+    }
 }
 </script>

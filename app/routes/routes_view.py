@@ -575,7 +575,8 @@ def documento_excluir(id):
         if caminho_arquivo and os.path.exists(caminho_arquivo):
             os.remove(caminho_arquivo)
     except Exception as e:
-        flash(f'Erro ao excluir arquivo: {str(e)}', 'warning')
+        logger.error(f'Erro ao excluir arquivo do documento {documento.id}: {str(e)}')
+        flash('Erro ao excluir arquivo do sistema', 'warning')
 
     # Excluir documento do banco
     db.session.delete(documento)
@@ -882,8 +883,8 @@ def tarefa_concluir(id):
             return redirect(url_for('view.tarefas'))
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Erro ao retomar workflow após correção: {str(e)}")
-            flash(f'❌ Erro ao retomar workflow: {str(e)}', 'danger')
+            logger.error(f"Erro ao retomar workflow após correção: {str(e)}", exc_info=True)
+            flash('❌ Erro ao retomar workflow. Por favor, tente novamente.', 'danger')
             return redirect(url_for('view.tarefa_detalhe', id=id))
 
     # Caso 2: VALIDADOR concluiu ajustes (após reprovação de aprovador)
@@ -896,8 +897,8 @@ def tarefa_concluir(id):
             return redirect(url_for('view.tarefas'))
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Erro ao retomar workflow após ajustes: {str(e)}")
-            flash(f'❌ Erro ao retomar workflow: {str(e)}', 'danger')
+            logger.error(f"Erro ao retomar workflow após ajustes: {str(e)}", exc_info=True)
+            flash('❌ Erro ao retomar workflow. Por favor, tente novamente.', 'danger')
             return redirect(url_for('view.tarefa_detalhe', id=id))
 
     # ============================================================================
