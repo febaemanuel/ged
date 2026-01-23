@@ -366,6 +366,140 @@ graph TD
 4. **ETAPA 3 - Bloco de Assinatura** (Aprovadores): Modo sequencial ou concomitante
 5. **ETAPA 4 - Publicação** (Validador): Gera PDF final com assinaturas
 
+---
+
+### 📝 Exemplo Real do Fluxo
+
+**Cenário:** Dr. João (Autor) cria um POP de Higienização de Mãos
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ETAPA 0: SUBMISSÃO                                                           │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 👤 Dr. João (Autor) acessa Sistema GED                                       │
+│ 📄 Clica em "Novo Documento"                                                 │
+│ 📝 Preenche: Título="POP Higienização de Mãos", Tipo="POP", Setor="UTI"     │
+│ 📎 Anexa arquivo: pop_higienizacao_maos.docx                                 │
+│ ✅ Clica "Submeter para Análise"                                             │
+│                                                                              │
+│ 🔄 Sistema automaticamente:                                                  │
+│    • Gera código provisório: POP-PROV-20260123-0001                         │
+│    • Muda status: Novo → Em Triagem                                         │
+│    • Cria tarefa "Documento Recebido" para Maria (Triadora UGQ)             │
+│    • Envia email/WhatsApp para Maria                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ETAPA 1: TRIAGEM UGQ                                                         │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 👤 Maria (Triadora UGQ) recebe notificação                                   │
+│ 📋 Acessa tarefa "Documento Recebido"                                        │
+│ 🔍 Realiza 3 checkpoints obrigatórios:                                       │
+│    ☑️ Checkpoint 1: Formatação correta (ABNT, logos, cabeçalho)             │
+│    ☑️ Checkpoint 2: Conteúdo mínimo (objetivo, escopo, responsáveis)        │
+│    ☑️ Checkpoint 3: Setor e tipo corretos                                    │
+│                                                                              │
+│ ✅ CENÁRIO A - Aprovado:                                                     │
+│    • Maria clica "Aprovar Triagem"                                           │
+│    • Status: Em Triagem → Em Validação                                       │
+│    • Cria tarefa "Validar e Codificar" para Carlos (Validador UGQ)          │
+│                                                                              │
+│ ❌ CENÁRIO B - Reprovado:                                                    │
+│    • Maria clica "Devolver para Correção"                                    │
+│    • Informa motivo: "Falta logo do hospital no cabeçalho"                  │
+│    • Status: Em Triagem → Em Correção                                        │
+│    • Cria tarefa "Realizar Correção" para Dr. João (Autor)                  │
+│    • Dr. João corrige e resubmete (volta para ETAPA 1)                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ETAPA 2: VALIDAÇÃO E CODIFICAÇÃO UGQ                                         │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 👤 Carlos (Validador UGQ) recebe notificação                                 │
+│ 📋 Acessa tarefa "Validar e Codificar"                                       │
+│ 🔍 Realiza análise técnica do conteúdo                                       │
+│                                                                              │
+│ ✅ CENÁRIO A - Aprovado:                                                     │
+│    • Carlos clica "Codificar Documento"                                      │
+│    • Sistema gera código definitivo: POP-DEF-20260123-0001                  │
+│    • Adiciona documento à Lista Mestra                                       │
+│    • Status: Em Validação → Validado                                         │
+│    • Carlos cria Bloco de Assinatura:                                        │
+│      - Seleciona aprovadores: Dr. Silva (Chefe UTI), Dra. Ana (Diretora)   │
+│      - Escolhe modo: Sequencial (um após outro)                             │
+│    • Status: Validado → Em Aprovação                                         │
+│    • Cria tarefa "Assinar Documento" para Dr. Silva                         │
+│                                                                              │
+│ ❌ CENÁRIO B - Reprovado:                                                    │
+│    • Carlos clica "Devolver para Correção"                                   │
+│    • Informa motivo: "Procedimento incompleto, falta seção de materiais"   │
+│    • Status: Em Validação → Em Correção                                      │
+│    • Cria tarefa para Dr. João (volta para ETAPA 1 após correção)           │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ETAPA 3: BLOCO DE ASSINATURA                                                 │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 👤 Dr. Silva (1º Aprovador) recebe notificação                               │
+│ 📋 Acessa tarefa "Assinar Documento"                                         │
+│ 📄 Visualiza PDF do documento                                                │
+│                                                                              │
+│ ✅ CENÁRIO A - Aprovado:                                                     │
+│    • Dr. Silva clica "Assinar/Aprovar"                                       │
+│    • Confirma com senha ou via WhatsApp                                      │
+│    • Sistema registra: Hash SHA-256, IP, Data/Hora                          │
+│    • Como é sequencial, cria tarefa para Dra. Ana (2º Aprovador)            │
+│                                                                              │
+│ 👤 Dra. Ana (2º Aprovador) recebe notificação                                │
+│    • Dra. Ana clica "Assinar/Aprovar"                                        │
+│    • Todos assinaram! Status: Em Aprovação → Aprovado                        │
+│    • Cria tarefa "Publicar Documento" para Carlos (Validador)               │
+│                                                                              │
+│ ❌ CENÁRIO B - Reprovado por algum aprovador:                                │
+│    • Dr. Silva clica "Reprovar"                                              │
+│    • Informa parecer: "Discordo do protocolo de secagem"                    │
+│    • Status: Em Aprovação → Em Ajustes                                       │
+│    • Cria tarefa "Realizar Ajustes" para Carlos (Validador)                 │
+│    • Carlos ajusta e cria novo Bloco de Assinatura                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ETAPA 4: PUBLICAÇÃO                                                          │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 👤 Carlos (Validador UGQ) recebe notificação                                 │
+│ 📋 Acessa tarefa "Publicar Documento"                                        │
+│ ✅ Clica "Publicar Oficialmente"                                             │
+│                                                                              │
+│ 🔄 Sistema automaticamente:                                                  │
+│    • Gera PDF final com página de assinaturas                               │
+│    • Inclui: código definitivo, assinaturas digitais, QR code               │
+│    • Calcula data de vencimento: 23/01/2028 (POP = 2 anos)                  │
+│    • Status: Aprovado → Publicado                                            │
+│    • Disponibiliza no Repositório Público                                    │
+│    • Envia notificação para Dr. João (Autor): "Seu documento foi publicado!"│
+│                                                                              │
+│ 📄 Documento Final:                                                          │
+│    • Código: POP-DEF-20260123-0001                                          │
+│    • Status: Publicado                                                       │
+│    • Validade: 23/01/2028                                                    │
+│    • Assinaturas: Dr. Silva, Dra. Ana                                       │
+│    • Disponível no Repositório Público para consulta                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Resumo do Exemplo:**
+| Etapa | Ator | Ação | Status Anterior | Status Novo |
+|-------|------|------|-----------------|-------------|
+| 0 | Dr. João | Submete documento | - | Em Triagem |
+| 1 | Maria | Aprova triagem | Em Triagem | Em Validação |
+| 2 | Carlos | Codifica documento | Em Validação | Validado |
+| 2 | Carlos | Cria bloco assinatura | Validado | Em Aprovação |
+| 3 | Dr. Silva | Assina (1º) | Em Aprovação | Em Aprovação |
+| 3 | Dra. Ana | Assina (2º - último) | Em Aprovação | Aprovado |
+| 4 | Carlos | Publica | Aprovado | Publicado |
+
+---
+
 ### 🔐 Segurança Implementada
 
 | Controle | Implementação | Status |
