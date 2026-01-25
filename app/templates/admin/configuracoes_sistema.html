@@ -282,6 +282,9 @@
                         <a class="nav-link" href="#interface" data-section="interface">
                             <i class="bi bi-palette"></i> Interface
                         </a>
+                        <a class="nav-link" href="#integracoes" data-section="integracoes">
+                            <i class="bi bi-plug"></i> Integracoes
+                        </a>
                     </nav>
                 </div>
 
@@ -1134,6 +1137,214 @@
                 </form>
             </div>
 
+            <!-- INTEGRACOES -->
+            <div class="config-section" id="integracoes">
+                <div class="config-section-header">
+                    <h4><i class="bi bi-plug"></i> Integracoes e APIs</h4>
+                </div>
+
+                <!-- Status das Integracoes -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="config-card {{ 'success' if config.email_ativo else 'warning' }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1"><i class="bi bi-envelope"></i> Email (SMTP)</h6>
+                                    <span class="status-indicator {{ 'active' if config.email_ativo else 'inactive' }}">
+                                        {{ 'Ativo' if config.email_ativo else 'Inativo' }}
+                                    </span>
+                                </div>
+                                <a href="#email" class="btn btn-sm btn-outline-primary" onclick="document.querySelector('[data-section=email]').click()">
+                                    <i class="bi bi-gear"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="config-card {{ 'success' if config.ia_ativo else 'warning' }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1"><i class="bi bi-robot"></i> IA (DeepSeek)</h6>
+                                    <span class="status-indicator {{ 'active' if config.ia_ativo else 'inactive' }}">
+                                        {{ 'Ativo' if config.ia_ativo else 'Inativo' }}
+                                    </span>
+                                </div>
+                                <a href="#ia" class="btn btn-sm btn-outline-primary" onclick="document.querySelector('[data-section=ia]').click()">
+                                    <i class="bi bi-gear"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="config-card {{ 'success' if whatsapp_config.ativo else 'warning' }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1"><i class="bi bi-whatsapp"></i> WhatsApp</h6>
+                                    <span class="status-indicator {{ 'active' if whatsapp_config.ativo else 'inactive' }}">
+                                        {{ 'Ativo' if whatsapp_config.ativo else 'Inativo' }}
+                                    </span>
+                                </div>
+                                <a href="{{ url_for('whatsapp_admin.configuracao') }}" class="btn btn-sm btn-outline-success">
+                                    <i class="bi bi-gear"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WhatsApp / Evolution API -->
+                <div class="config-card">
+                    <h6><i class="bi bi-whatsapp text-success"></i> WhatsApp (Evolution API)</h6>
+                    <p class="text-muted mb-3">Configuracao completa do chatbot WhatsApp para notificacoes e assinaturas digitais.</p>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>URL da Evolution API</label>
+                                <input type="text" class="form-control" value="{{ whatsapp_config.evolution_api_url or 'Nao configurado' }}" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>Nome da Instancia</label>
+                                <input type="text" class="form-control" value="{{ whatsapp_config.evolution_instance_name or 'Nao configurado' }}" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom">
+                        <label>API Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" value="{{ '********' if whatsapp_config.evolution_api_key else 'Nao configurada' }}" readonly id="whatsappApiKey">
+                            <button class="btn btn-outline-secondary" type="button" onclick="toggleApiKey('whatsappApiKey')">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <a href="{{ url_for('whatsapp_admin.configuracao') }}" class="btn btn-success">
+                            <i class="bi bi-gear"></i> Configurar WhatsApp
+                        </a>
+                        <a href="{{ url_for('whatsapp_admin.logs') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-list-ul"></i> Ver Logs
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Webhooks -->
+                <div class="config-card">
+                    <h6><i class="bi bi-link-45deg"></i> URLs de Webhook</h6>
+                    <p class="text-muted mb-3">Configure estes endpoints em suas integracoes externas.</p>
+
+                    <div class="form-group-custom">
+                        <label>Webhook WhatsApp (Evolution API)</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="{{ request.host_url }}whatsapp/webhook" readonly id="webhookUrl">
+                            <button class="btn btn-outline-secondary" type="button" onclick="copiarTexto('webhookUrl')">
+                                <i class="bi bi-clipboard"></i> Copiar
+                            </button>
+                        </div>
+                        <div class="form-text">Use esta URL na configuracao do webhook da Evolution API</div>
+                    </div>
+
+                    <div class="form-group-custom">
+                        <label>API de Configuracoes (JSON)</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="{{ request.host_url }}admin/api/configuracoes" readonly id="apiConfigUrl">
+                            <button class="btn btn-outline-secondary" type="button" onclick="copiarTexto('apiConfigUrl')">
+                                <i class="bi bi-clipboard"></i> Copiar
+                            </button>
+                        </div>
+                        <div class="form-text">Endpoint para obter configuracoes do sistema (requer autenticacao)</div>
+                    </div>
+                </div>
+
+                <!-- API Keys do Sistema -->
+                <div class="config-card">
+                    <h6><i class="bi bi-key"></i> Chaves de API Configuradas</h6>
+
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Servico</th>
+                                <th>Status</th>
+                                <th>Ultima Verificacao</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><i class="bi bi-robot text-primary"></i> DeepSeek / IA</td>
+                                <td>
+                                    {% if config.ia_api_key %}
+                                    <span class="badge bg-success">Configurada</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Nao configurada</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="testarIA()">
+                                        <i class="bi bi-check-circle"></i> Testar
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-whatsapp text-success"></i> Evolution API</td>
+                                <td>
+                                    {% if whatsapp_config.evolution_api_key %}
+                                    <span class="badge bg-success">Configurada</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Nao configurada</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('whatsapp_admin.configuracao') }}" class="btn btn-sm btn-outline-success">
+                                        <i class="bi bi-gear"></i> Configurar
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><i class="bi bi-envelope text-info"></i> SMTP</td>
+                                <td>
+                                    {% if config.smtp_senha %}
+                                    <span class="badge bg-success">Configurada</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Nao configurada</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="testarEmail()">
+                                        <i class="bi bi-check-circle"></i> Testar
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Links Rapidos -->
+                <div class="config-card">
+                    <h6><i class="bi bi-lightning"></i> Links Rapidos</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{{ url_for('whatsapp_admin.configuracao') }}" class="btn btn-outline-success">
+                            <i class="bi bi-whatsapp"></i> Config. WhatsApp
+                        </a>
+                        <a href="{{ url_for('whatsapp_admin.logs') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-list-ul"></i> Logs WhatsApp
+                        </a>
+                        <a href="#ia" class="btn btn-outline-primary" onclick="document.querySelector('[data-section=ia]').click()">
+                            <i class="bi bi-robot"></i> Config. IA
+                        </a>
+                        <a href="#email" class="btn btn-outline-info" onclick="document.querySelector('[data-section=email]').click()">
+                            <i class="bi bi-envelope"></i> Config. Email
+                        </a>
+                        <a href="{{ url_for('admin.exportar_configuracoes') }}" class="btn btn-outline-dark">
+                            <i class="bi bi-download"></i> Exportar Tudo
+                        </a>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -1304,6 +1515,39 @@ function testarIA() {
         btn.innerHTML = originalText;
         btn.disabled = false;
     });
+}
+
+// Copiar texto para clipboard
+function copiarTexto(inputId) {
+    const input = document.getElementById(inputId);
+    input.select();
+    input.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(input.value).then(() => {
+        // Feedback visual
+        const btn = input.nextElementSibling;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i> Copiado!';
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-success');
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-secondary');
+        }, 2000);
+    });
+}
+
+// Toggle visibilidade da API Key
+function toggleApiKey(inputId) {
+    const input = document.getElementById(inputId);
+    const btn = input.nextElementSibling;
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.innerHTML = '<i class="bi bi-eye-slash"></i>';
+    } else {
+        input.type = 'password';
+        btn.innerHTML = '<i class="bi bi-eye"></i>';
+    }
 }
 </script>
 {% endblock %}
