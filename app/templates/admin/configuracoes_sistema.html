@@ -1,0 +1,1309 @@
+{% extends "base.html" %}
+
+{% block title %}Configuracoes do Sistema - Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+.config-header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 16px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.config-sidebar {
+    position: sticky;
+    top: 80px;
+}
+.config-nav {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+.config-nav .nav-link {
+    color: var(--gray-600);
+    font-weight: 500;
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin: 3px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s ease;
+}
+.config-nav .nav-link:hover {
+    background: var(--gray-100);
+    color: var(--primary-color);
+}
+.config-nav .nav-link.active {
+    background: var(--primary-color);
+    color: white;
+}
+.config-nav .nav-link i {
+    font-size: 1.1rem;
+    width: 24px;
+    text-align: center;
+}
+.config-section {
+    background: white;
+    border-radius: 16px;
+    padding: 25px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+    margin-bottom: 25px;
+    display: none;
+}
+.config-section.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.config-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--gray-100);
+}
+.config-section-header h4 {
+    color: var(--gray-800);
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.config-section-header h4 i {
+    color: var(--primary-color);
+}
+.form-group-custom {
+    margin-bottom: 20px;
+}
+.form-group-custom label {
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 8px;
+    display: block;
+}
+.form-group-custom .form-text {
+    font-size: 0.85rem;
+    color: var(--gray-500);
+    margin-top: 5px;
+}
+.form-switch-lg {
+    padding-left: 3rem;
+}
+.form-switch-lg .form-check-input {
+    width: 3rem;
+    height: 1.5rem;
+    margin-left: -3rem;
+}
+.config-card {
+    background: var(--gray-50);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-left: 4px solid var(--primary-color);
+}
+.config-card.warning {
+    border-left-color: var(--warning-color);
+    background: #fffbeb;
+}
+.config-card.danger {
+    border-left-color: var(--danger-color);
+    background: #fef2f2;
+}
+.config-card.success {
+    border-left-color: var(--success-color);
+    background: #f0fdf4;
+}
+.config-card h6 {
+    color: var(--gray-800);
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+.btn-test {
+    margin-left: 10px;
+}
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+.status-indicator.active {
+    background: #dcfce7;
+    color: #166534;
+}
+.status-indicator.inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+.stat-box {
+    background: var(--gray-50);
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+}
+.stat-box .number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--primary-color);
+}
+.stat-box .label {
+    font-size: 0.8rem;
+    color: var(--gray-500);
+    margin-top: 5px;
+}
+.color-preview {
+    width: 100%;
+    height: 40px;
+    border-radius: 8px;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+}
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Header -->
+    <div class="config-header">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h2 class="mb-2"><i class="bi bi-sliders"></i> Configuracoes do Sistema</h2>
+                <p class="mb-0 opacity-75">Gerencie todas as configuracoes do sistema GED em um unico lugar</p>
+            </div>
+            <div class="col-lg-4 text-end">
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                    <a href="{{ url_for('admin.exportar_configuracoes') }}" class="btn btn-outline-light btn-sm">
+                        <i class="bi bi-download"></i> Exportar
+                    </a>
+                    <button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#modalImportar">
+                        <i class="bi bi-upload"></i> Importar
+                    </button>
+                    <a href="{{ url_for('admin.configuracoes') }}" class="btn btn-light btn-sm">
+                        <i class="bi bi-gear"></i> Config. Basicas
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-2 col-sm-4 col-6 mb-2">
+                <div class="stat-box" style="background: rgba(255,255,255,0.1);">
+                    <div class="number" style="color: white;">{{ stats.total_usuarios }}</div>
+                    <div class="label" style="color: rgba(255,255,255,0.7);">Usuarios</div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 col-6 mb-2">
+                <div class="stat-box" style="background: rgba(255,255,255,0.1);">
+                    <div class="number" style="color: white;">{{ stats.total_documentos }}</div>
+                    <div class="label" style="color: rgba(255,255,255,0.7);">Documentos</div>
+                </div>
+            </div>
+            <div class="col-md-2 col-sm-4 col-6 mb-2">
+                <div class="stat-box" style="background: rgba(255,255,255,0.1);">
+                    <div class="number" style="color: white;">{{ stats.tarefas_pendentes }}</div>
+                    <div class="label" style="color: rgba(255,255,255,0.7);">Tarefas Pend.</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 col-6 mb-2">
+                <div class="stat-box" style="background: rgba(255,255,255,0.1);">
+                    <div class="d-flex align-items-center justify-content-center gap-2">
+                        <span class="status-indicator {{ 'active' if config.email_ativo else 'inactive' }}">
+                            <i class="bi bi-envelope"></i> Email
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 col-6 mb-2">
+                <div class="stat-box" style="background: rgba(255,255,255,0.1);">
+                    <div class="d-flex align-items-center justify-content-center gap-2">
+                        <span class="status-indicator {{ 'active' if config.ia_ativo else 'inactive' }}">
+                            <i class="bi bi-robot"></i> IA
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Sidebar Navigation -->
+        <div class="col-lg-3 mb-4">
+            <div class="config-sidebar">
+                <div class="config-nav">
+                    <nav class="nav flex-column" id="configNav">
+                        <a class="nav-link active" href="#geral" data-section="geral">
+                            <i class="bi bi-house"></i> Geral
+                        </a>
+                        <a class="nav-link" href="#email" data-section="email">
+                            <i class="bi bi-envelope"></i> Email (SMTP)
+                        </a>
+                        <a class="nav-link" href="#ia" data-section="ia">
+                            <i class="bi bi-robot"></i> Inteligencia Artificial
+                        </a>
+                        <a class="nav-link" href="#seguranca" data-section="seguranca">
+                            <i class="bi bi-shield-lock"></i> Seguranca
+                        </a>
+                        <a class="nav-link" href="#documentos" data-section="documentos">
+                            <i class="bi bi-file-earmark"></i> Documentos
+                        </a>
+                        <a class="nav-link" href="#workflow" data-section="workflow">
+                            <i class="bi bi-diagram-3"></i> Workflow
+                        </a>
+                        <a class="nav-link" href="#notificacoes" data-section="notificacoes">
+                            <i class="bi bi-bell"></i> Notificacoes
+                        </a>
+                        <a class="nav-link" href="#backup" data-section="backup">
+                            <i class="bi bi-cloud-arrow-up"></i> Backup
+                        </a>
+                        <a class="nav-link" href="#manutencao" data-section="manutencao">
+                            <i class="bi bi-tools"></i> Manutencao
+                        </a>
+                        <a class="nav-link" href="#interface" data-section="interface">
+                            <i class="bi bi-palette"></i> Interface
+                        </a>
+                    </nav>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="config-nav mt-3">
+                    <h6 class="px-3 py-2 text-muted"><small>ACOES RAPIDAS</small></h6>
+                    <button type="button" class="nav-link text-danger w-100 text-start" data-bs-toggle="modal" data-bs-target="#modalResetar">
+                        <i class="bi bi-arrow-counterclockwise"></i> Resetar Tudo
+                    </button>
+                    {% if config.atualizado_em %}
+                    <div class="px-3 py-2">
+                        <small class="text-muted">
+                            Ultima atualizacao:<br>
+                            {{ config.atualizado_em.strftime('%d/%m/%Y %H:%M') }}
+                            {% if config.atualizado_por %}
+                            <br>por {{ config.atualizado_por.nome }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="col-lg-9">
+            <!-- GERAL -->
+            <div class="config-section active" id="geral">
+                <form method="POST" action="{{ url_for('admin.configuracoes_sistema_salvar') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="secao" value="geral">
+
+                    <div class="config-section-header">
+                        <h4><i class="bi bi-house"></i> Configuracoes Gerais</h4>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>Nome do Sistema</label>
+                                <input type="text" class="form-control" name="nome_sistema" value="{{ config.nome_sistema or '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>Sigla da Instituicao</label>
+                                <input type="text" class="form-control" name="sigla_instituicao" value="{{ config.sigla_instituicao or '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom">
+                        <label>Nome da Instituicao</label>
+                        <input type="text" class="form-control" name="nome_instituicao" value="{{ config.nome_instituicao or '' }}">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>URL do Logo</label>
+                                <input type="text" class="form-control" name="logo_url" value="{{ config.logo_url or '' }}" placeholder="/static/images/logo.png">
+                                <div class="form-text">Caminho ou URL da imagem do logo</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>URL do Favicon</label>
+                                <input type="text" class="form-control" name="favicon_url" value="{{ config.favicon_url or '' }}" placeholder="/static/favicon.ico">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-group-custom">
+                                <label>Cor Primaria</label>
+                                <input type="color" class="form-control form-control-color w-100" name="cor_primaria" value="{{ config.cor_primaria or '#4f46e5' }}">
+                                <div class="color-preview" id="previewPrimaria" style="background: {{ config.cor_primaria or '#4f46e5' }}">Primaria</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group-custom">
+                                <label>Cor Secundaria</label>
+                                <input type="color" class="form-control form-control-color w-100" name="cor_secundaria" value="{{ config.cor_secundaria or '#059669' }}">
+                                <div class="color-preview" id="previewSecundaria" style="background: {{ config.cor_secundaria or '#059669' }}">Secundaria</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group-custom">
+                                <label>Timezone</label>
+                                <select class="form-select" name="timezone">
+                                    <option value="America/Fortaleza" {{ 'selected' if config.timezone == 'America/Fortaleza' }}>America/Fortaleza</option>
+                                    <option value="America/Sao_Paulo" {{ 'selected' if config.timezone == 'America/Sao_Paulo' }}>America/Sao_Paulo</option>
+                                    <option value="America/Manaus" {{ 'selected' if config.timezone == 'America/Manaus' }}>America/Manaus</option>
+                                    <option value="America/Belem" {{ 'selected' if config.timezone == 'America/Belem' }}>America/Belem</option>
+                                    <option value="UTC" {{ 'selected' if config.timezone == 'UTC' }}>UTC</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group-custom">
+                                <label>Idioma</label>
+                                <select class="form-select" name="idioma">
+                                    <option value="pt-BR" {{ 'selected' if config.idioma == 'pt-BR' }}>Portugues (Brasil)</option>
+                                    <option value="en-US" {{ 'selected' if config.idioma == 'en-US' }}>English (US)</option>
+                                    <option value="es" {{ 'selected' if config.idioma == 'es' }}>Espanol</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom">
+                        <label>Texto do Rodape</label>
+                        <textarea class="form-control" name="rodape_texto" rows="2">{{ config.rodape_texto or '' }}</textarea>
+                    </div>
+                </form>
+            </div>
+
+            <!-- EMAIL -->
+            <div class="config-section" id="email">
+                <form method="POST" action="{{ url_for('admin.configuracoes_sistema_salvar') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="secao" value="email">
+
+                    <div class="config-section-header">
+                        <h4><i class="bi bi-envelope"></i> Configuracoes de Email (SMTP)</h4>
+                        <div class="action-buttons">
+                            <button type="button" class="btn btn-outline-secondary btn-test" onclick="testarEmail()">
+                                <i class="bi bi-send"></i> Testar
+                            </button>
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
+                        </div>
+                    </div>
+
+                    <div class="config-card {{ 'success' if config.email_ativo else 'warning' }}">
+                        <div class="form-check form-switch form-switch-lg">
+                            <input class="form-check-input" type="checkbox" name="email_ativo" id="email_ativo" {{ 'checked' if config.email_ativo }}>
+                            <label class="form-check-label" for="email_ativo">
+                                <strong>Envio de Email Ativo</strong>
+                                <div class="form-text">Habilita o envio de emails pelo sistema</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="form-group-custom">
+                                <label>Servidor SMTP</label>
+                                <input type="text" class="form-control" name="smtp_servidor" value="{{ config.smtp_servidor or '' }}" placeholder="smtp.gmail.com">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group-custom">
+                                <label>Porta</label>
+                                <input type="number" class="form-control" name="smtp_porta" value="{{ config.smtp_porta or 587 }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>Usuario SMTP</label>
+                                <input type="text" class="form-control" name="smtp_usuario" value="{{ config.smtp_usuario or '' }}" placeholder="seu@email.com">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>Senha SMTP</label>
+                                <input type="password" class="form-control" name="smtp_senha" placeholder="{{ 'Configurada' if config.smtp_senha else 'Nao configurada' }}">
+                                <div class="form-text">Deixe em branco para manter a senha atual</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" name="smtp_use_tls" id="smtp_use_tls" {{ 'checked' if config.smtp_use_tls }}>
+                                <label class="form-check-label" for="smtp_use_tls">Usar TLS</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" name="smtp_use_ssl" id="smtp_use_ssl" {{ 'checked' if config.smtp_use_ssl }}>
+                                <label class="form-check-label" for="smtp_use_ssl">Usar SSL</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>Email do Remetente</label>
+                                <input type="email" class="form-control" name="email_remetente" value="{{ config.email_remetente or '' }}" placeholder="noreply@sistema.com">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>Nome do Remetente</label>
+                                <input type="text" class="form-control" name="email_remetente_nome" value="{{ config.email_remetente_nome or '' }}" placeholder="Sistema GED">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom">
+                        <label>Prefixo do Assunto</label>
+                        <input type="text" class="form-control" name="email_assunto_prefixo" value="{{ config.email_assunto_prefixo or '' }}" placeholder="[GED]">
+                        <div class="form-text">Sera adicionado antes de todos os assuntos de email</div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- IA -->
+            <div class="config-section" id="ia">
+                <form method="POST" action="{{ url_for('admin.configuracoes_sistema_salvar') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="secao" value="ia">
+
+                    <div class="config-section-header">
+                        <h4><i class="bi bi-robot"></i> Inteligencia Artificial</h4>
+                        <div class="action-buttons">
+                            <button type="button" class="btn btn-outline-secondary btn-test" onclick="testarIA()">
+                                <i class="bi bi-cpu"></i> Testar Conexao
+                            </button>
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
+                        </div>
+                    </div>
+
+                    <div class="config-card {{ 'success' if config.ia_ativo else 'warning' }}">
+                        <div class="form-check form-switch form-switch-lg">
+                            <input class="form-check-input" type="checkbox" name="ia_ativo" id="ia_ativo" {{ 'checked' if config.ia_ativo }}>
+                            <label class="form-check-label" for="ia_ativo">
+                                <strong>Inteligencia Artificial Ativa</strong>
+                                <div class="form-text">Habilita funcionalidades de IA (extracao, classificacao, resumo)</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="form-group-custom">
+                                <label>URL da API</label>
+                                <input type="text" class="form-control" name="ia_api_url" value="{{ config.ia_api_url or '' }}" placeholder="https://api.deepseek.com">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group-custom">
+                                <label>Modelo</label>
+                                <select class="form-select" name="ia_modelo">
+                                    <option value="deepseek-chat" {{ 'selected' if config.ia_modelo == 'deepseek-chat' }}>deepseek-chat</option>
+                                    <option value="deepseek-coder" {{ 'selected' if config.ia_modelo == 'deepseek-coder' }}>deepseek-coder</option>
+                                    <option value="gpt-4" {{ 'selected' if config.ia_modelo == 'gpt-4' }}>gpt-4</option>
+                                    <option value="gpt-3.5-turbo" {{ 'selected' if config.ia_modelo == 'gpt-3.5-turbo' }}>gpt-3.5-turbo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom">
+                        <label>API Key</label>
+                        <input type="password" class="form-control" name="ia_api_key" placeholder="{{ 'Configurada' if config.ia_api_key else 'Nao configurada' }}">
+                        <div class="form-text">Deixe em branco para manter a chave atual</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group-custom">
+                                <label>Timeout (segundos)</label>
+                                <input type="number" class="form-control" name="ia_timeout" value="{{ config.ia_timeout or 30 }}" min="5" max="120">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group-custom">
+                                <label>Max Tokens</label>
+                                <input type="number" class="form-control" name="ia_max_tokens" value="{{ config.ia_max_tokens or 4000 }}" min="100" max="16000">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group-custom">
+                                <label>Temperatura</label>
+                                <input type="number" class="form-control" name="ia_temperatura" value="{{ config.ia_temperatura or 0.7 }}" min="0" max="2" step="0.1">
+                                <div class="form-text">0 = mais preciso, 2 = mais criativo</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <h6>Processamento Automatico</h6>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" name="ia_auto_extrair" id="ia_auto_extrair" {{ 'checked' if config.ia_auto_extrair }}>
+                                <label class="form-check-label" for="ia_auto_extrair">Extrair texto automaticamente</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" name="ia_auto_classificar" id="ia_auto_classificar" {{ 'checked' if config.ia_auto_classificar }}>
+                                <label class="form-check-label" for="ia_auto_classificar">Classificar automaticamente</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" name="ia_auto_resumir" id="ia_auto_resumir" {{ 'checked' if config.ia_auto_resumir }}>
+                                <label class="form-check-label" for="ia_auto_resumir">Gerar resumo automaticamente</label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- SEGURANCA -->
+            <div class="config-section" id="seguranca">
+                <form method="POST" action="{{ url_for('admin.configuracoes_sistema_salvar') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="secao" value="seguranca">
+
+                    <div class="config-section-header">
+                        <h4><i class="bi bi-shield-lock"></i> Seguranca</h4>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
+                    </div>
+
+                    <div class="config-card">
+                        <h6><i class="bi bi-clock-history"></i> Sessao</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group-custom">
+                                    <label>Timeout da Sessao (minutos)</label>
+                                    <input type="number" class="form-control" name="sessao_timeout_minutos" value="{{ config.sessao_timeout_minutos or 1440 }}" min="5" max="43200">
+                                    <div class="form-text">1440 = 24 horas</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input" type="checkbox" name="permitir_multiplas_sessoes" id="permitir_multiplas_sessoes" {{ 'checked' if config.permitir_multiplas_sessoes }}>
+                                    <label class="form-check-label" for="permitir_multiplas_sessoes">Permitir multiplas sessoes simultaneas</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-card">
+                        <h6><i class="bi bi-key"></i> Politica de Senhas</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group-custom">
+                                    <label>Minimo de caracteres</label>
+                                    <input type="number" class="form-control" name="senha_min_caracteres" value="{{ config.senha_min_caracteres or 8 }}" min="6" max="32">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group-custom">
+                                    <label>Expirar apos (dias)</label>
+                                    <input type="number" class="form-control" name="senha_expirar_dias" value="{{ config.senha_expirar_dias or 0 }}" min="0" max="365">
+                                    <div class="form-text">0 = nunca expira</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="senha_exigir_maiuscula" id="senha_exigir_maiuscula" {{ 'checked' if config.senha_exigir_maiuscula }}>
+                                    <label class="form-check-label" for="senha_exigir_maiuscula">Exigir letra maiuscula</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="senha_exigir_numero" id="senha_exigir_numero" {{ 'checked' if config.senha_exigir_numero }}>
+                                    <label class="form-check-label" for="senha_exigir_numero">Exigir numero</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="senha_exigir_especial" id="senha_exigir_especial" {{ 'checked' if config.senha_exigir_especial }}>
+                                    <label class="form-check-label" for="senha_exigir_especial">Exigir caractere especial</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-card">
+                        <h6><i class="bi bi-person-lock"></i> Bloqueio de Login</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group-custom">
+                                    <label>Maximo de tentativas</label>
+                                    <input type="number" class="form-control" name="login_max_tentativas" value="{{ config.login_max_tentativas or 5 }}" min="3" max="10">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group-custom">
+                                    <label>Tempo de bloqueio (minutos)</label>
+                                    <input type="number" class="form-control" name="login_bloqueio_minutos" value="{{ config.login_bloqueio_minutos or 15 }}" min="5" max="60">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" name="registrar_log_acesso" id="registrar_log_acesso" {{ 'checked' if config.registrar_log_acesso }}>
+                        <label class="form-check-label" for="registrar_log_acesso">Registrar log de acessos</label>
+                    </div>
+                </form>
+            </div>
+
+            <!-- DOCUMENTOS -->
+            <div class="config-section" id="documentos">
+                <form method="POST" action="{{ url_for('admin.configuracoes_sistema_salvar') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="secao" value="documentos">
+
+                    <div class="config-section-header">
+                        <h4><i class="bi bi-file-earmark"></i> Documentos</h4>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
+                    </div>
+
+                    <div class="config-card">
+                        <h6><i class="bi bi-upload"></i> Upload de Arquivos</h6>
+                        <div class="form-group-custom">
+                            <label>Extensoes Permitidas</label>
+                            <input type="text" class="form-control" name="doc_extensoes_permitidas" value="{{ config.doc_extensoes_permitidas or '' }}">
+                            <div class="form-text">Separadas por virgula. Ex: .doc,.docx,.pdf,.odt</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group-custom">
+                                    <label>Tamanho maximo (MB)</label>
+                                    <input type="number" class="form-control" name="doc_tamanho_max_mb" value="{{ config.doc_tamanho_max_mb or 50 }}" min="1" max="500">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group-custom">
+                                    <label>Versao Inicial</label>
+                                    <input type="text" class="form-control" name="doc_versao_inicial" value="{{ config.doc_versao_inicial or '1.0' }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-card">
+                        <h6><i class="bi bi-gear"></i> Comportamento</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" name="doc_gerar_codigo_provisorio" id="doc_gerar_codigo_provisorio" {{ 'checked' if config.doc_gerar_codigo_provisorio }}>
+                                    <label class="form-check-label" for="doc_gerar_codigo_provisorio">Gerar codigo provisorio automaticamente</label>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" name="doc_exigir_descricao" id="doc_exigir_descricao" {{ 'checked' if config.doc_exigir_descricao }}>
+                                    <label class="form-check-label" for="doc_exigir_descricao">Exigir descricao ao criar documento</label>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" name="doc_permitir_download_publico" id="doc_permitir_download_publico" {{ 'checked' if config.doc_permitir_download_publico }}>
+                                    <label class="form-check-label" for="doc_permitir_download_publico">Permitir download publico (sem login)</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group-custom">
+                                    <label>Dias para alerta de vencimento</label>
+                                    <input type="number" class="form-control" name="doc_dias_alerta_vencimento" value="{{ config.doc_dias_alerta_vencimento or 30 }}" min="7" max="180">
+                                    <div class="form-text">Alertar X dias antes do vencimento</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-card">
+                        <h6><i class="bi bi-bell"></i> Notificacoes de Documentos</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="doc_notificar_criacao" id="doc_notificar_criacao" {{ 'checked' if config.doc_notificar_criacao }}>
+                                    <label class="form-check-label" for="doc_notificar_criacao">Notificar criacao</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="doc_notificar_aprovacao" id="doc_notificar_aprovacao" {{ 'checked' if config.doc_notificar_aprovacao }}>
+                                    <label class="form-check-label" for="doc_notificar_aprovacao">Notificar aprovacao</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="doc_notificar_publicacao" id="doc_notificar_publicacao" {{ 'checked' if config.doc_notificar_publicacao }}>
+                                    <label class="form-check-label" for="doc_notificar_publicacao">Notificar publicacao</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- WORKFLOW -->
+            <div class="config-section" id="workflow">
+                <form method="POST" action="{{ url_for('admin.configuracoes_sistema_salvar') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="secao" value="workflow">
+
+                    <div class="config-section-header">
+                        <h4><i class="bi bi-diagram-3"></i> Workflow</h4>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
+                    </div>
+
+                    <div class="config-card {{ 'success' if config.workflow_ativo else 'warning' }}">
+                        <div class="form-check form-switch form-switch-lg">
+                            <input class="form-check-input" type="checkbox" name="workflow_ativo" id="workflow_ativo" {{ 'checked' if config.workflow_ativo }}>
+                            <label class="form-check-label" for="workflow_ativo">
+                                <strong>Workflow Ativo</strong>
+                                <div class="form-text">Habilita o fluxo de aprovacao de documentos</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom">
+                        <label>Modo do Workflow</label>
+                        <select class="form-select" name="workflow_modo">
+                            <option value="simples" {{ 'selected' if config.workflow_modo == 'simples' }}>Simples (Criacao -> Aprovacao -> Publicacao)</option>
+                            <option value="ugq" {{ 'selected' if config.workflow_modo == 'ugq' }}>UGQ (Triagem -> Validacao -> Bloco Assinatura -> Publicacao)</option>
+                        </select>
+                        <div class="form-text">UGQ = Workflow centralizado na Unidade de Gestao da Qualidade</div>
+                    </div>
+
+                    <div class="config-card">
+                        <h6><i class="bi bi-calendar"></i> Prazos Padrao (dias)</h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group-custom">
+                                    <label>Triagem</label>
+                                    <input type="number" class="form-control" name="workflow_prazo_triagem_dias" value="{{ config.workflow_prazo_triagem_dias or 3 }}" min="1" max="30">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group-custom">
+                                    <label>Validacao</label>
+                                    <input type="number" class="form-control" name="workflow_prazo_validacao_dias" value="{{ config.workflow_prazo_validacao_dias or 5 }}" min="1" max="30">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group-custom">
+                                    <label>Aprovacao</label>
+                                    <input type="number" class="form-control" name="workflow_prazo_aprovacao_dias" value="{{ config.workflow_prazo_aprovacao_dias or 7 }}" min="1" max="30">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group-custom">
+                                    <label>Correcao</label>
+                                    <input type="number" class="form-control" name="workflow_prazo_correcao_dias" value="{{ config.workflow_prazo_correcao_dias or 5 }}" min="1" max="30">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-card">
+                        <h6><i class="bi bi-exclamation-triangle"></i> Atrasos</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" name="workflow_notificar_atraso" id="workflow_notificar_atraso" {{ 'checked' if config.workflow_notificar_atraso }}>
+                                    <label class="form-check-label" for="workflow_notificar_atraso">Notificar tarefas em atraso</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group-custom">
+                                    <label>Escalar apos (dias)</label>
+                                    <input type="number" class="form-control" name="workflow_escalar_atraso_dias" value="{{ config.workflow_escalar_atraso_dias or 3 }}" min="1" max="15">
+                                    <div class="form-text">Escalar para superior apos X dias de atraso</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="workflow_permitir_auto_aprovacao" id="workflow_permitir_auto_aprovacao" {{ 'checked' if config.workflow_permitir_auto_aprovacao }}>
+                            <label class="form-check-label" for="workflow_permitir_auto_aprovacao">Permitir auto-aprovacao (autor pode aprovar proprio documento)</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- NOTIFICACOES -->
+            <div class="config-section" id="notificacoes">
+                <form method="POST" action="{{ url_for('admin.configuracoes_sistema_salvar') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="secao" value="notificacoes">
+
+                    <div class="config-section-header">
+                        <h4><i class="bi bi-bell"></i> Notificacoes</h4>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
+                    </div>
+
+                    <div class="config-card">
+                        <h6><i class="bi bi-toggles"></i> Canais de Notificacao</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="notif_email_ativo" id="notif_email_ativo" {{ 'checked' if config.notif_email_ativo }}>
+                                    <label class="form-check-label" for="notif_email_ativo"><i class="bi bi-envelope"></i> Email</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="notif_whatsapp_ativo" id="notif_whatsapp_ativo" {{ 'checked' if config.notif_whatsapp_ativo }}>
+                                    <label class="form-check-label" for="notif_whatsapp_ativo"><i class="bi bi-whatsapp"></i> WhatsApp</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="notif_sistema_ativo" id="notif_sistema_ativo" {{ 'checked' if config.notif_sistema_ativo }}>
+                                    <label class="form-check-label" for="notif_sistema_ativo"><i class="bi bi-app-indicator"></i> Sistema</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-card">
+                        <h6><i class="bi bi-clock"></i> Resumo de Notificacoes</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group-custom">
+                                    <label>Frequencia</label>
+                                    <select class="form-select" name="notif_frequencia_resumo">
+                                        <option value="imediato" {{ 'selected' if config.notif_frequencia_resumo == 'imediato' }}>Imediato</option>
+                                        <option value="diario" {{ 'selected' if config.notif_frequencia_resumo == 'diario' }}>Diario</option>
+                                        <option value="semanal" {{ 'selected' if config.notif_frequencia_resumo == 'semanal' }}>Semanal</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group-custom">
+                                    <label>Horario do Resumo</label>
+                                    <input type="time" class="form-control" name="notif_hora_resumo" value="{{ config.notif_hora_resumo or '08:00' }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group-custom mt-3">
+                            <label>Lembrar apos (dias)</label>
+                            <input type="number" class="form-control" name="notif_dias_lembrete" value="{{ config.notif_dias_lembrete or 1 }}" min="1" max="7" style="max-width: 150px;">
+                            <div class="form-text">Reenviar lembrete X dias apos a notificacao original</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- BACKUP -->
+            <div class="config-section" id="backup">
+                <form method="POST" action="{{ url_for('admin.configuracoes_sistema_salvar') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="secao" value="backup">
+
+                    <div class="config-section-header">
+                        <h4><i class="bi bi-cloud-arrow-up"></i> Backup</h4>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
+                    </div>
+
+                    <div class="config-card {{ 'success' if config.backup_ativo else 'danger' }}">
+                        <div class="form-check form-switch form-switch-lg">
+                            <input class="form-check-input" type="checkbox" name="backup_ativo" id="backup_ativo" {{ 'checked' if config.backup_ativo }}>
+                            <label class="form-check-label" for="backup_ativo">
+                                <strong>Backup Automatico Ativo</strong>
+                                <div class="form-text">Realiza backup automatico do banco de dados</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group-custom">
+                                <label>Frequencia</label>
+                                <select class="form-select" name="backup_frequencia">
+                                    <option value="diario" {{ 'selected' if config.backup_frequencia == 'diario' }}>Diario</option>
+                                    <option value="semanal" {{ 'selected' if config.backup_frequencia == 'semanal' }}>Semanal</option>
+                                    <option value="mensal" {{ 'selected' if config.backup_frequencia == 'mensal' }}>Mensal</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group-custom">
+                                <label>Horario</label>
+                                <input type="time" class="form-control" name="backup_hora" value="{{ config.backup_hora or '03:00' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group-custom">
+                                <label>Retencao (dias)</label>
+                                <input type="number" class="form-control" name="backup_retencao_dias" value="{{ config.backup_retencao_dias or 30 }}" min="7" max="365">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom">
+                        <label>Diretorio de Destino</label>
+                        <input type="text" class="form-control" name="backup_destino" value="{{ config.backup_destino or '/backups' }}">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="backup_incluir_arquivos" id="backup_incluir_arquivos" {{ 'checked' if config.backup_incluir_arquivos }}>
+                                <label class="form-check-label" for="backup_incluir_arquivos">Incluir arquivos de documentos</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="backup_notificar_admin" id="backup_notificar_admin" {{ 'checked' if config.backup_notificar_admin }}>
+                                <label class="form-check-label" for="backup_notificar_admin">Notificar administradores</label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- MANUTENCAO -->
+            <div class="config-section" id="manutencao">
+                <form method="POST" action="{{ url_for('admin.configuracoes_sistema_salvar') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="secao" value="manutencao">
+
+                    <div class="config-section-header">
+                        <h4><i class="bi bi-tools"></i> Manutencao</h4>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
+                    </div>
+
+                    <div class="config-card danger">
+                        <div class="form-check form-switch form-switch-lg">
+                            <input class="form-check-input" type="checkbox" name="manutencao_ativa" id="manutencao_ativa" {{ 'checked' if config.manutencao_ativa }}>
+                            <label class="form-check-label" for="manutencao_ativa">
+                                <strong>Modo Manutencao Ativo</strong>
+                                <div class="form-text">Bloqueia acesso de usuarios comuns ao sistema</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom">
+                        <label>Mensagem de Manutencao</label>
+                        <textarea class="form-control" name="manutencao_mensagem" rows="3">{{ config.manutencao_mensagem or '' }}</textarea>
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" name="manutencao_permitir_admin" id="manutencao_permitir_admin" {{ 'checked' if config.manutencao_permitir_admin }}>
+                        <label class="form-check-label" for="manutencao_permitir_admin">Permitir acesso de administradores durante manutencao</label>
+                    </div>
+
+                    <hr>
+                    <h6><i class="bi bi-journal-text"></i> Logs</h6>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>Nivel de Log</label>
+                                <select class="form-select" name="log_nivel">
+                                    <option value="DEBUG" {{ 'selected' if config.log_nivel == 'DEBUG' }}>DEBUG (Detalhado)</option>
+                                    <option value="INFO" {{ 'selected' if config.log_nivel == 'INFO' }}>INFO (Normal)</option>
+                                    <option value="WARNING" {{ 'selected' if config.log_nivel == 'WARNING' }}>WARNING (Alertas)</option>
+                                    <option value="ERROR" {{ 'selected' if config.log_nivel == 'ERROR' }}>ERROR (Apenas erros)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>Retencao de Logs (dias)</label>
+                                <input type="number" class="form-control" name="log_retencao_dias" value="{{ config.log_retencao_dias or 90 }}" min="7" max="365">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="limpar_sessoes_expiradas" id="limpar_sessoes_expiradas" {{ 'checked' if config.limpar_sessoes_expiradas }}>
+                        <label class="form-check-label" for="limpar_sessoes_expiradas">Limpar sessoes expiradas automaticamente</label>
+                    </div>
+                </form>
+            </div>
+
+            <!-- INTERFACE -->
+            <div class="config-section" id="interface">
+                <form method="POST" action="{{ url_for('admin.configuracoes_sistema_salvar') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="secao" value="interface">
+
+                    <div class="config-section-header">
+                        <h4><i class="bi bi-palette"></i> Interface</h4>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>Itens por Pagina</label>
+                                <select class="form-select" name="ui_itens_por_pagina">
+                                    <option value="10" {{ 'selected' if config.ui_itens_por_pagina == 10 }}>10</option>
+                                    <option value="20" {{ 'selected' if config.ui_itens_por_pagina == 20 }}>20</option>
+                                    <option value="30" {{ 'selected' if config.ui_itens_por_pagina == 30 }}>30</option>
+                                    <option value="50" {{ 'selected' if config.ui_itens_por_pagina == 50 }}>50</option>
+                                    <option value="100" {{ 'selected' if config.ui_itens_por_pagina == 100 }}>100</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-custom">
+                                <label>Tema</label>
+                                <select class="form-select" name="ui_tema">
+                                    <option value="claro" {{ 'selected' if config.ui_tema == 'claro' }}>Claro</option>
+                                    <option value="escuro" {{ 'selected' if config.ui_tema == 'escuro' }}>Escuro</option>
+                                    <option value="auto" {{ 'selected' if config.ui_tema == 'auto' }}>Automatico (sistema)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-card">
+                        <h6><i class="bi bi-layout-text-window"></i> Dashboard</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="ui_mostrar_estatisticas_dashboard" id="ui_mostrar_estatisticas_dashboard" {{ 'checked' if config.ui_mostrar_estatisticas_dashboard }}>
+                                    <label class="form-check-label" for="ui_mostrar_estatisticas_dashboard">Mostrar estatisticas</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="ui_mostrar_documentos_recentes" id="ui_mostrar_documentos_recentes" {{ 'checked' if config.ui_mostrar_documentos_recentes }}>
+                                    <label class="form-check-label" for="ui_mostrar_documentos_recentes">Mostrar docs recentes</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="ui_mostrar_tarefas_pendentes" id="ui_mostrar_tarefas_pendentes" {{ 'checked' if config.ui_mostrar_tarefas_pendentes }}>
+                                    <label class="form-check-label" for="ui_mostrar_tarefas_pendentes">Mostrar tarefas pendentes</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="ui_sidebar_expandida" id="ui_sidebar_expandida" {{ 'checked' if config.ui_sidebar_expandida }}>
+                                <label class="form-check-label" for="ui_sidebar_expandida">Sidebar expandida por padrao</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="ui_animacoes" id="ui_animacoes" {{ 'checked' if config.ui_animacoes }}>
+                                <label class="form-check-label" for="ui_animacoes">Habilitar animacoes</label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Modal Importar -->
+<div class="modal fade" id="modalImportar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.importar_configuracoes') }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-upload"></i> Importar Configuracoes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> Atencao: As configuracoes atuais serao sobrescritas. Chaves sensiveis (senhas/API keys) nao serao importadas.
+                    </div>
+                    <div class="form-group-custom">
+                        <label>Arquivo JSON</label>
+                        <input type="file" class="form-control" name="arquivo" accept=".json" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Importar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Resetar -->
+<div class="modal fade" id="modalResetar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.resetar_configuracoes') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle"></i> Resetar Configuracoes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <strong>Atencao!</strong> Esta acao ira restaurar as configuracoes para os valores padrao. Esta acao nao pode ser desfeita.
+                    </div>
+                    <div class="form-group-custom">
+                        <label>O que deseja resetar?</label>
+                        <select class="form-select" name="secao">
+                            <option value="todas">Todas as configuracoes</option>
+                            <option value="geral">Apenas Geral</option>
+                            <option value="email">Apenas Email</option>
+                            <option value="ia">Apenas IA</option>
+                            <option value="seguranca">Apenas Seguranca</option>
+                            <option value="documentos">Apenas Documentos</option>
+                            <option value="workflow">Apenas Workflow</option>
+                            <option value="notificacoes">Apenas Notificacoes</option>
+                            <option value="backup">Apenas Backup</option>
+                            <option value="manutencao">Apenas Manutencao</option>
+                            <option value="interface">Apenas Interface</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Tem certeza que deseja resetar?')">Resetar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Navigation
+document.querySelectorAll('#configNav .nav-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const section = this.dataset.section;
+
+        // Update nav
+        document.querySelectorAll('#configNav .nav-link').forEach(l => l.classList.remove('active'));
+        this.classList.add('active');
+
+        // Update sections
+        document.querySelectorAll('.config-section').forEach(s => s.classList.remove('active'));
+        document.getElementById(section).classList.add('active');
+
+        // Update URL hash
+        history.pushState(null, '', '#' + section);
+    });
+});
+
+// Handle URL hash on load
+window.addEventListener('load', function() {
+    const hash = window.location.hash.replace('#', '');
+    if (hash) {
+        const link = document.querySelector(`#configNav .nav-link[data-section="${hash}"]`);
+        if (link) link.click();
+    }
+});
+
+// Color preview updates
+document.querySelector('input[name="cor_primaria"]')?.addEventListener('input', function() {
+    document.getElementById('previewPrimaria').style.background = this.value;
+});
+document.querySelector('input[name="cor_secundaria"]')?.addEventListener('input', function() {
+    document.getElementById('previewSecundaria').style.background = this.value;
+});
+
+// Test Email
+function testarEmail() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Testando...';
+    btn.disabled = true;
+
+    fetch('{{ url_for("admin.testar_email") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Sucesso: ' + data.message);
+        } else {
+            alert('Erro: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Erro ao testar email: ' + error);
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+// Test IA
+function testarIA() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Testando...';
+    btn.disabled = true;
+
+    fetch('{{ url_for("admin.testar_ia") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Sucesso: ' + data.message);
+        } else {
+            alert('Erro: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Erro ao testar IA: ' + error);
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+</script>
+{% endblock %}
