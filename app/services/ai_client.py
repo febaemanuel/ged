@@ -34,8 +34,49 @@ class AIClientError(Exception):
     pass
 
 
+def is_ia_enabled():
+    """
+    Verifica se a IA está habilitada no sistema.
+
+    Returns:
+        bool: True se a IA estiver ativa e configurada
+    """
+    try:
+        from app.models import ConfiguracaoSistema
+        config = ConfiguracaoSistema.get_config()
+        if config and config.ia_ativo and config.ia_api_key:
+            return True
+    except Exception:
+        pass
+
+    # Fallback: verifica se tem API key configurada via env
+    return bool(current_app.config.get('AI_API_KEY'))
+
+
 def _get_api_config():
-    """Retorna configurações da API de IA"""
+    """
+    Retorna configurações da API de IA.
+
+    Prioridade:
+    1. ConfiguracaoSistema (banco de dados) - se IA estiver ativa
+    2. Fallback para current_app.config (variáveis de ambiente)
+    """
+    try:
+        # Tenta usar configuração do banco de dados
+        from app.models import ConfiguracaoSistema
+        config_db = ConfiguracaoSistema.get_config()
+
+        if config_db and config_db.ia_ativo:
+            return {
+                'base_url': config_db.ia_api_url or current_app.config.get('AI_API_BASE_URL'),
+                'api_key': config_db.ia_api_key or current_app.config.get('AI_API_KEY'),
+                'timeout': config_db.ia_timeout or current_app.config.get('AI_API_TIMEOUT', 30),
+                'model': config_db.ia_modelo or current_app.config.get('AI_API_MODEL', 'deepseek-chat')
+            }
+    except Exception as e:
+        logger.warning(f"Erro ao buscar configuração de IA do banco: {e}")
+
+    # Fallback para configuração via variáveis de ambiente
     return {
         'base_url': current_app.config.get('AI_API_BASE_URL'),
         'api_key': current_app.config.get('AI_API_KEY'),
