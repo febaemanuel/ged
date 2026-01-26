@@ -45,6 +45,43 @@ def log_debug(message):
     logger.info(message)
 
 
+def _get_workflow_config():
+    """
+    Retorna configurações de workflow do sistema.
+
+    Prioridade:
+    1. ConfiguracaoSistema (banco de dados)
+    2. Fallback para valores padrão
+
+    Returns:
+        dict: Configurações de workflow
+    """
+    defaults = {
+        'prazo_triagem_dias': 3,
+        'prazo_validacao_dias': 5,
+        'prazo_aprovacao_dias': 7,
+        'prazo_correcao_dias': 5,
+        'prazo_publicacao_dias': 3
+    }
+
+    try:
+        from app.models import ConfiguracaoSistema
+        config = ConfiguracaoSistema.get_config()
+
+        if config and config.workflow_ativo:
+            return {
+                'prazo_triagem_dias': config.workflow_prazo_triagem_dias or defaults['prazo_triagem_dias'],
+                'prazo_validacao_dias': config.workflow_prazo_validacao_dias or defaults['prazo_validacao_dias'],
+                'prazo_aprovacao_dias': config.workflow_prazo_aprovacao_dias or defaults['prazo_aprovacao_dias'],
+                'prazo_correcao_dias': config.workflow_prazo_correcao_dias or defaults['prazo_correcao_dias'],
+                'prazo_publicacao_dias': 3  # Fixo
+            }
+    except Exception as e:
+        logger.warning(f"Erro ao buscar configuração de workflow: {e}")
+
+    return defaults
+
+
 class WorkflowUGQ:
     """
     Gerenciador de Workflow UGQ Centralizado
@@ -86,13 +123,14 @@ class WorkflowUGQ:
         log_debug(f"✅ Triador UGQ encontrado: {triador.nome} ({triador.email})")
 
         # Cria tarefa de triagem
+        wf_config = _get_workflow_config()
         tarefa = Tarefa(
             documento_id=documento.id,
             criador_id=documento.criador_id,
             responsavel_id=triador.id,
             tipo_tarefa=Config.TAREFA_DOCUMENTO_RECEBIDO,
             descricao=f'Triagem de entrada: {documento.titulo}',
-            prazo=datetime.utcnow() + timedelta(days=5),
+            prazo=datetime.utcnow() + timedelta(days=wf_config['prazo_triagem_dias']),
             concluida=False
         )
 
@@ -168,13 +206,14 @@ class WorkflowUGQ:
         tarefa.data_conclusao = datetime.utcnow()
 
         # Cria tarefa de correção para o autor
+        wf_config = _get_workflow_config()
         tarefa_correcao = Tarefa(
             documento_id=documento.id,
             criador_id=tarefa.responsavel_id,  # Triador
             responsavel_id=documento.criador_id,  # Autor
             tipo_tarefa=Config.TAREFA_REALIZAR_CORRECAO,
             descricao=f'Correção necessária: {motivo}',
-            prazo=datetime.utcnow() + timedelta(days=5),
+            prazo=datetime.utcnow() + timedelta(days=wf_config['prazo_correcao_dias']),
             concluida=False
         )
 
@@ -239,13 +278,14 @@ class WorkflowUGQ:
         log_debug(f"✅ Validador UGQ encontrado: {validador.nome} ({validador.email})")
 
         # Cria tarefa de validação e codificação
+        wf_config = _get_workflow_config()
         tarefa_validacao = Tarefa(
             documento_id=documento.id,
             criador_id=tarefa.responsavel_id,  # Triador
             responsavel_id=validador.id,  # Validador
             tipo_tarefa=Config.TAREFA_VALIDAR_CODIFICAR,
             descricao=f'Codificar, validar e preparar: {documento.titulo}',
-            prazo=datetime.utcnow() + timedelta(days=7),
+            prazo=datetime.utcnow() + timedelta(days=wf_config['prazo_validacao_dias']),
             concluida=False
         )
 
@@ -481,13 +521,14 @@ class WorkflowUGQ:
                 ordem=1
             ).first()
 
+            wf_config = _get_workflow_config()
             tarefa = Tarefa(
                 documento_id=documento.id,
                 criador_id=validador_id,
                 responsavel_id=primeiro_item.aprovador_id,
                 tipo_tarefa=f'Assinar Documento [Bloco #{bloco.id}]',
                 descricao=f'Assinar: {documento.codigo_definitivo}',
-                prazo=datetime.utcnow() + timedelta(days=5),
+                prazo=datetime.utcnow() + timedelta(days=wf_config['prazo_aprovacao_dias']),
                 concluida=False
             )
             tarefa.set_metadata({
@@ -501,6 +542,7 @@ class WorkflowUGQ:
 
         elif modo == 'concomitante':
             # Modo concomitante: todos aprovadores simultaneamente
+            wf_config = _get_workflow_config()
             itens = ItemBlocoAssinatura.query.filter_by(bloco_id=bloco.id).all()
             for item in itens:
                 tarefa = Tarefa(
@@ -509,7 +551,7 @@ class WorkflowUGQ:
                     responsavel_id=item.aprovador_id,
                     tipo_tarefa=f'Assinar Documento [Bloco #{bloco.id}]',
                     descricao=f'Assinar: {documento.codigo_definitivo}',
-                    prazo=datetime.utcnow() + timedelta(days=5),
+                    prazo=datetime.utcnow() + timedelta(days=wf_config['prazo_aprovacao_dias']),
                     concluida=False
                 )
                 tarefa.set_metadata({
@@ -1027,13 +1069,14 @@ class WorkflowUGQ:
         print(f"[WORKFLOW] 👤 Validador: {validador.nome} (ID: {validador_id})", file=sys.stderr, flush=True)
         print(f"[WORKFLOW] 📝 Criando tarefa de publicação...", file=sys.stderr, flush=True)
 
+        wf_config = _get_workflow_config()
         tarefa_publicar = Tarefa(
             documento_id=documento.id,
             criador_id=validador_id,
             responsavel_id=validador_id,
             tipo_tarefa=Config.TAREFA_PUBLICAR_APROVADO,
             descricao=f'Publicar documento aprovado: {documento.codigo_definitivo}',
-            prazo=datetime.utcnow() + timedelta(days=3),
+            prazo=datetime.utcnow() + timedelta(days=wf_config['prazo_publicacao_dias']),
             concluida=False,
             prioridade='alta'
         )

@@ -62,7 +62,10 @@
                             {% if current_user.is_admin() %}
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('admin.configuracoes') }}">
-                                <i class="bi bi-gear-fill text-primary"></i> Configurações
+                                <i class="bi bi-gear-fill text-primary"></i> Configuracoes Basicas
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.configuracoes_sistema') }}">
+                                <i class="bi bi-sliders text-danger"></i> Configuracoes Avancadas
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('whatsapp_admin.configuracao') }}">
                                 <i class="bi bi-whatsapp text-success"></i> WhatsApp

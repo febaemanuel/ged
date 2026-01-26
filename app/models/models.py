@@ -1380,6 +1380,198 @@ class PerfilPermissao(db.Model):
         return f'<PerfilPermissao {self.codigo}>'
 
 
+class ConfiguracaoSistema(db.Model):
+    """
+    Configurações globais do sistema GED
+    Singleton - apenas uma instância
+    """
+    __tablename__ = 'configuracao_sistema'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # ============================================================================
+    # CONFIGURAÇÕES GERAIS
+    # ============================================================================
+    nome_sistema = db.Column(db.String(200), default='Sistema GED EBSERH')
+    nome_instituicao = db.Column(db.String(200), default='Complexo Hospitalar Universitário')
+    sigla_instituicao = db.Column(db.String(20), default='CHUFC')
+    logo_url = db.Column(db.String(500))  # URL ou caminho do logo
+    favicon_url = db.Column(db.String(500))
+    cor_primaria = db.Column(db.String(20), default='#4f46e5')
+    cor_secundaria = db.Column(db.String(20), default='#059669')
+    rodape_texto = db.Column(db.Text, default='Sistema de Gestão Eletrônica de Documentos - EBSERH')
+    timezone = db.Column(db.String(50), default='America/Fortaleza')
+    idioma = db.Column(db.String(10), default='pt-BR')
+
+    # ============================================================================
+    # CONFIGURAÇÕES DE EMAIL (SMTP)
+    # ============================================================================
+    email_ativo = db.Column(db.Boolean, default=False)
+    smtp_servidor = db.Column(db.String(200), default='smtp.gmail.com')
+    smtp_porta = db.Column(db.Integer, default=587)
+    smtp_usuario = db.Column(db.String(200))
+    smtp_senha = db.Column(db.String(200))  # Criptografado
+    smtp_use_tls = db.Column(db.Boolean, default=True)
+    smtp_use_ssl = db.Column(db.Boolean, default=False)
+    email_remetente = db.Column(db.String(200))
+    email_remetente_nome = db.Column(db.String(200), default='Sistema GED')
+    email_assunto_prefixo = db.Column(db.String(50), default='[GED]')
+
+    # ============================================================================
+    # CONFIGURAÇÕES DE IA (DeepSeek/OpenAI)
+    # ============================================================================
+    ia_ativo = db.Column(db.Boolean, default=False)
+    ia_api_url = db.Column(db.String(300), default='https://api.deepseek.com')
+    ia_api_key = db.Column(db.String(200))  # Criptografado
+    ia_modelo = db.Column(db.String(100), default='deepseek-chat')
+    ia_timeout = db.Column(db.Integer, default=30)  # segundos
+    ia_max_tokens = db.Column(db.Integer, default=4000)
+    ia_temperatura = db.Column(db.Float, default=0.7)
+    ia_auto_extrair = db.Column(db.Boolean, default=True)  # Extrair texto automaticamente
+    ia_auto_classificar = db.Column(db.Boolean, default=True)  # Classificar automaticamente
+    ia_auto_resumir = db.Column(db.Boolean, default=False)  # Gerar resumo automaticamente
+
+    # ============================================================================
+    # CONFIGURAÇÕES DE SEGURANÇA
+    # ============================================================================
+    sessao_timeout_minutos = db.Column(db.Integer, default=1440)  # 24 horas
+    senha_min_caracteres = db.Column(db.Integer, default=8)
+    senha_exigir_maiuscula = db.Column(db.Boolean, default=True)
+    senha_exigir_numero = db.Column(db.Boolean, default=True)
+    senha_exigir_especial = db.Column(db.Boolean, default=False)
+    senha_expirar_dias = db.Column(db.Integer, default=0)  # 0 = nunca expira
+    login_max_tentativas = db.Column(db.Integer, default=5)
+    login_bloqueio_minutos = db.Column(db.Integer, default=15)
+    permitir_multiplas_sessoes = db.Column(db.Boolean, default=True)
+    registrar_log_acesso = db.Column(db.Boolean, default=True)
+
+    # ============================================================================
+    # CONFIGURAÇÕES DE DOCUMENTOS
+    # ============================================================================
+    doc_extensoes_permitidas = db.Column(db.String(500), default='.doc,.docx,.odt,.pdf,.xls,.xlsx,.ppt,.pptx')
+    doc_tamanho_max_mb = db.Column(db.Integer, default=50)  # MB
+    doc_versao_inicial = db.Column(db.String(20), default='1.0')
+    doc_gerar_codigo_provisorio = db.Column(db.Boolean, default=True)
+    doc_exigir_descricao = db.Column(db.Boolean, default=False)
+    doc_notificar_criacao = db.Column(db.Boolean, default=True)
+    doc_notificar_aprovacao = db.Column(db.Boolean, default=True)
+    doc_notificar_publicacao = db.Column(db.Boolean, default=True)
+    doc_dias_alerta_vencimento = db.Column(db.Integer, default=30)  # Alertar X dias antes
+    doc_permitir_download_publico = db.Column(db.Boolean, default=False)
+
+    # ============================================================================
+    # CONFIGURAÇÕES DE WORKFLOW
+    # ============================================================================
+    workflow_ativo = db.Column(db.Boolean, default=True)
+    workflow_modo = db.Column(db.String(20), default='ugq')  # 'simples' ou 'ugq'
+    workflow_prazo_triagem_dias = db.Column(db.Integer, default=3)
+    workflow_prazo_validacao_dias = db.Column(db.Integer, default=5)
+    workflow_prazo_aprovacao_dias = db.Column(db.Integer, default=7)
+    workflow_prazo_correcao_dias = db.Column(db.Integer, default=5)
+    workflow_permitir_auto_aprovacao = db.Column(db.Boolean, default=False)
+    workflow_notificar_atraso = db.Column(db.Boolean, default=True)
+    workflow_escalar_atraso_dias = db.Column(db.Integer, default=3)  # Escalar após X dias de atraso
+
+    # ============================================================================
+    # CONFIGURAÇÕES DE NOTIFICAÇÕES
+    # ============================================================================
+    notif_email_ativo = db.Column(db.Boolean, default=True)
+    notif_whatsapp_ativo = db.Column(db.Boolean, default=False)
+    notif_sistema_ativo = db.Column(db.Boolean, default=True)
+    notif_frequencia_resumo = db.Column(db.String(20), default='diario')  # 'imediato', 'diario', 'semanal'
+    notif_hora_resumo = db.Column(db.String(5), default='08:00')
+    notif_dias_lembrete = db.Column(db.Integer, default=1)  # Lembrar após X dias sem ação
+
+    # ============================================================================
+    # CONFIGURAÇÕES DE BACKUP
+    # ============================================================================
+    backup_ativo = db.Column(db.Boolean, default=True)
+    backup_frequencia = db.Column(db.String(20), default='diario')  # 'diario', 'semanal', 'mensal'
+    backup_hora = db.Column(db.String(5), default='03:00')
+    backup_retencao_dias = db.Column(db.Integer, default=30)
+    backup_incluir_arquivos = db.Column(db.Boolean, default=True)
+    backup_destino = db.Column(db.String(500), default='/backups')
+    backup_notificar_admin = db.Column(db.Boolean, default=True)
+
+    # ============================================================================
+    # CONFIGURAÇÕES DE MANUTENÇÃO
+    # ============================================================================
+    manutencao_ativa = db.Column(db.Boolean, default=False)
+    manutencao_mensagem = db.Column(db.Text, default='Sistema em manutenção. Por favor, tente novamente mais tarde.')
+    manutencao_inicio = db.Column(db.DateTime)
+    manutencao_fim = db.Column(db.DateTime)
+    manutencao_permitir_admin = db.Column(db.Boolean, default=True)
+    log_nivel = db.Column(db.String(20), default='INFO')  # DEBUG, INFO, WARNING, ERROR
+    log_retencao_dias = db.Column(db.Integer, default=90)
+    limpar_sessoes_expiradas = db.Column(db.Boolean, default=True)
+
+    # ============================================================================
+    # CONFIGURAÇÕES DE INTERFACE
+    # ============================================================================
+    ui_itens_por_pagina = db.Column(db.Integer, default=20)
+    ui_mostrar_estatisticas_dashboard = db.Column(db.Boolean, default=True)
+    ui_mostrar_documentos_recentes = db.Column(db.Boolean, default=True)
+    ui_mostrar_tarefas_pendentes = db.Column(db.Boolean, default=True)
+    ui_tema = db.Column(db.String(20), default='claro')  # 'claro', 'escuro', 'auto'
+    ui_sidebar_expandida = db.Column(db.Boolean, default=True)
+    ui_animacoes = db.Column(db.Boolean, default=True)
+
+    # ============================================================================
+    # AUDITORIA
+    # ============================================================================
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    atualizado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+
+    # Relacionamento
+    atualizado_por = db.relationship('Usuario', foreign_keys=[atualizado_por_id])
+
+    @classmethod
+    def get_config(cls):
+        """Retorna configuração única do sistema (singleton)"""
+        config = cls.query.first()
+        if not config:
+            config = cls()
+            db.session.add(config)
+            db.session.commit()
+        return config
+
+    def get_extensoes_lista(self):
+        """Retorna lista de extensões permitidas"""
+        if self.doc_extensoes_permitidas:
+            return [ext.strip() for ext in self.doc_extensoes_permitidas.split(',')]
+        return []
+
+    def extensao_permitida(self, extensao):
+        """Verifica se uma extensão é permitida"""
+        extensao = extensao.lower()
+        if not extensao.startswith('.'):
+            extensao = '.' + extensao
+        return extensao in self.get_extensoes_lista()
+
+    def to_dict(self):
+        """Retorna configurações como dicionário (para API)"""
+        return {
+            'nome_sistema': self.nome_sistema,
+            'nome_instituicao': self.nome_instituicao,
+            'sigla_instituicao': self.sigla_instituicao,
+            'cor_primaria': self.cor_primaria,
+            'cor_secundaria': self.cor_secundaria,
+            'timezone': self.timezone,
+            'idioma': self.idioma,
+            'email_ativo': self.email_ativo,
+            'ia_ativo': self.ia_ativo,
+            'workflow_ativo': self.workflow_ativo,
+            'workflow_modo': self.workflow_modo,
+            'manutencao_ativa': self.manutencao_ativa,
+            'ui_tema': self.ui_tema,
+            'ui_itens_por_pagina': self.ui_itens_por_pagina,
+        }
+
+    def __repr__(self):
+        return f'<ConfiguracaoSistema {self.nome_sistema}>'
+
+
 class Notificacao(db.Model):
     """
     Modelo de Notificações do Sistema

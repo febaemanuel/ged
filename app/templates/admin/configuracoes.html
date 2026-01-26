@@ -80,10 +80,13 @@
                 <p class="mb-0 opacity-75">Gerencie abrangências, tipos de documento, setores e permissões</p>
             </div>
             <div class="col-md-4 text-end">
+                <a href="{{ url_for('admin.configuracoes_sistema') }}" class="btn btn-light btn-sm me-2">
+                    <i class="bi bi-sliders"></i> Config. Avancadas
+                </a>
                 <form action="{{ url_for('admin.inicializar_dados') }}" method="POST" class="d-inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button type="submit" class="btn btn-outline-light btn-sm" onclick="return confirm('Inicializar dados padrão?')">
-                        <i class="bi bi-database-add"></i> Inicializar Dados Padrão
+                    <button type="submit" class="btn btn-outline-light btn-sm" onclick="return confirm('Inicializar dados padrao?')">
+                        <i class="bi bi-database-add"></i> Inicializar Dados Padrao
                     </button>
                 </form>
             </div>

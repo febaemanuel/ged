@@ -11,6 +11,69 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _is_email_enabled():
+    """
+    Verifica se o envio de e-mail está habilitado no sistema.
+
+    Returns:
+        bool: True se o email estiver ativo e configurado
+    """
+    try:
+        from app.models import ConfiguracaoSistema
+        config = ConfiguracaoSistema.get_config()
+        if config:
+            # Se email_ativo está explicitamente False, não envia
+            if not config.email_ativo:
+                return False
+            # Se está ativo, verifica se tem configuração SMTP
+            if config.smtp_usuario:
+                return True
+    except Exception as e:
+        logger.warning(f"Erro ao verificar configuração de email: {e}")
+
+    # Fallback: verifica configuração via variável de ambiente
+    return bool(current_app.config.get('MAIL_USERNAME'))
+
+
+def _get_email_config():
+    """
+    Retorna configurações de email do sistema.
+
+    Prioridade:
+    1. ConfiguracaoSistema (banco de dados)
+    2. Fallback para current_app.config (variáveis de ambiente)
+    """
+    try:
+        from app.models import ConfiguracaoSistema
+        config = ConfiguracaoSistema.get_config()
+
+        if config and config.email_ativo and config.smtp_usuario:
+            return {
+                'server': config.smtp_servidor,
+                'port': config.smtp_porta,
+                'use_tls': config.smtp_use_tls,
+                'use_ssl': config.smtp_use_ssl,
+                'username': config.smtp_usuario,
+                'password': config.smtp_senha,
+                'sender': config.email_remetente or config.smtp_usuario,
+                'nome_sistema': config.nome_sistema or 'Sistema GED'
+            }
+    except Exception as e:
+        logger.warning(f"Erro ao buscar configuração de email do banco: {e}")
+
+    # Fallback para variáveis de ambiente
+    return {
+        'server': current_app.config.get('MAIL_SERVER'),
+        'port': current_app.config.get('MAIL_PORT'),
+        'use_tls': current_app.config.get('MAIL_USE_TLS'),
+        'use_ssl': current_app.config.get('MAIL_USE_SSL'),
+        'username': current_app.config.get('MAIL_USERNAME'),
+        'password': current_app.config.get('MAIL_PASSWORD'),
+        'sender': current_app.config.get('MAIL_DEFAULT_SENDER'),
+        'nome_sistema': 'Sistema GED'
+    }
+
+
 class EmailService:
     """Serviço para envio de e-mails"""
 
@@ -29,10 +92,13 @@ class EmailService:
             bool: True se enviado com sucesso, False caso contrário
         """
         try:
-            # Verifica se as configurações de e-mail estão definidas
-            if not current_app.config.get('MAIL_USERNAME'):
-                logger.warning('Configurações de e-mail não definidas. E-mail não será enviado.')
+            # Verifica se o envio de e-mail está habilitado
+            if not _is_email_enabled():
+                logger.warning('Envio de e-mail desabilitado ou não configurado. E-mail não será enviado.')
                 return False
+
+            # Obtém configurações de email
+            email_config = _get_email_config()
 
             msg = Message(
                 subject=assunto,
@@ -83,7 +149,7 @@ class EmailService:
                 {link_html}
             </div>
             <div style="margin-top: 20px; padding: 20px; background-color: #f8f9fa; font-size: 12px; color: #6c757d; text-align: center;">
-                <p>Este é um e-mail automático do Sistema GED. Por favor, não responda.</p>
+                <p>Este é um e-mail automático do {_get_email_config().get('nome_sistema', 'Sistema GED')}. Por favor, não responda.</p>
             </div>
         </body>
         </html>
